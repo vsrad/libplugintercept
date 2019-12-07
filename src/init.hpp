@@ -7,7 +7,22 @@
 // HSA Runtime function table without intercepts.
 CoreApiTable _hsa_core_api_table;
 
-void* _debug_buffer = NULL;
+class Buffer
+{
+private:
+    size_t size;
+    void* ptr;
+
+public:
+    Buffer(size_t size_, void* ptr_)
+        : size{size_},
+          ptr{ptr_} {}
+    template <typename T>
+    T* Ptr() { return (T*)ptr; }
+    size_t Size() const { return size; }
+};
+
+Buffer* _debug_buffer = nullptr;
 
 hsa_status_t find_gpu_region_callback(
     hsa_region_t region, 

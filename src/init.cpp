@@ -28,8 +28,8 @@ hsa_status_t intercept_hsa_code_object_reader_create_from_memory(
     {
         if ((*reinterpret_cast<__int128*>(instructions) & mask) == pattern)
         {
-            instructions[1] = static_cast<uint32_t>(reinterpret_cast<uint64_t>(_debug_buffer) & 0xffffffff);
-            instructions[3] = static_cast<uint32_t>(reinterpret_cast<uint64_t>(_debug_buffer) << 32);
+            instructions[1] = static_cast<uint32_t>(reinterpret_cast<uint64_t>(_debug_buffer->Ptr<void>()) & 0xffffffff);
+            instructions[3] = static_cast<uint32_t>(reinterpret_cast<uint64_t>(_debug_buffer->Ptr<void>()) << 32);
             std::cout << "Injected debug buffer address into code object at " << instructions << std::endl;
             instructions += 4;
         }
@@ -89,13 +89,16 @@ hsa_status_t intercept_hsa_queue_create(
             std::cerr << "Unable to find GPU region to allocate debug buffer" << std::endl;
             return status;
         }
-        status = hsa_memory_allocate(gpu_region, buf_size, &_debug_buffer);
+
+        void* local_ptr;
+        status = hsa_memory_allocate(gpu_region, buf_size, &local_ptr);
         if (status != HSA_STATUS_SUCCESS)
         {
             std::cerr << "Unable to find GPU region to allocate debug buffer" << std::endl;
             return status;
         }
-        std::cout << "Allocated debug buffer of size " << buf_size << " at " << _debug_buffer << std::endl;
+        _debug_buffer = new Buffer(buf_size, local_ptr);
+        std::cout << "Allocated debug buffer of size " << buf_size << " at " << _debug_buffer->Ptr<void>() << std::endl;
     }
     else
     {
