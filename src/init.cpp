@@ -1,12 +1,5 @@
-#define AMD_INTERNAL_BUILD
-#include <hsa_api_trace.h>
-
+#include "init.hpp"
 #include <iostream>
-
-// HSA Runtime function table without intercepts.
-CoreApiTable _hsa_core_api_table;
-
-void* _debug_buffer = NULL;
 
 hsa_status_t intercept_hsa_code_object_reader_create_from_memory(
     const void* code_object,
@@ -45,7 +38,9 @@ hsa_status_t intercept_hsa_code_object_reader_create_from_memory(
     return _hsa_core_api_table.hsa_code_object_reader_create_from_memory_fn(patched_code_object, size, code_object_reader);
 }
 
-hsa_status_t find_gpu_region_callback(hsa_region_t region, void* data)
+hsa_status_t find_gpu_region_callback(
+    hsa_region_t region, 
+    void* data)
 {
     hsa_region_segment_t segment_id;
     hsa_region_get_info(region, HSA_REGION_INFO_SEGMENT, &segment_id);
