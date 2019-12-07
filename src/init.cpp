@@ -13,24 +13,36 @@ hsa_status_t intercept_hsa_code_object_reader_create_from_memory(
     size_t size,
     hsa_code_object_reader_t* code_object_reader)
 {
-    const size_t amd_kernel_code_t_offset = 256;
-    const uint32_t* instructions = static_cast<const uint32_t*>(code_object + amd_kernel_code_t_offset);
-    const uint32_t* instructions_end = static_cast<const uint32_t*>(code_object + size);
+    uint32_t* patched_code_object = new uint32_t[size / 4];
+    uint32_t* patched_code_object_end = patched_code_object + size / 4;
+    memcpy(patched_code_object, code_object, size);
 
-    for (; instructions < instructions_end - 2; ++instructions)
+    const __int128 mask =
+        ((__int128)0xff80ffff)          // instruction
+        | ((__int128)0xffffffff << 32)  // address literal
+        | ((__int128)0xff80ffff << 64)  // instruction #2
+        | ((__int128)0xffffffff << 96); // address literal #2
+
+    const __int128 pattern =
+        ((__int128)0xbe8000ff)         // 0xbe8..... = s_mov_b32, 0x......ff = source operand is a literal constant
+        | ((__int128)0x7f7f7f7f << 32) // magic address constant
+        | ((__int128)0xbe8000ff << 64) // next s_mov_b32 instruction
+        | ((__int128)0x7f7f7f7f << 96);
+
+    const size_t amd_kernel_code_t_offset = 256 / 4;
+    for (uint32_t* instructions = patched_code_object + amd_kernel_code_t_offset;
+         instructions < patched_code_object_end - 4; ++instructions)
     {
-        if (*instructions == 0x7f7f7f7f)
+        if ((*reinterpret_cast<__int128*>(instructions) & mask) == pattern)
         {
-            std::cout << "Magic bytes found" << std::endl;
-            if (instructions[2] == 0x7f7f7f7f)
-            {
-                std::cout << "s_mov_b32 found" << std::endl;
-                instructions += 2;
-            }
+            instructions[1] = static_cast<uint32_t>(reinterpret_cast<uint64_t>(_debug_buffer) & 0xffffffff);
+            instructions[3] = static_cast<uint32_t>(reinterpret_cast<uint64_t>(_debug_buffer) << 32);
+            std::cout << "Injected debug buffer address into code object at " << instructions << std::endl;
+            instructions += 4;
         }
     }
 
-    return _hsa_core_api_table.hsa_code_object_reader_create_from_memory_fn(code_object, size, code_object_reader);
+    return _hsa_core_api_table.hsa_code_object_reader_create_from_memory_fn(patched_code_object, size, code_object_reader);
 }
 
 hsa_status_t find_gpu_region_callback(hsa_region_t region, void* data)
