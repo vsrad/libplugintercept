@@ -1,0 +1,9 @@
+build/
+
+# Visual Studio / Visual Studio Code
+.vs/
+.vscode/
+
+# Python Tools
+__pycache__/
+*.pyc
