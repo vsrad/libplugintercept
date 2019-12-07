@@ -16,7 +16,7 @@ void hsa_error(const char* msg, hsa_status_t status)
 
 void load_code_object(hsa_agent_t hsa_agent)
 {
-    const char* filename = "test/fp32_v_add.co";
+    const char* filename = "build/test/kernels/dbg_kernel.co";
     std::ifstream in(filename, std::ios::binary | std::ios::ate);
     if (!in)
     {
