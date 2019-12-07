@@ -10,26 +10,27 @@ hsa_status_t intercept_hsa_code_object_reader_create_from_memory(
     uint32_t* patched_code_object_end = patched_code_object + size / 4;
     memcpy(patched_code_object, code_object, size);
 
-    const __int128 mask =
-        ((__int128)0xff80ffff)          // instruction
-        | ((__int128)0xffffffff << 32)  // address literal
-        | ((__int128)0xff80ffff << 64)  // instruction #2
-        | ((__int128)0xffffffff << 96); // address literal #2
-
-    const __int128 pattern =
-        ((__int128)0xbe8000ff)         // 0xbe8..... = s_mov_b32, 0x......ff = source operand is a literal constant
-        | ((__int128)0x7f7f7f7f << 32) // magic address constant
-        | ((__int128)0xbe8000ff << 64) // next s_mov_b32 instruction
-        | ((__int128)0x7f7f7f7f << 96);
+    // s_mov_b32 encoding (Vega ISA):
+    // bits 31-23 (0xff800000) are set to 0xbe8
+    // bits 22-16 (0x007f0000) encode the destination register, don't check them
+    // bits 15-8 (0x0000ff00) are set to 0
+    // bits 7-0 (0x000000ff) encode the source operand, should be set to 0xff for an address literal
+    const uint32_t s_mov_mask = 0xff80ffff;
+    const uint32_t s_mov_pattern = 0xbe8000ff;
+    const uint32_t address_literal_pattern = 0x7f7f7f7f;
 
     const size_t amd_kernel_code_t_offset = 256 / 4;
     for (uint32_t* instructions = patched_code_object + amd_kernel_code_t_offset;
-         instructions < patched_code_object_end - 4; ++instructions)
+         instructions < patched_code_object_end - 3; ++instructions)
     {
-        if ((*reinterpret_cast<__int128*>(instructions) & mask) == pattern)
+        if ((instructions[1] == address_literal_pattern) &&
+            (instructions[3] == address_literal_pattern) &&
+            (instructions[0] & s_mov_mask) == s_mov_pattern && // first s_mov_b32 instruction
+            (instructions[2] & s_mov_mask) == s_mov_pattern)   // second s_mov_b32 instruction
         {
-            instructions[1] = static_cast<uint32_t>(reinterpret_cast<uint64_t>(_debug_buffer->Ptr<void>()) & 0xffffffff);
-            instructions[3] = static_cast<uint32_t>(reinterpret_cast<uint64_t>(_debug_buffer->Ptr<void>()) << 32);
+            uint64_t buf_addr = reinterpret_cast<uint64_t>(_debug_buffer->Ptr<void>());
+            instructions[1] = static_cast<uint32_t>(buf_addr & 0xffffffff);
+            instructions[3] = static_cast<uint32_t>(buf_addr >> 32);
             std::cout << "Injected debug buffer address into code object at " << instructions << std::endl;
             instructions += 4;
         }

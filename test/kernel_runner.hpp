@@ -136,8 +136,8 @@ public:
 
     void await_kernel_completion()
     {
-        hsa_signal_value_t result = 0;
-        while (result != 0)
+        hsa_signal_value_t result = -1;
+        while (result != HSA_STATUS_SUCCESS)
             result = hsa_signal_wait_acquire(_completion_signal, HSA_SIGNAL_CONDITION_EQ, 0, ~0ULL, HSA_WAIT_STATE_ACTIVE);
     }
 };
