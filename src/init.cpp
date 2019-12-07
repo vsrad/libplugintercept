@@ -1,4 +1,5 @@
 #include "init.hpp"
+#include <fstream>
 #include <iostream>
 
 hsa_status_t intercept_hsa_code_object_reader_create_from_memory(
@@ -28,7 +29,7 @@ hsa_status_t intercept_hsa_code_object_reader_create_from_memory(
             (instructions[0] & s_mov_mask) == s_mov_pattern && // first s_mov_b32 instruction
             (instructions[2] & s_mov_mask) == s_mov_pattern)   // second s_mov_b32 instruction
         {
-            uint64_t buf_addr = reinterpret_cast<uint64_t>(_debug_buffer->Ptr<void>());
+            uint64_t buf_addr = reinterpret_cast<uint64_t>(_debug_buffer->LocalPtr());
             instructions[1] = static_cast<uint32_t>(buf_addr & 0xffffffff);
             instructions[3] = static_cast<uint32_t>(buf_addr >> 32);
             std::cout << "Injected debug buffer address into code object at " << instructions << std::endl;
@@ -40,7 +41,7 @@ hsa_status_t intercept_hsa_code_object_reader_create_from_memory(
 }
 
 hsa_status_t find_gpu_region_callback(
-    hsa_region_t region, 
+    hsa_region_t region,
     void* data)
 {
     hsa_region_segment_t segment_id;
@@ -51,13 +52,18 @@ hsa_status_t find_gpu_region_callback(
         hsa_region_global_flag_t flags;
         hsa_region_get_info(region, HSA_REGION_INFO_GLOBAL_FLAGS, &flags);
 
+        if (flags & HSA_REGION_GLOBAL_FLAG_FINE_GRAINED)
+        {
+            _system_region = region;
+        }
+
         if (flags & HSA_REGION_GLOBAL_FLAG_COARSE_GRAINED)
         {
             bool host_accessible_region = false;
             hsa_region_get_info(region, (hsa_region_info_t)HSA_AMD_REGION_INFO_HOST_ACCESSIBLE, &host_accessible_region);
 
             if (!host_accessible_region)
-                *static_cast<hsa_region_t*>(data) = region;
+                _gpu_local_region = region;
         }
     }
 
@@ -83,23 +89,30 @@ hsa_status_t intercept_hsa_queue_create(
     {
         int buf_size = atoi(buf_size_env);
 
-        hsa_region_t gpu_region = {0};
-        status = hsa_agent_iterate_regions(agent, find_gpu_region_callback, &gpu_region);
-        if (status != HSA_STATUS_SUCCESS || gpu_region.handle == 0)
+        status = hsa_agent_iterate_regions(agent, find_gpu_region_callback, nullptr);
+        if (status != HSA_STATUS_SUCCESS || _gpu_local_region.handle == 0 || _system_region.handle == 0)
         {
             std::cerr << "Unable to find GPU region to allocate debug buffer" << std::endl;
             return status;
         }
 
         void* local_ptr;
-        status = hsa_memory_allocate(gpu_region, buf_size, &local_ptr);
+        status = hsa_memory_allocate(_gpu_local_region, buf_size, &local_ptr);
         if (status != HSA_STATUS_SUCCESS)
         {
-            std::cerr << "Unable to find GPU region to allocate debug buffer" << std::endl;
+            std::cerr << "Unable to allocate GPU local memory for debug buffer" << std::endl;
             return status;
         }
-        _debug_buffer = new Buffer(buf_size, local_ptr);
-        std::cout << "Allocated debug buffer of size " << buf_size << " at " << _debug_buffer->Ptr<void>() << std::endl;
+
+        void* system_ptr;
+        status = hsa_memory_allocate(_system_region, buf_size, &system_ptr);
+        if (status != HSA_STATUS_SUCCESS)
+        {
+            std::cerr << "Unable to allocate system memory for debug buffer" << std::endl;
+            return status;
+        }
+        _debug_buffer = new Buffer(buf_size, local_ptr, system_ptr);
+        std::cout << "Allocated debug buffer of size " << buf_size << " at " << _debug_buffer->LocalPtr() << std::endl;
     }
     else
     {
@@ -109,6 +122,47 @@ hsa_status_t intercept_hsa_queue_create(
     return status;
 }
 
+hsa_signal_value_t intercept_hsa_signal_wait_scacquire(
+    hsa_signal_t signal,
+    hsa_signal_condition_t condition,
+    hsa_signal_value_t compare_value,
+    uint64_t timeout_hint,
+    hsa_wait_state_t wait_state_hint)
+{
+    hsa_signal_value_t value = _hsa_core_api_table.hsa_signal_wait_scacquire_fn(
+        signal, condition, compare_value, timeout_hint, wait_state_hint);
+
+    if (const char* debug_path = getenv("ASM_DBG_PATH"))
+    {
+        if (value == HSA_STATUS_SUCCESS)
+        {
+            hsa_status_t status;
+            status = hsa_memory_copy(_debug_buffer->SystemPtr(), _debug_buffer->LocalPtr(), _debug_buffer->Size());
+            if (status != HSA_STATUS_SUCCESS)
+            {
+                std::cerr << "Unable to copy GPU local memory to system memory for debug buffer" << std::endl;
+                return status;
+            }
+
+            std::ofstream fs(debug_path, std::ios::out | std::ios::binary);
+            if (!fs.is_open())
+            {
+                std::cerr << "Failed to open " << debug_path << std::endl;
+                return status;
+            }
+
+            fs.write((char*)(_debug_buffer->SystemPtr()), _debug_buffer->Size());
+            fs.close();
+        }
+    }
+    else
+    {
+        std::cout << "Warning: cannot allocate debug buffer because ASM_DBG_PATH is not set" << std::endl;
+    }
+
+    return value;
+}
+
 extern "C" bool OnLoad(void* api_table_ptr, uint64_t rt_version, uint64_t failed_tool_cnt, const char* const* failed_tool_names)
 {
     auto api_table = reinterpret_cast<HsaApiTable*>(api_table_ptr);
@@ -116,6 +170,7 @@ extern "C" bool OnLoad(void* api_table_ptr, uint64_t rt_version, uint64_t failed
 
     api_table->core_->hsa_queue_create_fn = intercept_hsa_queue_create;
     api_table->core_->hsa_code_object_reader_create_from_memory_fn = intercept_hsa_code_object_reader_create_from_memory;
+    api_table->core_->hsa_signal_wait_scacquire_fn = intercept_hsa_signal_wait_scacquire;
 
     return true;
 }
