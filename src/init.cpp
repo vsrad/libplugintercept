@@ -113,40 +113,6 @@ hsa_status_t intercept_hsa_queue_create(
     return status;
 }
 
-hsa_signal_value_t intercept_hsa_signal_wait_scacquire(
-    hsa_signal_t signal,
-    hsa_signal_condition_t condition,
-    hsa_signal_value_t compare_value,
-    uint64_t timeout_hint,
-    hsa_wait_state_t wait_state_hint)
-{
-    hsa_signal_value_t value = _hsa_core_api_table.hsa_signal_wait_scacquire_fn(
-        signal, condition, compare_value, timeout_hint, wait_state_hint);
-
-    if (value != HSA_STATUS_SUCCESS)
-        return value;
-
-    hsa_status_t status;
-    status = hsa_memory_copy(_debug_buffer->SystemPtr(), _debug_buffer->LocalPtr(), _debug_buffer->Size());
-    if (status != HSA_STATUS_SUCCESS)
-    {
-        std::cerr << "Unable to copy GPU local memory to system memory for debug buffer" << std::endl;
-        return status;
-    }
-
-    std::ofstream fs(_debug_path, std::ios::out | std::ios::binary);
-    if (!fs.is_open())
-    {
-        std::cerr << "Failed to open " << _debug_path << std::endl;
-        return status;
-    }
-
-    fs.write((char*)(_debug_buffer->SystemPtr()), _debug_buffer->Size());
-    fs.close();
-
-    return value;
-}
-
 extern "C" bool OnLoad(void* api_table_ptr, uint64_t rt_version, uint64_t failed_tool_cnt, const char* const* failed_tool_names)
 {
     _debug_path = getenv("ASM_DBG_PATH");
@@ -166,7 +132,32 @@ extern "C" bool OnLoad(void* api_table_ptr, uint64_t rt_version, uint64_t failed
 
     api_table->core_->hsa_queue_create_fn = intercept_hsa_queue_create;
     api_table->core_->hsa_code_object_reader_create_from_memory_fn = intercept_hsa_code_object_reader_create_from_memory;
-    api_table->core_->hsa_signal_wait_scacquire_fn = intercept_hsa_signal_wait_scacquire;
 
     return true;
+}
+
+extern "C" void OnUnload()
+{
+    if (!_debug_buffer)
+        std::cerr << "Error: debug buffer is not allocated" << std::endl;
+
+    hsa_status_t status;
+    status = hsa_memory_copy(_debug_buffer->SystemPtr(), _debug_buffer->LocalPtr(), _debug_buffer->Size());
+    if (status != HSA_STATUS_SUCCESS)
+    {
+        std::cerr << "Unable to copy GPU local memory to system memory for debug buffer" << std::endl;
+        return;
+    }
+
+    std::ofstream fs(_debug_path, std::ios::out | std::ios::binary);
+    if (!fs.is_open())
+    {
+        std::cerr << "Failed to open " << _debug_path << std::endl;
+        return;
+    }
+
+    std::cout << "Dump debug buffer to the file: " << _debug_path << std::endl;
+
+    fs.write((char*)(_debug_buffer->SystemPtr()), _debug_buffer->Size());
+    fs.close();
 }

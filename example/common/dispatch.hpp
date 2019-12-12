@@ -105,6 +105,7 @@ protected:
 
 public:
   Dispatch(int argc, const char** argv);
+  ~Dispatch();
 
   void SetAgent(hsa_agent_t agent) { assert(!this->agent.handle); this->agent = agent; }
   bool HasAgent() const { return agent.handle != 0; }

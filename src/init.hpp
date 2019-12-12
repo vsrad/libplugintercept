@@ -50,11 +50,4 @@ hsa_status_t intercept_hsa_queue_create(
     uint32_t group_segment_size,
     hsa_queue_t** queue);
 
-hsa_signal_value_t intercept_hsa_signal_wait_scacquire(
-    hsa_signal_t signal,
-    hsa_signal_condition_t condition,
-    hsa_signal_value_t compare_value,
-    uint64_t timeout_hint,
-    hsa_wait_state_t wait_state_hint);
-
 #endif // INIT_HPP__

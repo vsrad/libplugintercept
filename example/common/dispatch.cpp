@@ -64,6 +64,11 @@ Dispatch::Dispatch(int argc, const char** argv)
   gpu_local_region.handle = 0;
 }
 
+Dispatch::~Dispatch()
+{
+  hsa_shut_down();
+}
+
 hsa_status_t find_gpu_device(hsa_agent_t agent, void *data)
 {
   if (data == NULL) { return HSA_STATUS_ERROR_INVALID_ARGUMENT; }
