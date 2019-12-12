@@ -1,8 +1,9 @@
-#ifndef INIT_HPP__
-#define INIT_HPP__
+#pragma once
 
 #define AMD_INTERNAL_BUILD
 #include <hsa_api_trace.h>
+
+#include "CRC.h"
 
 // HSA Runtime function table without intercepts.
 CoreApiTable _hsa_core_api_table;
@@ -11,6 +12,8 @@ hsa_region_t _system_region {0};
 
 const char* _debug_path;
 size_t _debug_size;
+
+CRC::Table<uint32_t, 32> _crc_table(CRC::CRC_32());
 
 class Buffer
 {
@@ -49,5 +52,3 @@ hsa_status_t intercept_hsa_queue_create(
     uint32_t private_segment_size,
     uint32_t group_segment_size,
     hsa_queue_t** queue);
-
-#endif // INIT_HPP__

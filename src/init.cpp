@@ -1,6 +1,7 @@
 #include "init.hpp"
 #include <fstream>
 #include <iostream>
+#include <iomanip>
 
 hsa_status_t intercept_hsa_code_object_reader_create_from_memory(
     const void* code_object,
@@ -10,6 +11,9 @@ hsa_status_t intercept_hsa_code_object_reader_create_from_memory(
     uint32_t* patched_code_object = new uint32_t[size / 4];
     uint32_t* patched_code_object_end = patched_code_object + size / 4;
     memcpy(patched_code_object, code_object, size);
+
+    uint32_t crc = CRC::Calculate(code_object, size, _crc_table);
+    std::cout << "Loaded code object with CRC32 = " << std::hex << crc << std::endl;
 
     // s_mov_b32 encoding (Vega ISA):
     // bits 31-23 (0xff800000) are set to 0xbe8
