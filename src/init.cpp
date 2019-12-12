@@ -12,8 +12,8 @@ hsa_status_t intercept_hsa_code_object_reader_create_from_memory(
     uint32_t* patched_code_object_end = patched_code_object + size / 4;
     memcpy(patched_code_object, code_object, size);
 
-    uint32_t crc = CRC::Calculate(code_object, size, _crc_table);
-    std::cout << "Loaded code object with CRC32 = " << std::hex << crc << std::endl;
+    auto co = _codeObjectManager->InitCodeObject(code_object, size);
+    _codeObjectManager->WriteCodeObject(co);
 
     // s_mov_b32 encoding (Vega ISA):
     // bits 31-23 (0xff800000) are set to 0xbe8
@@ -120,15 +120,19 @@ hsa_status_t intercept_hsa_queue_create(
 extern "C" bool OnLoad(void* api_table_ptr, uint64_t rt_version, uint64_t failed_tool_cnt, const char* const* failed_tool_names)
 {
     _debug_path = getenv("ASM_DBG_PATH");
+    auto write_path = getenv("ASM_DBG_WRITE_PATH");
     auto debug_size_env = getenv("ASM_DBG_BUF_SIZE");
 
-    if (!_debug_path || !debug_size_env)
+    if (!_debug_path || !debug_size_env || !write_path)
     {
         std::cerr << "Error: environment variable is not set." << std::endl
                   << "-- ASM_DBG_PATH: " << _debug_path << std::endl
                   << "-- ASM_DBG_BUF_SIZE: " << debug_size_env << std::endl;
         return false;
     }
+
+    std::string path_to_dir = std::string(write_path);
+    _codeObjectManager = new agent::CodeObjectManager(path_to_dir);
 
     _debug_size = atoi(debug_size_env);
     auto api_table = reinterpret_cast<HsaApiTable*>(api_table_ptr);
