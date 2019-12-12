@@ -9,6 +9,9 @@ CoreApiTable _hsa_core_api_table;
 hsa_region_t _gpu_local_region {0};
 hsa_region_t _system_region {0};
 
+const char* _debug_path;
+size_t _debug_size;
+
 class Buffer
 {
 private:

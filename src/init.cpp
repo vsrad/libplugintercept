@@ -85,39 +85,30 @@ hsa_status_t intercept_hsa_queue_create(
     if (status != HSA_STATUS_SUCCESS)
         return status;
 
-    if (const char* buf_size_env = getenv("ASM_DBG_BUF_SIZE"))
+    status = hsa_agent_iterate_regions(agent, find_gpu_region_callback, nullptr);
+    if (status != HSA_STATUS_SUCCESS || _gpu_local_region.handle == 0 || _system_region.handle == 0)
     {
-        int buf_size = atoi(buf_size_env);
-
-        status = hsa_agent_iterate_regions(agent, find_gpu_region_callback, nullptr);
-        if (status != HSA_STATUS_SUCCESS || _gpu_local_region.handle == 0 || _system_region.handle == 0)
-        {
-            std::cerr << "Unable to find GPU region to allocate debug buffer" << std::endl;
-            return status;
-        }
-
-        void* local_ptr;
-        status = hsa_memory_allocate(_gpu_local_region, buf_size, &local_ptr);
-        if (status != HSA_STATUS_SUCCESS)
-        {
-            std::cerr << "Unable to allocate GPU local memory for debug buffer" << std::endl;
-            return status;
-        }
-
-        void* system_ptr;
-        status = hsa_memory_allocate(_system_region, buf_size, &system_ptr);
-        if (status != HSA_STATUS_SUCCESS)
-        {
-            std::cerr << "Unable to allocate system memory for debug buffer" << std::endl;
-            return status;
-        }
-        _debug_buffer = new Buffer(buf_size, local_ptr, system_ptr);
-        std::cout << "Allocated debug buffer of size " << buf_size << " at " << _debug_buffer->LocalPtr() << std::endl;
+        std::cerr << "Unable to find GPU region to allocate debug buffer" << std::endl;
+        return status;
     }
-    else
+
+    void* local_ptr;
+    status = hsa_memory_allocate(_gpu_local_region, _debug_size, &local_ptr);
+    if (status != HSA_STATUS_SUCCESS)
     {
-        std::cout << "Warning: cannot allocate debug buffer because ASM_DBG_BUF_SIZE is not set" << std::endl;
+        std::cerr << "Unable to allocate GPU local memory for debug buffer" << std::endl;
+        return status;
     }
+
+    void* system_ptr;
+    status = hsa_memory_allocate(_system_region, _debug_size, &system_ptr);
+    if (status != HSA_STATUS_SUCCESS)
+    {
+        std::cerr << "Unable to allocate system memory for debug buffer" << std::endl;
+        return status;
+    }
+    _debug_buffer = new Buffer(_debug_size, local_ptr, system_ptr);
+    std::cout << "Allocated debug buffer of size " << _debug_size << " at " << _debug_buffer->LocalPtr() << std::endl;
 
     return status;
 }
@@ -132,39 +123,44 @@ hsa_signal_value_t intercept_hsa_signal_wait_scacquire(
     hsa_signal_value_t value = _hsa_core_api_table.hsa_signal_wait_scacquire_fn(
         signal, condition, compare_value, timeout_hint, wait_state_hint);
 
-    if (const char* debug_path = getenv("ASM_DBG_PATH"))
-    {
-        if (value == HSA_STATUS_SUCCESS)
-        {
-            hsa_status_t status;
-            status = hsa_memory_copy(_debug_buffer->SystemPtr(), _debug_buffer->LocalPtr(), _debug_buffer->Size());
-            if (status != HSA_STATUS_SUCCESS)
-            {
-                std::cerr << "Unable to copy GPU local memory to system memory for debug buffer" << std::endl;
-                return status;
-            }
+    if (value != HSA_STATUS_SUCCESS)
+        return value;
 
-            std::ofstream fs(debug_path, std::ios::out | std::ios::binary);
-            if (!fs.is_open())
-            {
-                std::cerr << "Failed to open " << debug_path << std::endl;
-                return status;
-            }
-
-            fs.write((char*)(_debug_buffer->SystemPtr()), _debug_buffer->Size());
-            fs.close();
-        }
-    }
-    else
+    hsa_status_t status;
+    status = hsa_memory_copy(_debug_buffer->SystemPtr(), _debug_buffer->LocalPtr(), _debug_buffer->Size());
+    if (status != HSA_STATUS_SUCCESS)
     {
-        std::cout << "Warning: cannot allocate debug buffer because ASM_DBG_PATH is not set" << std::endl;
+        std::cerr << "Unable to copy GPU local memory to system memory for debug buffer" << std::endl;
+        return status;
     }
+
+    std::ofstream fs(_debug_path, std::ios::out | std::ios::binary);
+    if (!fs.is_open())
+    {
+        std::cerr << "Failed to open " << _debug_path << std::endl;
+        return status;
+    }
+
+    fs.write((char*)(_debug_buffer->SystemPtr()), _debug_buffer->Size());
+    fs.close();
 
     return value;
 }
 
 extern "C" bool OnLoad(void* api_table_ptr, uint64_t rt_version, uint64_t failed_tool_cnt, const char* const* failed_tool_names)
 {
+    _debug_path = getenv("ASM_DBG_PATH");
+    auto debug_size_env = getenv("ASM_DBG_BUF_SIZE");
+
+    if (!_debug_path || !debug_size_env)
+    {
+        std::cerr << "Error: environment variable is not set." << std::endl
+                  << "-- ASM_DBG_PATH: " << _debug_path << std::endl
+                  << "-- ASM_DBG_BUF_SIZE: " << debug_size_env << std::endl;
+        return false;
+    }
+
+    _debug_size = atoi(debug_size_env);
     auto api_table = reinterpret_cast<HsaApiTable*>(api_table_ptr);
     memcpy(static_cast<void*>(&_hsa_core_api_table), static_cast<const void*>(api_table->core_), sizeof(CoreApiTable));
 
