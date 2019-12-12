@@ -16,8 +16,7 @@ private:
 
 public:
     CodeObject(const void* ptr, size_t size);
-    template <typename T>
-    T* Ptr();
+    const void* Ptr();
     size_t Size();
     uint32_t CRC();
 };

@@ -10,10 +10,9 @@ CodeObject::CodeObject(const void* ptr, size_t size)
       _size{size},
       _crc{0} {}
 
-template <typename T>
-T* CodeObject::Ptr()
+const void* CodeObject::Ptr()
 {
-    return (T*)_ptr;
+    return _ptr;
 }
 
 size_t CodeObject::Size()

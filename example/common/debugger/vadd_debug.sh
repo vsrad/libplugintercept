@@ -33,6 +33,7 @@ export DEBUGGER_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 &&
 
 export ASM_DBG_BUF_SIZE=4194304
 export ASM_DBG_PATH="$dump_path"
+export ASM_DBG_WRITE_PATH="./tmp_dir"
 export HSA_TOOLS_LIB="$DEBUGGER_DIR/../../../build/src/libplugintercept.so"
 
 "$DEBUGGER_DIR/../../build/gfx9/fp32_v_add" \
