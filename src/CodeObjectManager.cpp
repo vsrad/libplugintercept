@@ -17,9 +17,9 @@ std::string CodeObjectManager::CreateFilepath(std::string& filename)
     return _path_builder.str();
 }
 
-void CodeObjectManager::CheckIdentitiyExistingCodeObject(const void* ptr, size_t size, uint32_t crc)
+void CodeObjectManager::CheckIdentitiyExistingCodeObject(agent::CodeObject& code_object)
 {
-    auto filename = std::to_string(crc);
+    auto filename = std::to_string(code_object.CRC());
     auto filepath = CreateFilepath(filename);
 
     std::ifstream in(filepath, std::ios::binary | std::ios::ate);
@@ -29,30 +29,30 @@ void CodeObjectManager::CheckIdentitiyExistingCodeObject(const void* ptr, size_t
         {
             size_t prev_size = std::string::size_type(in.tellg());
 
-            if (prev_size == size)
+            if (prev_size == code_object.Size())
             {
-                char* prev_ptr = (char*)std::malloc(size);
+                char* prev_ptr = (char*)std::malloc(code_object.Size());
                 in.seekg(0, std::ios::beg);
                 std::copy(std::istreambuf_iterator<char>(in),
                           std::istreambuf_iterator<char>(),
                           prev_ptr);
 
-                auto res = std::memcmp(ptr, prev_ptr, size);
+                auto res = std::memcmp(code_object.Ptr(), prev_ptr, code_object.Size());
                 if (res)
-                    std::cerr << "Error: code object not equals with preview code object: " << filepath << std::endl;
+                    _logger.Log(code_object, agent::logger::ERROR, "code object not equals with preview code object");
                 else
-                    std::cerr << "Warning: redundant load" << std::endl;
+                    _logger.Log(code_object, agent::logger::WARNING, "redundant load");
 
                 std::free(prev_ptr);
             }
             else
             {
-                std::cerr << "Error: code object not equals with previews code object: " << filepath << std::endl;
+                 _logger.Log(code_object, agent::logger::ERROR, "code object not equals with preview code object");
             }
         }
         else
         {
-            std::cerr << "Warning: cannot open file: " << filepath << " to check equivalence of new input code object" << std::endl;
+            _logger.Log(code_object, agent::logger::ERROR, "cannot open code object file to check equivalence of new input code object");
         }
     }
 }
@@ -63,7 +63,7 @@ std::shared_ptr<CodeObject> CodeObjectManager::InitCodeObject(const void* ptr, s
     auto key = code_object->CRC();
 
     if (_code_objects.find(key) != _code_objects.end())
-        CheckIdentitiyExistingCodeObject(ptr, size, key);
+        CheckIdentitiyExistingCodeObject(*code_object);
 
     _code_objects[key] = code_object;
     return code_object;
@@ -77,7 +77,7 @@ void CodeObjectManager::WriteCodeObject(std::shared_ptr<CodeObject>& code_object
     std::ofstream fs(filepath, std::ios::out | std::ios::binary);
     if (!fs.is_open())
     {
-        std::cerr << "Warning: cannot open file: " << filepath << " to write input code object" << std::endl;
+        _logger.Log(*code_object, agent::logger::ERROR, "cannot write code object to the file");
         return;
     }
 

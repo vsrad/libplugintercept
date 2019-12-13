@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CodeObject.hpp"
+#include "logger/CodeObjectLogger.hpp"
 #include <sstream>
 #include <memory>
 #include <map>
@@ -14,9 +15,10 @@ private:
     std::map<uint32_t, std::shared_ptr<CodeObject>> _code_objects;
     std::string _path;
     std::ostringstream _path_builder;
+    agent::logger::CodeObjectLogger _logger;
     
     std::string CreateFilepath(std::string& filename);
-    void CheckIdentitiyExistingCodeObject(const void* ptr, size_t size, uint32_t crc);
+    void CheckIdentitiyExistingCodeObject(agent::CodeObject& code_object);
 
 public:
     CodeObjectManager(std::string &path);
