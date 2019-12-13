@@ -31,17 +31,19 @@ void CodeObjectManager::CheckIdentitiyExistingCodeObject(const void* ptr, size_t
 
             if (prev_size == size)
             {
-                char* prev_ptr = (char*)malloc(size);
+                char* prev_ptr = (char*)std::malloc(size);
                 in.seekg(0, std::ios::beg);
                 std::copy(std::istreambuf_iterator<char>(in),
                           std::istreambuf_iterator<char>(),
                           prev_ptr);
 
-                auto res = memcmp(ptr, prev_ptr, size);
+                auto res = std::memcmp(ptr, prev_ptr, size);
                 if (res)
                     std::cerr << "Error: code object not equals with preview code object: " << filepath << std::endl;
                 else
                     std::cerr << "Warning: redundant load" << std::endl;
+
+                std::free(prev_ptr);
             }
             else
             {
