@@ -1,38 +1,8 @@
 #pragma once
 
-#define AMD_INTERNAL_BUILD
-#include <hsa_api_trace.h>
-#include "CodeObjectManager.hpp"
+#include "DebugAgent.hpp"
 
-#include "CRC.h"
-
-// HSA Runtime function table without intercepts.
-CoreApiTable _hsa_core_api_table;
-hsa_region_t _gpu_local_region {0};
-hsa_region_t _system_region {0};
-
-const char* _debug_path;
-size_t _debug_size;
-
-agent::CodeObjectManager* _codeObjectManager;
-
-class Buffer
-{
-private:
-    size_t size;
-    void *local_ptr, *system_ptr;
-
-public:
-    Buffer(size_t size_, void* local_ptr_, void* system_ptr_)
-        : size(size_), local_ptr(local_ptr_), system_ptr(system_ptr_) {}
-    void* LocalPtr() { return local_ptr; }
-    void* SystemPtr() { return system_ptr; }
-    size_t Size() const { return size; }
-};
-
-Buffer* _debug_buffer = nullptr;
-
-hsa_status_t find_gpu_region_callback(
+hsa_status_t find_region_callback(
     hsa_region_t region,
     void* data);
 
