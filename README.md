@@ -25,9 +25,9 @@ cmake ..
 make
 ```
 
-Before running the test executable, set `HSA_TOOLS_LIB`:
+Before running the test executable, execute `debug.sh` in project direcotry:
 ```
-export HSA_TOOLS_LIB=`pwd`/build/src/libplugintercept.so
+source debug.sh
 ```
 ## Example 
 
