@@ -62,6 +62,8 @@ std::shared_ptr<CodeObject> CodeObjectManager::InitCodeObject(const void* ptr, s
     auto code_object = std::shared_ptr<CodeObject>(new CodeObject(ptr, size));
     auto key = code_object->CRC();
 
+    _logger.Log(*code_object, agent::logger::INFO, "intercepted code object");
+
     if (_code_objects.find(key) != _code_objects.end())
         CheckIdentitiyExistingCodeObject(*code_object);
 
@@ -83,5 +85,7 @@ void CodeObjectManager::WriteCodeObject(std::shared_ptr<CodeObject>& code_object
 
     fs.write((char*)code_object->Ptr(), code_object->Size());
     fs.close();
+
+    _logger.Log(*code_object, agent::logger::INFO, "code object is written to file");
 }
 } // namespace agent
