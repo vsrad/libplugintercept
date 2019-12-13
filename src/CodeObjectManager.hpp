@@ -14,6 +14,9 @@ private:
     std::map<uint32_t, std::shared_ptr<CodeObject>> _code_objects;
     std::string _path;
     std::ostringstream _path_builder;
+    
+    std::string CreateFilepath(std::string& filename);
+    void CheckIdentitiyExistingCodeObject(const void* ptr, size_t size, uint32_t crc);
 
 public:
     CodeObjectManager(std::string &path);

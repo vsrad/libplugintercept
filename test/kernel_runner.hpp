@@ -75,6 +75,11 @@ public:
         if (status != HSA_STATUS_SUCCESS)
             hsa_error("failed to deserialize code object", status);
 
+        // second read to check functionality of interceptor
+        status = hsa_code_object_reader_create_from_memory(ptr, size, &co_reader);
+        if (status != HSA_STATUS_SUCCESS)
+            hsa_error("failed to deserialize code object", status);
+
         hsa_executable_t executable;
         status = hsa_executable_create(HSA_PROFILE_FULL, HSA_EXECUTABLE_STATE_UNFROZEN, NULL, &executable);
         if (status != HSA_STATUS_SUCCESS)

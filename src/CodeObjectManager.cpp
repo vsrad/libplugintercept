@@ -1,17 +1,67 @@
 #include "CodeObjectManager.hpp"
+#include <cstring>
 #include <fstream>
+#include <iostream>
 
 namespace agent
 {
 CodeObjectManager::CodeObjectManager(std::string& path)
     : _path{std::move(path)} {}
 
+std::string CodeObjectManager::CreateFilepath(std::string& filename)
+{
+    _path_builder.str("");
+    _path_builder.clear();
+    _path_builder << _path << "/" << filename << ".co";
+
+    return _path_builder.str();
+}
+
+void CodeObjectManager::CheckIdentitiyExistingCodeObject(const void* ptr, size_t size, uint32_t crc)
+{
+    auto filename = std::to_string(crc);
+    auto filepath = CreateFilepath(filename);
+
+    std::ifstream in(filepath, std::ios::binary | std::ios::ate);
+    if (!in.fail())
+    {
+        if (in.is_open())
+        {
+            size_t prev_size = std::string::size_type(in.tellg());
+
+            if (prev_size == size)
+            {
+                char* prev_ptr = (char*)malloc(size);
+                in.seekg(0, std::ios::beg);
+                std::copy(std::istreambuf_iterator<char>(in),
+                          std::istreambuf_iterator<char>(),
+                          prev_ptr);
+
+                auto res = memcmp(ptr, prev_ptr, size);
+                if (res)
+                    std::cerr << "Error: code object not equals with preview code object: " << filepath << std::endl;
+                else
+                    std::cerr << "Warning: redundant load" << std::endl;
+            }
+            else
+            {
+                std::cerr << "Error: code object not equals with previews code object: " << filepath << std::endl;
+            }
+        }
+        else
+        {
+            std::cerr << "Warning: cannot open file: " << filepath << " to check equivalence of new input code object" << std::endl;
+        }
+    }
+}
+
 std::shared_ptr<CodeObject> CodeObjectManager::InitCodeObject(const void* ptr, size_t size)
 {
     auto code_object = std::shared_ptr<CodeObject>(new CodeObject(ptr, size));
     auto key = code_object->CRC();
 
-    // TODO check if already exist code object
+    if (_code_objects.find(key) != _code_objects.end())
+        CheckIdentitiyExistingCodeObject(ptr, size, key);
 
     _code_objects[key] = code_object;
     return code_object;
@@ -19,15 +69,13 @@ std::shared_ptr<CodeObject> CodeObjectManager::InitCodeObject(const void* ptr, s
 
 void CodeObjectManager::WriteCodeObject(std::shared_ptr<CodeObject>& code_object)
 {
-    _path_builder.clear();
     auto filename = std::to_string(code_object->CRC());
-
-    _path_builder << _path << "/" << filename << ".co";
-    auto filepath = _path_builder.str();
+    auto filepath = CreateFilepath(filename);
 
     std::ofstream fs(filepath, std::ios::out | std::ios::binary);
     if (!fs.is_open())
     {
+        std::cerr << "Warning: cannot open file: " << filepath << " to write input code object" << std::endl;
         return;
     }
 
