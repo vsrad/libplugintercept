@@ -1,4 +1,5 @@
 #include "init.hpp"
+#include <iostream>
 
 std::unique_ptr<agent::DebugAgent> _debug_agent;
 
@@ -64,12 +65,19 @@ hsa_status_t intercept_hsa_code_object_reader_create_from_memory(
 
 extern "C" bool OnLoad(void* api_table_ptr, uint64_t rt_version, uint64_t failed_tool_cnt, const char* const* failed_tool_names)
 {
-    auto api_table = reinterpret_cast<HsaApiTable*>(api_table_ptr);
+    try
+    {
+        auto api_table = reinterpret_cast<HsaApiTable*>(api_table_ptr);
+        _debug_agent = std::make_unique<agent::DebugAgent>(*api_table);
 
-    _debug_agent = std::make_unique<agent::DebugAgent>(*api_table);
-
-    api_table->core_->hsa_queue_create_fn = intercept_hsa_queue_create;
-    api_table->core_->hsa_code_object_reader_create_from_memory_fn = intercept_hsa_code_object_reader_create_from_memory;
+        api_table->core_->hsa_queue_create_fn = intercept_hsa_queue_create;
+        api_table->core_->hsa_code_object_reader_create_from_memory_fn = intercept_hsa_code_object_reader_create_from_memory;
+    }
+    catch (const std::exception& e)
+    {
+        std::cerr << e.what() << '\n';
+        return false;
+    }
 
     return true;
 }
