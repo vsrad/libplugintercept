@@ -2,6 +2,7 @@
 
 #include "../CodeObject.hpp"
 #include <mutex>
+#include <fstream>
 
 namespace agent
 {
@@ -19,6 +20,7 @@ class CodeObjectLogger
 {
 private:
     std::mutex _lock;
+    std::ofstream _fstream;
 
 public:
     CodeObjectLogger();

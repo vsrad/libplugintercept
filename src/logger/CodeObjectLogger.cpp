@@ -9,7 +9,28 @@ namespace agent
 namespace logger
 {
 
-CodeObjectLogger::CodeObjectLogger() {}
+bool _log_to_file;
+
+CodeObjectLogger::CodeObjectLogger()
+{
+    auto log_path = getenv("ASM_DBG_CO_LOG_PATH");
+
+    if (!log_path)
+        throw std::invalid_argument("ASM_DBG_CO_LOG_PATH environment variable is not set");
+
+    auto log_path_str = std::string(log_path);
+    if (log_path_str.compare("-") == 0)
+        _log_to_file = false;
+    else
+    {
+        _fstream = std::ofstream(log_path, std::ios::out | std::ios::app);
+
+        if (!_fstream.is_open())
+            throw std::ios_base::failure("cannot open code object log file to write logs");
+
+        _log_to_file = true;
+    }
+}
 
 void CodeObjectLogger::Log(agent::CodeObject& code_object, LogType type, const char* message)
 {
@@ -38,7 +59,10 @@ void CodeObjectLogger::Log(agent::CodeObject& code_object, LogType type, const c
                    << message
                    << std::endl;
 
-    std::cout << message_stream.str() << std::endl;
+    if (_log_to_file)
+        _fstream << message_stream.str();
+    else
+        std::cout << message_stream.str();
 }
 
 } // namespace logger
