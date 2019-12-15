@@ -1,10 +1,11 @@
 add_executable(tests
   main.cpp
   test_integration.cpp
+  test_co_swapper.cpp
 )
 
 target_include_directories(tests PUBLIC ${HSA_HEADER_DIR})
-target_link_libraries(tests Catch2::Catch2 ${HSA_LIBRARY})
+target_link_libraries(tests Catch2::Catch2 ${HSA_LIBRARY} plugintercept)
 
 add_dependencies(tests plugintercept dbg_kernel)
 add_subdirectory(kernels)
