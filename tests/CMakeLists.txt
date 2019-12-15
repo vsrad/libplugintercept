@@ -2,6 +2,7 @@ add_executable(tests
   main.cpp
   test_integration.cpp
   test_co_swapper.cpp
+  test_external_command.cpp
 )
 
 target_include_directories(tests PUBLIC ${HSA_HEADER_DIR})
