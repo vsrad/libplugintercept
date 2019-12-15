@@ -11,3 +11,15 @@ if(NOT extern_crcpp_POPULATED)
   FetchContent_Populate(extern_crcpp)
   set_property(GLOBAL PROPERTY CRCPP_INCLUDE_DIR ${extern_crcpp_SOURCE_DIR}/inc)
 endif()
+
+FetchContent_Declare(
+  extern_catch2
+  GIT_REPOSITORY https://github.com/catchorg/Catch2.git
+  GIT_TAG        v2.11.0
+)
+FetchContent_GetProperties(extern_catch2)
+if(NOT extern_catch2_POPULATED)
+  FetchContent_Populate(extern_catch2)
+  add_subdirectory(${extern_catch2_SOURCE_DIR} ${extern_catch2_BINARY_DIR})
+  set_property(GLOBAL PROPERTY CATCH2_MODULE_PATH ${extern_catch2_SOURCE_DIR}/contrib)
+endif()

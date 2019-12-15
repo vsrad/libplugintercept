@@ -31,4 +31,4 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -std=c++17 -g -fPIC")
 
 add_subdirectory(extern)
 add_subdirectory(src)
-add_subdirectory(test)
+add_subdirectory(tests)

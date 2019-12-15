@@ -1,12 +1,8 @@
-#include <fstream>
-#include <unistd.h>
+#include <catch2/catch.hpp>
 #include "kernel_runner.hpp"
 
-int main(void)
+TEST_CASE("kernel runs to completion", "[integration]")
 {
-    const char* tools = getenv("HSA_TOOLS_LIB");
-    std::cout << tools << std::endl;
-
     setenv("ASM_DBG_BUF_SIZE", "4194304", 1);
 
     KernelRunner runner;
@@ -14,6 +10,4 @@ int main(void)
     runner.init_dispatch_packet(1, 1);
     runner.dispatch_kernel();
     runner.await_kernel_completion();
-
-    return 0;
 }
