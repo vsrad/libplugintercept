@@ -1,33 +1,14 @@
 #include "CodeObject.hpp"
+
+#define CRCPP_USE_CPP11
 #include "CRC.h"
 
-CRC::Table<uint32_t, 32> _crc_table(CRC::CRC_32());
+CRC::Table<crc32_t, 32> _crc_table(CRC::CRC_32());
 
 namespace agent
 {
 CodeObject::CodeObject(const void* ptr, size_t size)
     : _ptr{ptr},
       _size{size},
-      _crc{0} {}
-
-const void* CodeObject::Ptr()
-{
-    return _ptr;
-}
-
-size_t CodeObject::Size()
-{
-    return _size;
-}
-
-uint32_t CodeObject::CRC()
-{
-    return (_crc) ? _crc : GenerateCRC();
-}
-
-uint32_t CodeObject::GenerateCRC()
-{
-    return CRC::Calculate(_ptr, _size, _crc_table);
-}
-
+      _crc{CRC::Calculate(_ptr, size, _crc_table)} {}
 } // namespace agent
