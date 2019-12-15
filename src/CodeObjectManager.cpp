@@ -47,7 +47,7 @@ void CodeObjectManager::CheckIdentitiyExistingCodeObject(agent::CodeObject& code
             }
             else
             {
-                 _logger.Log(code_object, agent::logger::ERROR, "code object not equals with preview code object");
+                _logger.Log(code_object, agent::logger::ERROR, "code object not equals with preview code object");
             }
         }
         else
@@ -64,6 +64,7 @@ std::shared_ptr<CodeObject> CodeObjectManager::InitCodeObject(const void* ptr, s
 
     _logger.Log(*code_object, agent::logger::INFO, "intercepted code object");
 
+    std::unique_lock lock(_mutex);
     if (_code_objects.find(key) != _code_objects.end())
         CheckIdentitiyExistingCodeObject(*code_object);
 
@@ -76,6 +77,7 @@ void CodeObjectManager::WriteCodeObject(std::shared_ptr<CodeObject>& code_object
     auto filename = std::to_string(code_object->CRC());
     auto filepath = CreateFilepath(filename);
 
+    std::shared_lock lock(_mutex);
     std::ofstream fs(filepath, std::ios::out | std::ios::binary);
     if (!fs.is_open())
     {

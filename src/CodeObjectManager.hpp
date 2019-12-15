@@ -2,6 +2,7 @@
 
 #include "CodeObject.hpp"
 #include "logger/CodeObjectLogger.hpp"
+#include <shared_mutex>
 #include <sstream>
 #include <memory>
 #include <map>
@@ -13,6 +14,7 @@ class CodeObjectManager
 {
 private:
     std::map<uint32_t, std::shared_ptr<CodeObject>> _code_objects;
+    std::shared_mutex _mutex; 
     std::string _path;
     std::ostringstream _path_builder;
     agent::logger::CodeObjectLogger _logger;
