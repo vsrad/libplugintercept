@@ -3,6 +3,15 @@
 
 using namespace agent;
 
+struct TestLogger : Logger
+{
+    TestLogger() : infos(), errors() {}
+    std::vector<std::string> infos;
+    std::vector<std::string> errors;
+    virtual void info(const std::string& msg) { infos.push_back(msg); }
+    virtual void error(const std::string& msg) { errors.push_back(msg); }
+};
+
 TEST_CASE("swaps code object based on CRC match", "[co_swapper]")
 {
     CodeObject co_matching("CODE OBJECT", sizeof("CODE OBJECT"));
@@ -12,7 +21,7 @@ TEST_CASE("swaps code object based on CRC match", "[co_swapper]")
     std::vector<CodeObjectSwapRequest> requests = {
         {.condition = {co_matching.CRC()},
          .replacement_path = "tests/fixtures/asdf"}};
-    CodeObjectSwapper cosw(requests);
+    CodeObjectSwapper cosw(requests, std::make_shared<TestLogger>());
 
     auto swapped_matching = cosw.get_swapped_code_object(co_matching);
     auto swapped_other = cosw.get_swapped_code_object(co_other);
@@ -30,7 +39,7 @@ TEST_CASE("swaps code object based on the call # match", "[co_swapper]")
     std::vector<CodeObjectSwapRequest> requests = {
         {.condition = {call_count_t(3)},
          .replacement_path = "tests/fixtures/asdf"}};
-    CodeObjectSwapper cosw(requests);
+    CodeObjectSwapper cosw(requests, std::make_shared<TestLogger>());
     REQUIRE(!cosw.get_swapped_code_object(co));
     REQUIRE(!cosw.get_swapped_code_object(co));
     auto third_call = cosw.get_swapped_code_object(co);

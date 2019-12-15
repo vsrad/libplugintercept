@@ -1,8 +1,9 @@
 #pragma once
 
 #include "CodeObject.hpp"
+#include "logger/logger.hpp"
 #include <atomic>
-#include <optional>
+#include <memory>
 #include <variant>
 #include <vector>
 
@@ -14,17 +15,22 @@ struct CodeObjectSwapRequest
 {
     std::variant<call_count_t, crc32_t> condition;
     std::string replacement_path;
+    std::string external_command;
 };
 
 class CodeObjectSwapper
 {
 private:
-    std::atomic<uint64_t> _call_counter;
     std::vector<CodeObjectSwapRequest> _swap_requests;
+    std::shared_ptr<Logger> _logger;
+    std::atomic<uint64_t> _call_counter;
 
 public:
-    CodeObjectSwapper(std::vector<CodeObjectSwapRequest> swap_requests) : _call_counter(0),
-                                                                          _swap_requests(swap_requests) {}
+    CodeObjectSwapper(
+        std::vector<CodeObjectSwapRequest> swap_requests,
+        std::shared_ptr<Logger> logger) : _swap_requests(swap_requests),
+                                          _logger(logger),
+                                          _call_counter(0) {}
     std::optional<CodeObject> get_swapped_code_object(const CodeObject& source);
 };
 }; // namespace agent
