@@ -1,5 +1,6 @@
 #pragma once
 
+#include <optional>
 #include <stddef.h>
 #include <stdint.h>
 
@@ -20,6 +21,8 @@ public:
     const void* Ptr() const { return _ptr; }
     size_t Size() const { return _size; }
     crc32_t CRC() const { return _crc; }
+
+    static std::optional<CodeObject> try_read_from_file(const char* path);
 };
 
 } // namespace agent
