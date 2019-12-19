@@ -1,5 +1,6 @@
-#include "config.hpp"
 #include "DebugAgent.hpp"
+#include "config.hpp"
+#include "logger/logger.hpp"
 #include <iostream>
 
 std::unique_ptr<agent::DebugAgent> _debug_agent;
@@ -35,7 +36,8 @@ extern "C" bool OnLoad(void* api_table_ptr, uint64_t rt_version, uint64_t failed
     try
     {
         auto config = std::make_shared<agent::Config>();
-        _debug_agent = std::make_unique<agent::DebugAgent>(config);
+        auto logger = std::make_shared<agent::AgentLogger>(config->agent_log_file());
+        _debug_agent = std::make_unique<agent::DebugAgent>(config, logger);
 
         auto api_table = reinterpret_cast<HsaApiTable*>(api_table_ptr);
         _intercepted_api_table = std::make_unique<CoreApiTable>();

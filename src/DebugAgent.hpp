@@ -5,6 +5,7 @@
 
 #include "CodeObjectManager.hpp"
 #include "config.hpp"
+#include "logger/logger.hpp"
 #include <memory>
 #include <string>
 
@@ -31,12 +32,13 @@ private:
     hsa_region_t _gpu_local_region;
     hsa_region_t _system_region;
     std::shared_ptr<Config> _config;
+    std::shared_ptr<Logger> _logger;
     std::unique_ptr<CodeObjectManager> _code_object_manager;
     std::unique_ptr<Buffer> _debug_buffer;
 
 public:
-    DebugAgent(std::shared_ptr<Config> config)
-        : _gpu_local_region{0}, _system_region{0}, _config(config),
+    DebugAgent(std::shared_ptr<Config> config, std::shared_ptr<Logger> logger)
+        : _gpu_local_region{0}, _system_region{0}, _config(config), _logger(logger),
           _code_object_manager(std::make_unique<CodeObjectManager>(config->code_object_dump_dir(), config->code_object_log_file())) {}
 
     hsa_region_t gpu_region() const { return _gpu_local_region; }

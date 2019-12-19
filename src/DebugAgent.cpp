@@ -9,27 +9,28 @@ using namespace agent;
 void DebugAgent::write_debug_buffer_to_file()
 {
     if (!_debug_buffer)
-        std::cerr << "Error: debug buffer is not allocated" << std::endl;
+    {
+        _logger->info("Debug buffer is not allocated");
+        return;
+    }
 
     hsa_status_t status;
     status = hsa_memory_copy(_debug_buffer->SystemPtr(), _debug_buffer->LocalPtr(), _debug_buffer->Size());
     if (status != HSA_STATUS_SUCCESS)
     {
-        std::cerr << "Unable to copy GPU local memory to system memory for debug buffer" << std::endl;
+        _logger->error("Unable to copy GPU local memory to system memory for debug buffer");
         return;
     }
 
     std::ofstream fs(_config->debug_buffer_dump_file(), std::ios::out | std::ios::binary);
     if (!fs.is_open())
     {
-        std::cerr << "Failed to open " << _config->debug_buffer_dump_file() << std::endl;
+        _logger->error("Failed to open " + _config->debug_buffer_dump_file() + " for writing");
         return;
     }
-
-    std::cout << "Dump debug buffer to the file: " << _config->debug_buffer_dump_file() << std::endl;
-
     fs.write((char*)(_debug_buffer->SystemPtr()), _debug_buffer->Size());
-    fs.close();
+
+    _logger->info("Debug buffer has been written to " + _config->debug_buffer_dump_file());
 }
 
 hsa_status_t DebugAgent::intercept_hsa_code_object_reader_create_from_memory(
@@ -121,7 +122,7 @@ hsa_status_t DebugAgent::intercept_hsa_queue_create(
     status = hsa_agent_iterate_regions(agent, find_region_callback, this);
     if (status != HSA_STATUS_SUCCESS || _gpu_local_region.handle == 0 || _system_region.handle == 0)
     {
-        std::cerr << "Unable to find GPU region to allocate debug buffer" << std::endl;
+        _logger->error("Unable to find GPU region to allocate debug buffer");
         return status;
     }
 
@@ -129,7 +130,7 @@ hsa_status_t DebugAgent::intercept_hsa_queue_create(
     status = hsa_memory_allocate(_gpu_local_region, _config->debug_buffer_size(), &local_ptr);
     if (status != HSA_STATUS_SUCCESS)
     {
-        std::cerr << "Unable to allocate GPU local memory for debug buffer" << std::endl;
+        _logger->error("Unable to allocate GPU local memory for debug buffer");
         return status;
     }
 
@@ -137,11 +138,14 @@ hsa_status_t DebugAgent::intercept_hsa_queue_create(
     status = hsa_memory_allocate(_system_region, _config->debug_buffer_size(), &system_ptr);
     if (status != HSA_STATUS_SUCCESS)
     {
-        std::cerr << "Unable to allocate system memory for debug buffer" << std::endl;
+        _logger->error("Unable to allocate system memory for debug buffer");
         return status;
     }
     _debug_buffer = std::make_unique<Buffer>(_config->debug_buffer_size(), local_ptr, system_ptr);
-    std::cout << "Allocated debug buffer of size " << _config->debug_buffer_size() << " at " << _debug_buffer->LocalPtr() << std::endl;
+
+    std::ostringstream msg;
+    msg << "Allocated debug buffer of size " << _config->debug_buffer_size() << " at " << _debug_buffer->LocalPtr();
+    _logger->info(msg.str());
 
     return status;
 }

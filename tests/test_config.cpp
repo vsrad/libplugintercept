@@ -4,6 +4,7 @@
 TEST_CASE("reads a valid configuration file", "[config]")
 {
     agent::Config config;
+    REQUIRE(config.agent_log_file() == "-");
     REQUIRE(config.debug_buffer_size() == 1024);
     REQUIRE(config.debug_buffer_dump_file() == "tmp/dump/buffer");
     REQUIRE(config.code_object_log_file() == "-");

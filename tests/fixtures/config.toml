@@ -1,5 +1,5 @@
 [agent]
-log = "stdout"
+log = "-"
 
 [debug-buffer]
 size = 1024

@@ -22,6 +22,7 @@ Config::Config()
 
         auto config = cpptoml::parse_file(config_path);
 
+        _agent_log_file = get_config<std::string>(config_path, *config, "agent.log");
         _debug_buffer_size = get_config<uint64_t>(config_path, *config, "debug-buffer.size");
         _debug_buffer_dump_file = get_config<std::string>(config_path, *config, "debug-buffer.dump-file");
         _code_object_log_file = get_config<std::string>(config_path, *config, "code-object-dump.log");
