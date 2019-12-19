@@ -13,6 +13,17 @@ if(NOT extern_crcpp_POPULATED)
 endif()
 
 FetchContent_Declare(
+  extern_cpptoml
+  GIT_REPOSITORY https://github.com/skystrife/cpptoml
+  GIT_TAG        v0.1.1
+)
+FetchContent_GetProperties(extern_cpptoml)
+if(NOT extern_cpptoml_POPULATED)
+  FetchContent_Populate(extern_cpptoml)
+  set_property(GLOBAL PROPERTY CPPTOML_INCLUDE_DIR ${extern_cpptoml_SOURCE_DIR}/include)
+endif()
+
+FetchContent_Declare(
   extern_catch2
   GIT_REPOSITORY https://github.com/catchorg/Catch2.git
   GIT_TAG        v2.11.0
