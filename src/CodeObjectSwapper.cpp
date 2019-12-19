@@ -1,5 +1,6 @@
 #include "CodeObjectSwapper.hpp"
 #include "external_command.hpp"
+#include <sstream>
 
 using namespace agent;
 
@@ -12,13 +13,15 @@ std::optional<CodeObject> do_swap(const CodeObjectSwapRequest& request, Logger& 
         int retcode = cmd.execute();
         if (retcode != 0)
         {
-            logger.error("The command `" + request.external_command + "` has exited with code " + std::to_string(retcode));
+            std::ostringstream error_log;
+            error_log << "The command `" << request.external_command << "` has exited with code " << retcode;
             auto stdout = cmd.read_stdout();
             if (!stdout.empty())
-                logger.error("=== Stdout:\n" + stdout);
+                error_log << "\n=== Stdout:\n" << stdout;
             auto stderr = cmd.read_stderr();
             if (!stderr.empty())
-                logger.error("=== Stderr:\n" + stderr);
+                error_log << "\n=== Stderr:\n" << stderr;
+            logger.error(error_log.str());
             return {};
         }
         logger.info("The command has finished successfully");

@@ -75,8 +75,8 @@ TEST_CASE("logs external command output on failure", "[co_swapper]")
     REQUIRE(!swapped);
 
     std::vector<std::string> expected_error_log = {
-        "The command `asdfasdf` has exited with code 32512",
-        "=== Stderr:\nsh: 1: asdfasdf: not found\n"};
+        "The command `asdfasdf` has exited with code 32512"
+        "\n=== Stderr:\nsh: 1: asdfasdf: not found\n"};
     REQUIRE(logger->errors == expected_error_log);
 
     logger->errors.clear();
@@ -84,8 +84,8 @@ TEST_CASE("logs external command output on failure", "[co_swapper]")
     REQUIRE(!swapped2);
 
     std::vector<std::string> expected_error_log2 = {
-        "The command `echo h; asdfasdf` has exited with code 32512",
-        "=== Stdout:\nh\n",
-        "=== Stderr:\nsh: 1: asdfasdf: not found\n"};
+        "The command `echo h; asdfasdf` has exited with code 32512"
+        "\n=== Stdout:\nh\n"
+        "\n=== Stderr:\nsh: 1: asdfasdf: not found\n"};
     REQUIRE(logger->errors == expected_error_log2);
 }
