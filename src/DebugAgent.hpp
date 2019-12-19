@@ -1,8 +1,9 @@
 #pragma once
 
 #define AMD_INTERNAL_BUILD
-#include "CodeObjectManager.hpp"
 #include <hsa_api_trace.h>
+
+#include "CodeObjectManager.hpp"
 #include <memory>
 #include <string>
 
@@ -26,7 +27,6 @@ public:
 class DebugAgent
 {
 private:
-    CoreApiTable _api_core_table;
     hsa_region_t _gpu_local_region;
     hsa_region_t _system_region;
     std::string _debug_path;
@@ -35,22 +35,24 @@ private:
     std::unique_ptr<Buffer> _debug_buffer;
 
 public:
-    DebugAgent(HsaApiTable& api_table);
+    DebugAgent();
 
-    hsa_region_t GetGpuRegion();
-    hsa_region_t GetSystemRegion();
+    hsa_region_t gpu_region() const { return _gpu_local_region; }
+    hsa_region_t system_region() const { return _system_region; }
 
-    void SetGpuRegion(hsa_region_t region);
-    void SetSystemRegion(hsa_region_t region);
+    void set_gpu_region(hsa_region_t region) { _gpu_local_region = region; }
+    void set_system_region(hsa_region_t region) { _system_region = region; }
 
-    void DebugBufferToFile();
+    void write_debug_buffer_to_file();
 
     hsa_status_t intercept_hsa_code_object_reader_create_from_memory(
+        decltype(hsa_code_object_reader_create_from_memory)* intercepted_fn,
         const void* code_object,
         size_t size,
         hsa_code_object_reader_t* code_object_reader);
 
     hsa_status_t intercept_hsa_queue_create(
+        decltype(hsa_queue_create)* intercepted_fn,
         hsa_agent_t agent,
         uint32_t size,
         hsa_queue_type32_t type,

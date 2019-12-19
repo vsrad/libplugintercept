@@ -5,11 +5,9 @@
 #include <iostream>
 #include <sstream>
 
-namespace agent
-{
-DebugAgent::DebugAgent(HsaApiTable& api_table)
-    : _gpu_local_region{0},
-      _system_region{0}
+using namespace agent;
+
+DebugAgent::DebugAgent() : _gpu_local_region{0}, _system_region{0}
 {
     auto debug_path = getenv("ASM_DBG_PATH");
     auto write_path = getenv("ASM_DBG_WRITE_PATH");
@@ -30,17 +28,9 @@ DebugAgent::DebugAgent(HsaApiTable& api_table)
 
     auto write_path_str = std::string(write_path);
     _code_object_manager = std::make_unique<CodeObjectManager>(write_path_str);
-
-    std::memcpy(static_cast<void*>(&_api_core_table), static_cast<const void*>(api_table.core_), sizeof(CoreApiTable));
 }
 
-hsa_region_t DebugAgent::GetGpuRegion() { return _gpu_local_region; }
-hsa_region_t DebugAgent::GetSystemRegion() { return _system_region; }
-
-void DebugAgent::SetGpuRegion(hsa_region_t region) { _gpu_local_region = region; }
-void DebugAgent::SetSystemRegion(hsa_region_t region) { _system_region = region; }
-
-void DebugAgent::DebugBufferToFile()
+void DebugAgent::write_debug_buffer_to_file()
 {
     if (!_debug_buffer)
         std::cerr << "Error: debug buffer is not allocated" << std::endl;
@@ -67,6 +57,7 @@ void DebugAgent::DebugBufferToFile()
 }
 
 hsa_status_t DebugAgent::intercept_hsa_code_object_reader_create_from_memory(
+    decltype(hsa_code_object_reader_create_from_memory)* intercepted_fn,
     const void* code_object,
     size_t size,
     hsa_code_object_reader_t* code_object_reader)
@@ -104,10 +95,39 @@ hsa_status_t DebugAgent::intercept_hsa_code_object_reader_create_from_memory(
         }
     }
 
-    return _api_core_table.hsa_code_object_reader_create_from_memory_fn(patched_code_object, size, code_object_reader);
+    return intercepted_fn(patched_code_object, size, code_object_reader);
+}
+
+hsa_status_t find_region_callback(
+    hsa_region_t region,
+    void* data)
+{
+    auto agent = reinterpret_cast<DebugAgent*>(data);
+
+    hsa_region_segment_t segment_id;
+    hsa_region_get_info(region, HSA_REGION_INFO_SEGMENT, &segment_id);
+    if (segment_id == HSA_REGION_SEGMENT_GLOBAL)
+    {
+        hsa_region_global_flag_t flags;
+        hsa_region_get_info(region, HSA_REGION_INFO_GLOBAL_FLAGS, &flags);
+
+        if (flags & HSA_REGION_GLOBAL_FLAG_FINE_GRAINED)
+            agent->set_system_region(region);
+        if (flags & HSA_REGION_GLOBAL_FLAG_COARSE_GRAINED)
+        {
+            bool host_accessible_region = false;
+            hsa_region_get_info(region, (hsa_region_info_t)HSA_AMD_REGION_INFO_HOST_ACCESSIBLE, &host_accessible_region);
+
+            if (!host_accessible_region)
+                agent->set_gpu_region(region);
+        }
+    }
+
+    return HSA_STATUS_SUCCESS;
 }
 
 hsa_status_t DebugAgent::intercept_hsa_queue_create(
+    decltype(hsa_queue_create)* intercepted_fn,
     hsa_agent_t agent,
     uint32_t size,
     hsa_queue_type32_t type,
@@ -117,12 +137,12 @@ hsa_status_t DebugAgent::intercept_hsa_queue_create(
     uint32_t group_segment_size,
     hsa_queue_t** queue)
 {
-    hsa_status_t status = _api_core_table.hsa_queue_create_fn(
+    hsa_status_t status = intercepted_fn(
         agent, size, type, callback, data, private_segment_size, group_segment_size, queue);
     if (status != HSA_STATUS_SUCCESS)
         return status;
 
-    status = hsa_agent_iterate_regions(agent, find_region_callback, nullptr);
+    status = hsa_agent_iterate_regions(agent, find_region_callback, this);
     if (status != HSA_STATUS_SUCCESS || _gpu_local_region.handle == 0 || _system_region.handle == 0)
     {
         std::cerr << "Unable to find GPU region to allocate debug buffer" << std::endl;
@@ -149,5 +169,3 @@ hsa_status_t DebugAgent::intercept_hsa_queue_create(
 
     return status;
 }
-
-} // namespace agent
