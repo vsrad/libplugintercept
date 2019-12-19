@@ -14,16 +14,16 @@ class CodeObjectManager
 {
 private:
     std::map<uint32_t, std::shared_ptr<CodeObject>> _code_objects;
-    std::shared_mutex _mutex; 
-    std::string _path;
+    std::shared_mutex _mutex;
+    const std::string& _path;
     std::ostringstream _path_builder;
     agent::logger::CodeObjectLogger _logger;
-    
+
     std::string CreateFilepath(std::string& filename);
     void CheckIdentitiyExistingCodeObject(agent::CodeObject& code_object);
 
 public:
-    CodeObjectManager(std::string &path);
+    CodeObjectManager(const std::string &path) : _path(path) {}
     std::shared_ptr<CodeObject> InitCodeObject(const void* ptr, size_t size);
     void WriteCodeObject(std::shared_ptr<CodeObject>& code_object);
 };

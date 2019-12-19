@@ -7,29 +7,6 @@
 
 using namespace agent;
 
-DebugAgent::DebugAgent() : _gpu_local_region{0}, _system_region{0}
-{
-    auto debug_path = getenv("ASM_DBG_PATH");
-    auto write_path = getenv("ASM_DBG_WRITE_PATH");
-    auto debug_size_env = getenv("ASM_DBG_BUF_SIZE");
-
-    if (!debug_path || !debug_size_env || !write_path)
-    {
-        std::ostringstream exception_message;
-        exception_message << "Error: environment variable is not set." << std::endl
-                          << "-- ASM_DBG_PATH: " << _debug_path << std::endl
-                          << "-- ASM_DBG_BUF_SIZE: " << debug_size_env << std::endl;
-
-        throw std::invalid_argument(exception_message.str());
-    }
-
-    _debug_path = debug_path;
-    _debug_size = atoi(debug_size_env);
-
-    auto write_path_str = std::string(write_path);
-    _code_object_manager = std::make_unique<CodeObjectManager>(write_path_str);
-}
-
 void DebugAgent::write_debug_buffer_to_file()
 {
     if (!_debug_buffer)
@@ -43,14 +20,14 @@ void DebugAgent::write_debug_buffer_to_file()
         return;
     }
 
-    std::ofstream fs(_debug_path, std::ios::out | std::ios::binary);
+    std::ofstream fs(_config->debug_buffer_dump_file(), std::ios::out | std::ios::binary);
     if (!fs.is_open())
     {
-        std::cerr << "Failed to open " << _debug_path << std::endl;
+        std::cerr << "Failed to open " << _config->debug_buffer_dump_file() << std::endl;
         return;
     }
 
-    std::cout << "Dump debug buffer to the file: " << _debug_path << std::endl;
+    std::cout << "Dump debug buffer to the file: " << _config->debug_buffer_dump_file() << std::endl;
 
     fs.write((char*)(_debug_buffer->SystemPtr()), _debug_buffer->Size());
     fs.close();
@@ -150,7 +127,7 @@ hsa_status_t DebugAgent::intercept_hsa_queue_create(
     }
 
     void* local_ptr;
-    status = hsa_memory_allocate(_gpu_local_region, _debug_size, &local_ptr);
+    status = hsa_memory_allocate(_gpu_local_region, _config->debug_buffer_size(), &local_ptr);
     if (status != HSA_STATUS_SUCCESS)
     {
         std::cerr << "Unable to allocate GPU local memory for debug buffer" << std::endl;
@@ -158,14 +135,14 @@ hsa_status_t DebugAgent::intercept_hsa_queue_create(
     }
 
     void* system_ptr;
-    status = hsa_memory_allocate(_system_region, _debug_size, &system_ptr);
+    status = hsa_memory_allocate(_system_region, _config->debug_buffer_size(), &system_ptr);
     if (status != HSA_STATUS_SUCCESS)
     {
         std::cerr << "Unable to allocate system memory for debug buffer" << std::endl;
         return status;
     }
-    _debug_buffer = std::make_unique<Buffer>(_debug_size, local_ptr, system_ptr);
-    std::cout << "Allocated debug buffer of size " << _debug_size << " at " << _debug_buffer->LocalPtr() << std::endl;
+    _debug_buffer = std::make_unique<Buffer>(_config->debug_buffer_size(), local_ptr, system_ptr);
+    std::cout << "Allocated debug buffer of size " << _config->debug_buffer_size() << " at " << _debug_buffer->LocalPtr() << std::endl;
 
     return status;
 }

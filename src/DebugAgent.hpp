@@ -4,6 +4,7 @@
 #include <hsa_api_trace.h>
 
 #include "CodeObjectManager.hpp"
+#include "config.hpp"
 #include <memory>
 #include <string>
 
@@ -29,13 +30,13 @@ class DebugAgent
 private:
     hsa_region_t _gpu_local_region;
     hsa_region_t _system_region;
-    std::string _debug_path;
-    size_t _debug_size;
+    std::shared_ptr<Config> _config;
     std::unique_ptr<CodeObjectManager> _code_object_manager;
     std::unique_ptr<Buffer> _debug_buffer;
 
 public:
-    DebugAgent();
+    DebugAgent(std::shared_ptr<Config> config) : _gpu_local_region{0}, _system_region{0}, _config(config),
+                                                 _code_object_manager(std::make_unique<CodeObjectManager>(config->code_object_dump_dir())) {}
 
     hsa_region_t gpu_region() const { return _gpu_local_region; }
     hsa_region_t system_region() const { return _system_region; }

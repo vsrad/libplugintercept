@@ -1,5 +1,6 @@
 add_library(plugintercept SHARED
     ${CMAKE_CURRENT_SOURCE_DIR}/init.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/config.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/DebugAgent.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/CodeObject.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/CodeObjectManager.cpp

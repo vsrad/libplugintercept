@@ -1,4 +1,5 @@
 #include "init.hpp"
+#include "config.hpp"
 #include <iostream>
 
 std::unique_ptr<agent::DebugAgent> _debug_agent;
@@ -33,14 +34,15 @@ extern "C" bool OnLoad(void* api_table_ptr, uint64_t rt_version, uint64_t failed
 {
     try
     {
+        auto config = std::make_shared<agent::Config>("");
+        _debug_agent = std::make_unique<agent::DebugAgent>(config);
+
         auto api_table = reinterpret_cast<HsaApiTable*>(api_table_ptr);
         _intercepted_api_table = std::make_unique<CoreApiTable>();
         memcpy(_intercepted_api_table.get(), static_cast<const void*>(api_table->core_), sizeof(CoreApiTable));
 
         api_table->core_->hsa_queue_create_fn = intercept_hsa_queue_create;
         api_table->core_->hsa_code_object_reader_create_from_memory_fn = intercept_hsa_code_object_reader_create_from_memory;
-
-        _debug_agent = std::make_unique<agent::DebugAgent>();
     }
     catch (const std::exception& e)
     {

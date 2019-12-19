@@ -5,9 +5,6 @@
 
 namespace agent
 {
-CodeObjectManager::CodeObjectManager(std::string& path)
-    : _path{std::move(path)} {}
-
 std::string CodeObjectManager::CreateFilepath(std::string& filename)
 {
     _path_builder.str("");
