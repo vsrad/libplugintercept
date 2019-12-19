@@ -1,5 +1,4 @@
 #include "DebugAgent.hpp"
-#include "init.hpp"
 #include <cstring>
 #include <fstream>
 #include <iostream>

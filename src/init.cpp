@@ -1,5 +1,5 @@
-#include "init.hpp"
 #include "config.hpp"
+#include "DebugAgent.hpp"
 #include <iostream>
 
 std::unique_ptr<agent::DebugAgent> _debug_agent;
