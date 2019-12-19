@@ -1,8 +1,8 @@
 #pragma once
 
 #include "../CodeObject.hpp"
-#include <mutex>
 #include <fstream>
+#include <mutex>
 
 namespace agent
 {
@@ -23,7 +23,7 @@ private:
     std::ofstream _fstream;
 
 public:
-    CodeObjectLogger();
+    CodeObjectLogger(const std::string& log_path);
 
     void Log(agent::CodeObject& code_object, LogType type, const char* message);
 };

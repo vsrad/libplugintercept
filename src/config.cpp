@@ -1,26 +1,34 @@
 #include "config.hpp"
 
+#include <cpptoml.h>
 #include <sstream>
 
 using namespace agent;
 
-Config::Config(const std::string& config_file)
+template <typename T>
+T get_config(const std::string& config_path, const cpptoml::table& table, const std::string& key)
 {
-    auto debug_path = getenv("ASM_DBG_PATH");
-    auto write_path = getenv("ASM_DBG_WRITE_PATH");
-    auto debug_size_env = getenv("ASM_DBG_BUF_SIZE");
+    auto value = table.get_qualified_as<T>(key);
+    if (!value)
+        throw std::runtime_error("Error when parsing configuration file " + config_path + ": missing or invalid value for " + key);
+    return *value;
+}
 
-    if (!debug_path || !debug_size_env || !write_path)
+Config::Config()
+{
+    if (auto config_path_env = getenv("ASM_DBG_CONFIG"))
     {
-        std::ostringstream exception_message;
-        exception_message << "Error: environment variable is not set." << std::endl
-                          << "-- ASM_DBG_PATH: " << _debug_buffer_dump_file << std::endl
-                          << "-- ASM_DBG_BUF_SIZE: " << _debug_buffer_size << std::endl;
+        std::string config_path(config_path_env);
 
-        throw std::invalid_argument(exception_message.str());
+        auto config = cpptoml::parse_file(config_path);
+
+        _debug_buffer_size = get_config<uint64_t>(config_path, *config, "debug-buffer.size");
+        _debug_buffer_dump_file = get_config<std::string>(config_path, *config, "debug-buffer.dump-file");
+        _code_object_log_file = get_config<std::string>(config_path, *config, "code-object-dump.log");
+        _code_object_dump_dir = get_config<std::string>(config_path, *config, "code-object-dump.directory");
     }
-
-    _debug_buffer_dump_file = debug_path;
-    _debug_buffer_size = atoi(debug_size_env);
-    _code_object_dump_dir = write_path;
+    else
+    {
+        throw std::runtime_error("ASM_DBG_CONFIG (path to the configuration file) is not set.");
+    }
 }

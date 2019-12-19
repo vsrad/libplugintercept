@@ -34,7 +34,7 @@ extern "C" bool OnLoad(void* api_table_ptr, uint64_t rt_version, uint64_t failed
 {
     try
     {
-        auto config = std::make_shared<agent::Config>("");
+        auto config = std::make_shared<agent::Config>();
         _debug_agent = std::make_unique<agent::DebugAgent>(config);
 
         auto api_table = reinterpret_cast<HsaApiTable*>(api_table_ptr);
