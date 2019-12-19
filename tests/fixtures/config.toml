@@ -1,0 +1,15 @@
+[agent]
+log = "stdout"
+
+[debug-buffer]
+size = 1024
+dump-file = "tmp/dump/buffer"
+
+[code-object-dump]
+log = "-"
+directory = "tmp/dump/"
+
+[[code-object-swap]]
+when-crc = 0xDEADBEEF
+path = "repacement.co"
+command = "touch replacement.co"
