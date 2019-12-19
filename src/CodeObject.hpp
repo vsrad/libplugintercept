@@ -1,10 +1,8 @@
 #pragma once
 
+#include "code_object_swap.hpp"
+#include <cstddef>
 #include <optional>
-#include <stddef.h>
-#include <stdint.h>
-
-typedef uint32_t crc32_t;
 
 namespace agent
 {
