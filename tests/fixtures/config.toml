@@ -11,5 +11,5 @@ directory = "tmp/dump/"
 
 [[code-object-swap]]
 when-crc = 0xDEADBEEF
-path = "repacement.co"
-command = "touch replacement.co"
+exec-before-load = "touch replacement.co"
+load-file = "replacement.co"

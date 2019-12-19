@@ -26,6 +26,33 @@ Config::Config()
         _debug_buffer_dump_file = get_config<std::string>(config_path, *config, "debug-buffer.dump-file");
         _code_object_log_file = get_config<std::string>(config_path, *config, "code-object-dump.log");
         _code_object_dump_dir = get_config<std::string>(config_path, *config, "code-object-dump.directory");
+
+        _code_object_swaps = std::make_shared<std::vector<CodeObjectSwap>>();
+        auto swap_configs = config->get_table_array("code-object-swap");
+        for (const auto& swap_config : *swap_configs)
+        {
+            CodeObjectSwap swap;
+            auto crc = swap_config->get_as<crc32_t>("when-crc");
+            auto call_count = swap_config->get_as<call_count_t>("when-call-count");
+            if (!crc && !call_count)
+                throw std::runtime_error("Error when parsing configuration file " + config_path + ": missing code-object-swap condition (either when-crc or when-call-count)");
+            if (crc && call_count)
+                throw std::runtime_error("Error when parsing configuration file " + config_path + ": code-object-swap cannot have both when-crc and when-call-count as the condition");
+            if (crc)
+                swap.condition = {*crc};
+            if (call_count)
+                swap.condition = {*call_count};
+
+            swap.external_command = swap_config->get_as<std::string>("exec-before-load").value_or("");
+
+            auto path = swap_config->get_as<std::string>("load-file");
+            if (path)
+                swap.replacement_path = *path;
+            else
+                throw std::runtime_error("Error when parsing configuration file " + config_path + ": missing code-object-swap.load-file");
+
+            _code_object_swaps->push_back(swap);
+        }
     }
     else
     {
