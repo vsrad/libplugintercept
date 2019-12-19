@@ -4,6 +4,7 @@
 #include <hsa_api_trace.h>
 
 #include "CodeObjectManager.hpp"
+#include "CodeObjectSwapper.hpp"
 #include "config.hpp"
 #include "logger/logger.hpp"
 #include <memory>
@@ -34,12 +35,14 @@ private:
     std::shared_ptr<Config> _config;
     std::shared_ptr<Logger> _logger;
     std::unique_ptr<CodeObjectManager> _code_object_manager;
+    std::unique_ptr<CodeObjectSwapper> _code_object_swapper;
     std::unique_ptr<Buffer> _debug_buffer;
 
 public:
     DebugAgent(std::shared_ptr<Config> config, std::shared_ptr<Logger> logger)
         : _gpu_local_region{0}, _system_region{0}, _config(config), _logger(logger),
-          _code_object_manager(std::make_unique<CodeObjectManager>(config->code_object_dump_dir(), config->code_object_log_file())) {}
+          _code_object_manager(std::make_unique<CodeObjectManager>(config->code_object_dump_dir(), config->code_object_log_file())),
+          _code_object_swapper(std::make_unique<CodeObjectSwapper>(config->code_object_swaps(), logger)) {}
 
     hsa_region_t gpu_region() const { return _gpu_local_region; }
     hsa_region_t system_region() const { return _system_region; }

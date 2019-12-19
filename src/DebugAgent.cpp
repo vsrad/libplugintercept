@@ -39,40 +39,14 @@ hsa_status_t DebugAgent::intercept_hsa_code_object_reader_create_from_memory(
     size_t size,
     hsa_code_object_reader_t* code_object_reader)
 {
-    uint32_t* patched_code_object = new uint32_t[size / 4];
-    uint32_t* patched_code_object_end = patched_code_object + size / 4;
-    memcpy(patched_code_object, code_object, size);
-
     auto co = _code_object_manager->InitCodeObject(code_object, size);
     _code_object_manager->WriteCodeObject(co);
 
-    // s_mov_b32 encoding (Vega ISA):
-    // bits 31-23 (0xff800000) are set to 0xbe8
-    // bits 22-16 (0x007f0000) encode the destination register, don't check them
-    // bits 15-8 (0x0000ff00) are set to 0
-    // bits 7-0 (0x000000ff) encode the source operand, should be set to 0xff for an address literal
-    const uint32_t s_mov_mask = 0xff80ffff;
-    const uint32_t s_mov_pattern = 0xbe8000ff;
-    const uint32_t address_literal_pattern = 0x7f7f7f7f;
+    auto replacement_co = _code_object_swapper->get_swapped_code_object(*co);
+    if (replacement_co)
+        return intercepted_fn(replacement_co->Ptr(), replacement_co->Size(), code_object_reader);
 
-    const size_t amd_kernel_code_t_offset = 256 / 4;
-    for (uint32_t* instructions = patched_code_object + amd_kernel_code_t_offset;
-         instructions < patched_code_object_end - 3; ++instructions)
-    {
-        if ((instructions[1] == address_literal_pattern) &&
-            (instructions[3] == address_literal_pattern) &&
-            (instructions[0] & s_mov_mask) == s_mov_pattern && // first s_mov_b32 instruction
-            (instructions[2] & s_mov_mask) == s_mov_pattern)   // second s_mov_b32 instruction
-        {
-            uint64_t buf_addr = reinterpret_cast<uint64_t>(_debug_buffer->LocalPtr());
-            instructions[1] = static_cast<uint32_t>(buf_addr & 0xffffffff);
-            instructions[3] = static_cast<uint32_t>(buf_addr >> 32);
-            std::cout << "Injected debug buffer address into code object at " << instructions << std::endl;
-            instructions += 4;
-        }
-    }
-
-    return intercepted_fn(patched_code_object, size, code_object_reader);
+    return intercepted_fn(code_object, size, code_object_reader);
 }
 
 hsa_status_t find_region_callback(

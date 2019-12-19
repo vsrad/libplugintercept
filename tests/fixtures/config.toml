@@ -13,3 +13,7 @@ directory = "tmp/dump/"
 when-crc = 0xDEADBEEF
 exec-before-load = "touch replacement.co"
 load-file = "replacement.co"
+
+[[code-object-swap]]
+when-call-count = 1
+load-file = "replacement.co"

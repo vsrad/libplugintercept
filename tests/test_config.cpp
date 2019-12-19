@@ -13,7 +13,9 @@ TEST_CASE("reads a valid configuration file", "[config]")
     std::vector<agent::CodeObjectSwap> expected_swaps = {
         {.condition = {crc32_t(0xDEADBEEF)},
          .replacement_path = "replacement.co",
-         .external_command = "touch replacement.co"}};
+         .external_command = "touch replacement.co"},
+         {.condition = {call_count_t(1)},
+         .replacement_path = "replacement.co"}};
     std::vector<agent::CodeObjectSwap> swaps = *config.code_object_swaps();
     REQUIRE(swaps == expected_swaps);
 }

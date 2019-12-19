@@ -19,10 +19,9 @@ TEST_CASE("swaps code object based on CRC match", "[co_swapper]")
     CodeObject co_other("SOME OTHER CO", sizeof("SOME OTHER CO"));
     REQUIRE(co_matching.CRC() != co_other.CRC());
 
-    CodeObjectSwapper cosw(
-        {{.condition = {co_matching.CRC()},
-          .replacement_path = "tests/fixtures/asdf"}},
-        std::make_shared<TestLogger>());
+    std::vector<CodeObjectSwap> swaps = {{.condition = {co_matching.CRC()},
+                                          .replacement_path = "tests/fixtures/asdf"}};
+    CodeObjectSwapper cosw(std::make_shared<std::vector<CodeObjectSwap>>(swaps), std::make_shared<TestLogger>());
     auto swapped_matching = cosw.get_swapped_code_object(co_matching);
     auto swapped_other = cosw.get_swapped_code_object(co_other);
     REQUIRE(swapped_matching);
@@ -33,10 +32,9 @@ TEST_CASE("swaps code object based on CRC match", "[co_swapper]")
 
 TEST_CASE("swaps code object based on the call # match", "[co_swapper]")
 {
-    CodeObjectSwapper cosw(
-        {{.condition = {call_count_t(3)},
-          .replacement_path = "tests/fixtures/asdf"}},
-        std::make_shared<TestLogger>());
+    std::vector<CodeObjectSwap> swaps = {{.condition = {call_count_t(3)},
+                                          .replacement_path = "tests/fixtures/asdf"}};
+    CodeObjectSwapper cosw(std::make_shared<std::vector<CodeObjectSwap>>(swaps), std::make_shared<TestLogger>());
     REQUIRE(!cosw.get_swapped_code_object(CodeObject("", 0)));
     REQUIRE(!cosw.get_swapped_code_object(CodeObject("", 0)));
     auto third_call = cosw.get_swapped_code_object(CodeObject("", 0));
@@ -49,11 +47,11 @@ TEST_CASE("runs external command before swapping the code object if specified", 
 {
     auto time = std::time(0);
     auto logger = std::make_shared<TestLogger>();
-    CodeObjectSwapper cosw(
+    std::vector<CodeObjectSwap> swaps =
         {{.condition = {call_count_t(1)},
           .replacement_path = "tests/fixtures/co_swapper_time",
-          .external_command = "echo " + std::to_string(time) + " > tests/fixtures/co_swapper_time"}},
-        logger);
+          .external_command = "echo " + std::to_string(time) + " > tests/fixtures/co_swapper_time"}};
+    CodeObjectSwapper cosw(std::make_shared<std::vector<CodeObjectSwap>>(swaps), logger);
     auto swapped = cosw.get_swapped_code_object(CodeObject("", 0));
     REQUIRE(swapped);
     std::string swapped_data(static_cast<const char*>(swapped->Ptr()), swapped->Size());
@@ -63,14 +61,14 @@ TEST_CASE("runs external command before swapping the code object if specified", 
 TEST_CASE("logs external command output on failure", "[co_swapper]")
 {
     auto logger = std::make_shared<TestLogger>();
-    CodeObjectSwapper cosw(
+    std::vector<CodeObjectSwap> swaps =
         {{.condition = {call_count_t(1)},
           .replacement_path = "tests/fixtures/asdf",
           .external_command = "asdfasdf"},
          {.condition = {call_count_t(2)},
           .replacement_path = "t",
-          .external_command = "echo h; asdfasdf"}},
-        logger);
+          .external_command = "echo h; asdfasdf"}};
+    CodeObjectSwapper cosw(std::make_shared<std::vector<CodeObjectSwap>>(swaps), logger);
     auto swapped = cosw.get_swapped_code_object(CodeObject("SOME CO", sizeof("SOME CO")));
     REQUIRE(!swapped);
 

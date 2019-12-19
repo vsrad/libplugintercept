@@ -37,7 +37,7 @@ std::optional<CodeObject> CodeObjectSwapper::get_swapped_code_object(const CodeO
 {
     call_count_t current_call = ++_call_counter;
 
-    for (auto& swap : _swaps)
+    for (auto& swap : *_swaps)
         if (auto target_call_count = std::get_if<call_count_t>(&swap.condition))
         {
             if (*target_call_count == current_call)
