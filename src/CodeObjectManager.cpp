@@ -91,6 +91,7 @@ void CodeObjectManager::WriteCodeObject(std::shared_ptr<CodeObject>& code_object
 
 std::shared_ptr<CodeObject> CodeObjectManager::find_by_co_reader(hsa_code_object_reader_t &co_reader)
 {
+    std::shared_lock lock(_mutex);
     for (const auto& record : _code_objects_by_reader)
     {
         if (record.first != nullptr && record.first->handle == co_reader.handle)
