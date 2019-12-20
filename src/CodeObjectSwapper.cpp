@@ -10,7 +10,8 @@ std::optional<CodeObject> do_swap(const CodeObjectSwap& swap, Logger& logger)
     {
         logger.info("Executing `" + swap.external_command + "`");
         ExternalCommand cmd(swap.external_command);
-        int retcode = cmd.execute();
+        std::map<std::string, std::string> environment;
+        int retcode = cmd.execute(environment);
         if (retcode != 0)
         {
             std::ostringstream error_log;

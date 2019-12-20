@@ -1,4 +1,5 @@
 #include "external_command.hpp"
+#include <sstream>
 
 using namespace agent;
 
@@ -14,10 +15,16 @@ std::string read_stream(std::FILE* stream)
     return out;
 }
 
-int ExternalCommand::execute()
+int ExternalCommand::execute(const std::map<std::string, std::string>& env)
 {
-    auto cmd = _command + " >&" + std::to_string(fileno(_stdout_log)) + " 2>&" + std::to_string(fileno(_stderr_log));
-    return system(cmd.c_str());
+    std::ostringstream cmd;
+    cmd << "( ";
+    for (auto it = env.begin(); it != env.end(); ++it)
+        cmd << "export " << it->first << "=" << "\"" << it->second << "\";";
+    cmd  << _command << " ) >&" << fileno(_stdout_log) << " 2>&" << fileno(_stderr_log);
+
+    const std::string& cmd_string = cmd.str();
+    return system(cmd_string.c_str());
 }
 
 std::string ExternalCommand::read_stdout()

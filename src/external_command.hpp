@@ -1,6 +1,7 @@
 #pragma once
 
 #include <iostream>
+#include <map>
 
 namespace agent
 {
@@ -12,9 +13,7 @@ private:
     std::FILE* _stderr_log;
 
 public:
-    ExternalCommand(const std::string& cmd) : _command("{ " + cmd + " ;}"),
-                                              _stdout_log(tmpfile()),
-                                              _stderr_log(tmpfile()) {}
+    ExternalCommand(std::string cmd) : _command(cmd), _stdout_log(tmpfile()), _stderr_log(tmpfile()) {}
     ~ExternalCommand()
     {
         if (_stdout_log)
@@ -22,7 +21,7 @@ public:
         if (_stderr_log)
             fclose(_stderr_log);
     }
-    int execute();
+    int execute(const std::map<std::string, std::string>& env);
     std::string read_stdout();
     std::string read_stderr();
 };
