@@ -68,6 +68,14 @@ public:
         uint32_t private_segment_size,
         uint32_t group_segment_size,
         hsa_queue_t** queue);
+
+    hsa_status_t intercept_hsa_executable_load_agent_code_object(
+        decltype(hsa_executable_load_agent_code_object)* intercepted_fn,
+        hsa_executable_t executable,
+        hsa_agent_t agent,
+        hsa_code_object_reader_t code_object_reader,
+        const char* options,
+        hsa_loaded_code_object_t* loaded_code_object);
 };
 
 } // namespace agent

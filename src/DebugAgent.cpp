@@ -39,7 +39,7 @@ hsa_status_t DebugAgent::intercept_hsa_code_object_reader_create_from_memory(
     size_t size,
     hsa_code_object_reader_t* code_object_reader)
 {
-    auto co = _code_object_manager->InitCodeObject(code_object, size);
+    auto co = _code_object_manager->InitCodeObject(code_object, size, code_object_reader);
     _code_object_manager->WriteCodeObject(co);
 
     auto replacement_co = _code_object_swapper->get_swapped_code_object(*co);
@@ -121,5 +121,38 @@ hsa_status_t DebugAgent::intercept_hsa_queue_create(
     msg << "Allocated debug buffer of size " << _config->debug_buffer_size() << " at " << _debug_buffer->LocalPtr();
     _logger->info(msg.str());
 
+    return status;
+}
+
+hsa_status_t iterate_symbols_callback(
+    hsa_executable_t exec,
+    hsa_executable_symbol_t symbol,
+    void* data)
+{
+    CodeObject* co = (CodeObject*) data;
+
+    char* name;
+    hsa_status_t status = hsa_executable_symbol_get_info(symbol, HSA_EXECUTABLE_SYMBOL_INFO_NAME, name);
+
+    co->add_symbol(name);
+    std::cout << "-- INFO crc: " << co->CRC() << " found symbol: " << name << std::endl;
+
+    return status;
+}
+
+hsa_status_t DebugAgent::intercept_hsa_executable_load_agent_code_object(
+    decltype(hsa_executable_load_agent_code_object)* intercepted_fn,
+    hsa_executable_t executable,
+    hsa_agent_t agent,
+    hsa_code_object_reader_t code_object_reader,
+    const char* options,
+    hsa_loaded_code_object_t* loaded_code_object)
+{
+    hsa_status_t status = intercepted_fn(executable, agent, code_object_reader, options, loaded_code_object);
+    if (status != HSA_STATUS_SUCCESS)
+        return status;
+
+    auto co = _code_object_manager->find_by_co_reader(code_object_reader);
+    status = hsa_executable_iterate_symbols(executable, iterate_symbols_callback, co.get());
     return status;
 }

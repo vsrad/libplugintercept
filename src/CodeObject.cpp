@@ -27,3 +27,8 @@ std::optional<CodeObject> CodeObject::try_read_from_file(const char* path)
 
     return {CodeObject(co, size)};
 }
+
+void CodeObject::add_symbol(std::string str)
+{
+    _symbols.insert(str);
+}

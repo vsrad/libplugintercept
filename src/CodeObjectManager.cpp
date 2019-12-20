@@ -54,7 +54,7 @@ void CodeObjectManager::CheckIdentitiyExistingCodeObject(agent::CodeObject& code
     }
 }
 
-std::shared_ptr<CodeObject> CodeObjectManager::InitCodeObject(const void* ptr, size_t size)
+std::shared_ptr<CodeObject> CodeObjectManager::InitCodeObject(const void* ptr, size_t size, hsa_code_object_reader_t* co_reader)
 {
     auto code_object = std::shared_ptr<CodeObject>(new CodeObject(ptr, size));
     auto key = code_object->CRC();
@@ -66,6 +66,7 @@ std::shared_ptr<CodeObject> CodeObjectManager::InitCodeObject(const void* ptr, s
         CheckIdentitiyExistingCodeObject(*code_object);
 
     _code_objects[key] = code_object;
+    _code_objects_by_reader[co_reader] = code_object;
     return code_object;
 }
 
@@ -86,5 +87,16 @@ void CodeObjectManager::WriteCodeObject(std::shared_ptr<CodeObject>& code_object
     fs.close();
 
     _logger.Log(*code_object, agent::logger::INFO, "code object is written to file");
+}
+
+std::shared_ptr<CodeObject> CodeObjectManager::find_by_co_reader(hsa_code_object_reader_t &co_reader)
+{
+    for (const auto& record : _code_objects_by_reader)
+    {
+        if (record.first != nullptr && record.first->handle == co_reader.handle)
+            return record.second;
+    }
+
+    return nullptr;
 }
 } // namespace agent
