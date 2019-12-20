@@ -28,5 +28,5 @@ dbg_kernel:
     workitem_vgpr_count = .AUTO_VGPR_COUNT
   .end_amd_kernel_code_t
 
-  v_lshlrev_b32      v[tid], 2, v[tid]
+  s_nop 0
   s_endpgm

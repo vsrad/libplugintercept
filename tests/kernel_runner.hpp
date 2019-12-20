@@ -58,6 +58,11 @@ public:
             hsa_error("hsa_signal_create failed", status);
     }
 
+    ~KernelRunner()
+    {
+        hsa_shut_down();
+    }
+
     void load_code_object(const char* filename, const char* symbol_name)
     {
         std::ifstream in(filename, std::ios::binary | std::ios::ate);
@@ -73,11 +78,6 @@ public:
 
         hsa_code_object_reader_t co_reader = {};
         hsa_status_t status = hsa_code_object_reader_create_from_memory(ptr, size, &co_reader);
-        if (status != HSA_STATUS_SUCCESS)
-            hsa_error("failed to deserialize code object", status);
-
-        // second read to check functionality of interceptor
-        status = hsa_code_object_reader_create_from_memory(ptr, size, &co_reader);
         if (status != HSA_STATUS_SUCCESS)
             hsa_error("failed to deserialize code object", status);
 
@@ -144,6 +144,6 @@ public:
     {
         hsa_signal_value_t result = -1;
         while (result != HSA_STATUS_SUCCESS)
-            result = hsa_signal_wait_scacquire(_completion_signal, HSA_SIGNAL_CONDITION_EQ, 0, ~0ULL, HSA_WAIT_STATE_ACTIVE);
+            result = hsa_signal_wait_scacquire(_completion_signal, HSA_SIGNAL_CONDITION_EQ, 0, UINT64_MAX, HSA_WAIT_STATE_BLOCKED);
     }
 };

@@ -2,7 +2,7 @@
 log = "-"
 
 [debug-buffer]
-size = 1024
+size = 1048576
 dump-file = "tests/tmp/debug_buffer"
 
 [code-object-dump]

@@ -38,8 +38,6 @@ my $vgpr    = 31;
 my $counter;
 my $target;
 
-# print join (' :: ', @ARGV) . "\n";
-
 while (scalar @ARGV) {
     my $str = shift @ARGV;
     if ($str eq "-l")   {   $line    =            shift @ARGV;  next;   }
@@ -85,7 +83,6 @@ $loopcounter = "" unless $target;
 my $dump_vars = "$done[0]";
 for (my $i = 1; $i < scalar @done; $i += 1) {
 	$dump_vars = "$dump_vars, $done[$i]";
-	#print __LINE__ . "\t$done[$i] << $i\n";
 }
 
 $bufsize =  defined $ENV{'ASM_DBG_BUF_SIZE'} ? $ENV{'ASM_DBG_BUF_SIZE'} : 1048576; # 1 MB
@@ -149,8 +146,8 @@ $loopcounter
 		s_grp    = dbg_soff
 
 		// construct dbg_srd
-		s_mov_b32 s[dbg_srd+0], 0x7f7f7f7f
-		s_mov_b32 s[dbg_srd+1], 0x7f7f7f7f
+		s_mov_b32 s[dbg_srd+0], 0xFFFFFFFF & $bufaddr
+		s_mov_b32 s[dbg_srd+1], ($bufaddr >> 32)
 		s_mov_b32 s[dbg_srd+3], 0x804fac
 		// TODO: change n_var to buffer size
 		s_add_u32 s[dbg_srd+1], s[dbg_srd+1], (($n_var + 1) << 18)
@@ -198,18 +195,11 @@ my $insert  = << "PREAMBLE";
 m_debug_plug $dump_vars
 PREAMBLE
 
-# map { s/\bdebug\s*=\s*0+\b/debug = 1/ } @lines;
 my @m = @lines [0..$line-1] if $line > 0;
 my @merge = ($plug_macro, @m, $insert, @lines [$line..scalar @lines - 1]);
 foreach(@merge) {
 	$_ = qq[m_dbg_gpr_alloc\n$_] if $_ =~ /\.GPR_ALLOC_END/;
 	$_ .= qq(\nm_dbg_init gid_x\n) if $_ =~ /\.end_amd_kernel_code_t/;
 }
-#$_ .= qq(\nm_dbg_init gid_x\n) if $_ eq qq[.end_amd_kernel_code_t\n];
 
 print $fo @merge;
-
-#print $fo $plug_macro;
-#print $fo @lines [0..$line-1] if $line > 0;
-#print $fo $insert;
-#print $fo @lines [$line..scalar @lines - 1];

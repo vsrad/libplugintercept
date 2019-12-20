@@ -28,7 +28,7 @@ void DebugAgent::write_debug_buffer_to_file()
         _logger->error("Failed to open " + _config->debug_buffer_dump_file() + " for writing");
         return;
     }
-    fs.write((char*)(_debug_buffer->SystemPtr()), _debug_buffer->Size());
+    fs.write(reinterpret_cast<char*>(_debug_buffer->SystemPtr()), _debug_buffer->Size());
 
     _logger->info("Debug buffer has been written to " + _config->debug_buffer_dump_file());
 }
