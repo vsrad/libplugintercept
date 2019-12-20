@@ -131,7 +131,7 @@ hsa_status_t iterate_symbols_callback(
 {
     CodeObject* co = (CodeObject*) data;
 
-    char* name;
+    char* name = new char[128];
     hsa_status_t status = hsa_executable_symbol_get_info(symbol, HSA_EXECUTABLE_SYMBOL_INFO_NAME, name);
 
     co->add_symbol(name);
