@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CodeObject.hpp"
+#include "buffer.hpp"
 #include "logger/logger.hpp"
 #include <atomic>
 #include <memory>
@@ -18,6 +19,6 @@ private:
 public:
     CodeObjectSwapper(std::shared_ptr<std::vector<CodeObjectSwap>> swaps, std::shared_ptr<Logger> logger)
         : _swaps(swaps), _logger(logger), _call_counter(0) {}
-    std::optional<CodeObject> get_swapped_code_object(const CodeObject& source);
+    std::optional<CodeObject> get_swapped_code_object(const CodeObject& source, const std::unique_ptr<Buffer>& debug_buffer);
 };
 }; // namespace agent

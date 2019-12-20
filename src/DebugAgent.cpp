@@ -42,7 +42,7 @@ hsa_status_t DebugAgent::intercept_hsa_code_object_reader_create_from_memory(
     auto co = _code_object_manager->InitCodeObject(code_object, size, code_object_reader);
     _code_object_manager->WriteCodeObject(co);
 
-    auto replacement_co = _code_object_swapper->get_swapped_code_object(*co);
+    auto replacement_co = _code_object_swapper->get_swapped_code_object(*co, _debug_buffer);
     if (replacement_co)
         return intercepted_fn(replacement_co->Ptr(), replacement_co->Size(), code_object_reader);
 
@@ -129,7 +129,7 @@ hsa_status_t iterate_symbols_callback(
     hsa_executable_symbol_t symbol,
     void* data)
 {
-    CodeObject* co = (CodeObject*) data;
+    CodeObject* co = (CodeObject*)data;
 
     char* name = new char[128];
     hsa_status_t status = hsa_executable_symbol_get_info(symbol, HSA_EXECUTABLE_SYMBOL_INFO_NAME, name);
