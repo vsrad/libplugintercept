@@ -1,5 +1,6 @@
 build/
 tmp_dir/
+tests/tmp/
 
 # Visual Studio / Visual Studio Code
 .vs/

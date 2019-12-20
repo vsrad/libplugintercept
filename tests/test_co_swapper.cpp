@@ -49,8 +49,8 @@ TEST_CASE("runs external command before swapping the code object if specified", 
     auto logger = std::make_shared<TestLogger>();
     std::vector<CodeObjectSwap> swaps =
         {{.condition = {call_count_t(1)},
-          .replacement_path = "tests/fixtures/co_swapper_time",
-          .external_command = "echo " + std::to_string(time) + " > tests/fixtures/co_swapper_time"}};
+          .replacement_path = "tests/tmp/co_swapper_time",
+          .external_command = "echo " + std::to_string(time) + " > tests/tmp/co_swapper_time"}};
     CodeObjectSwapper cosw(std::make_shared<std::vector<CodeObjectSwap>>(swaps), logger);
     auto swapped = cosw.get_swapped_code_object(CodeObject("", 0));
     REQUIRE(swapped);

@@ -10,6 +10,7 @@ struct TestSetupListener : Catch::TestEventListenerBase
     {
         setenv("ASM_DBG_CONFIG", "tests/fixtures/config.toml", 1);
         setenv("HSA_TOOLS_LIB", "build/src/libplugintercept.so", 1);
+        system("rm -r tests/tmp; mkdir tests/tmp");
     }
 };
 
