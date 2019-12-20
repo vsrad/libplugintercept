@@ -12,10 +12,10 @@ TEST_CASE("reads a valid configuration file", "[config]")
 
     std::vector<agent::CodeObjectSwap> expected_swaps = {
         {.condition = {crc32_t(0xDEADBEEF)},
-         .replacement_path = "replacement.co",
-         .external_command = "touch replacement.co"},
+         .replacement_path = "replacement.co"},
          {.condition = {call_count_t(1)},
-         .replacement_path = "replacement.co"}};
+         .replacement_path = "tests/fixtures/replacement.co",
+         .external_command = "perl tests/fixtures/breakpoint.pl -l 31 -w v[tid] -s 96 -r s0 -t 0 tests/kernels/dbg_kernel.s | /opt/rocm/opencl/bin/x86_64/clang -x assembler -target amdgcn--amdhsa -mcpu=gfx900 -mno-code-object-v3 -Itests/kernels/include -o tests/fixtures/replacement.co -"}};
     std::vector<agent::CodeObjectSwap> swaps = *config.code_object_swaps();
     REQUIRE(swaps == expected_swaps);
 }
