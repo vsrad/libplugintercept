@@ -2,6 +2,8 @@ my $usage = << "ENDOFUSAGE";
 Usage: $0 [<options>] <gcnasm_source>
     gcnasm_source          the source s file
     options
+	-bs <size>      debug buffer size (mandatory)
+	-ba <address>   debug buffer address (mandatory)
         -l <line>       line number to break (mandatory)
         -o <file>       output to the <file> rather than STDOUT
         -w <watches>    extra watches supplied colon separated in quotes;
@@ -37,9 +39,13 @@ my $sgpr    = 0;
 my $vgpr    = 31;
 my $counter;
 my $target;
+my $bufsize;
+my $bufaddr;
 
 while (scalar @ARGV) {
     my $str = shift @ARGV;
+    if ($str eq "-bs")  {   $bufsize =            shift @ARGV;  next;   }
+    if ($str eq "-ba")  {   $bufaddr =            shift @ARGV;  next;   }
     if ($str eq "-l")   {   $line    =            shift @ARGV;  next;   }
     if ($str eq "-o")   {   $_ = shift @ARGV;
                             open $fo, '>', $_ || die "$usage\nCould not open '$_': $!\n";
