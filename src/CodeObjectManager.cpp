@@ -50,20 +50,20 @@ void CodeObjectManager::CheckIdentitiyExistingCodeObject(agent::CodeObject& code
 
                 auto res = std::memcmp(code_object.Ptr(), prev_ptr, code_object.Size());
                 if (res)
-                    _logger->error(code_object, "code object not equals with preview code object");
+                    _logger->error(code_object, "code object not equals with last code object: " + filepath);
                 else
-                    _logger->warning(code_object, "redundant load");
+                    _logger->warning(code_object, "redundant load: " + filepath);
 
                 std::free(prev_ptr);
             }
             else
             {
-                _logger->error(code_object, "code object not equals with preview code object");
+                _logger->error(code_object, "code object not equals with last code object: " + filepath);
             }
         }
         else
         {
-            _logger->error(code_object, "cannot open code object file to check equivalence of new input code object");
+            _logger->error(code_object, "cannot open code object file to check equivalence of new input code object: " + filepath);
         }
     }
 }
@@ -93,14 +93,14 @@ void CodeObjectManager::WriteCodeObject(std::shared_ptr<CodeObject>& code_object
     std::ofstream fs(filepath, std::ios::out | std::ios::binary);
     if (!fs.is_open())
     {
-        _logger->error(*code_object, "cannot write code object to the file");
+        _logger->error(*code_object, "cannot write code object to the file " + filepath);
         return;
     }
 
     fs.write((char*)code_object->Ptr(), code_object->Size());
     fs.close();
 
-    _logger->info(*code_object, "code object is written to file");
+    _logger->info(*code_object, "code object is written to the file " + filepath);
 }
 
 std::shared_ptr<CodeObject> CodeObjectManager::find_by_co_reader(hsa_code_object_reader_t& co_reader)
