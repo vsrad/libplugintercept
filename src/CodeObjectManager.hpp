@@ -30,6 +30,7 @@ public:
     std::shared_ptr<CodeObject> InitCodeObject(const void* ptr, size_t size, hsa_code_object_reader_t* co_reader);
     void WriteCodeObject(std::shared_ptr<CodeObject>& code_object);
     std::shared_ptr<CodeObject> find_by_co_reader(hsa_code_object_reader_t& co_reader);
+    std::shared_ptr<CodeObject> find_code_object_symbols(hsa_executable_t &exec, hsa_code_object_reader_t &reader);
 };
 
 } // namespace agent

@@ -3,6 +3,20 @@
 #include <fstream>
 #include <iostream>
 
+hsa_status_t iterate_symbols_callback(
+    hsa_executable_t exec,
+    hsa_executable_symbol_t symbol,
+    void* data)
+{
+    auto co = reinterpret_cast<agent::CodeObject*>(data);
+
+    char* name = new char[128];
+    hsa_status_t status = hsa_executable_symbol_get_info(symbol, HSA_EXECUTABLE_SYMBOL_INFO_NAME, name);
+
+    co->add_symbol(name);
+    return status;
+}
+
 namespace agent
 {
 std::string CodeObjectManager::CreateFilepath(std::string& filename)
@@ -89,7 +103,7 @@ void CodeObjectManager::WriteCodeObject(std::shared_ptr<CodeObject>& code_object
     _logger->info(*code_object, "code object is written to file");
 }
 
-std::shared_ptr<CodeObject> CodeObjectManager::find_by_co_reader(hsa_code_object_reader_t &co_reader)
+std::shared_ptr<CodeObject> CodeObjectManager::find_by_co_reader(hsa_code_object_reader_t& co_reader)
 {
     std::shared_lock lock(_mutex);
     for (const auto& record : _code_objects_by_reader)
@@ -99,5 +113,35 @@ std::shared_ptr<CodeObject> CodeObjectManager::find_by_co_reader(hsa_code_object
     }
 
     return nullptr;
+}
+
+std::shared_ptr<CodeObject> CodeObjectManager::find_code_object_symbols(hsa_executable_t& exec, hsa_code_object_reader_t& co_reader)
+{
+    auto co = find_by_co_reader(co_reader);
+    if (co)
+    {
+        hsa_status_t status = hsa_executable_iterate_symbols(exec, iterate_symbols_callback, co.get());
+        if (status != HSA_STATUS_SUCCESS)
+        {
+            _logger->error("cannot iterate symbols of co reader handle: " + std::to_string(co_reader.handle));
+            return co;
+        }
+
+        std::ostringstream symbols_info_stream;
+        symbols_info_stream << "found symbols:";
+
+        for (const auto& symbol : co->get_symbols())
+            symbols_info_stream << std::endl
+                                << "-- " << symbol;
+
+        const std::string& symbol_info_string = symbols_info_stream.str();
+        _logger->info(*co, symbol_info_string);
+    }
+    else
+    {
+        _logger->warning("cannot find code object by co reader handle: " + std::to_string(co_reader.handle));
+    }
+
+    return co;
 }
 } // namespace agent

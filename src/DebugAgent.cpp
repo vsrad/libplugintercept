@@ -124,20 +124,6 @@ hsa_status_t DebugAgent::intercept_hsa_queue_create(
     return status;
 }
 
-hsa_status_t iterate_symbols_callback(
-    hsa_executable_t exec,
-    hsa_executable_symbol_t symbol,
-    void* data)
-{
-    CodeObject* co = (CodeObject*)data;
-
-    char* name = new char[128];
-    hsa_status_t status = hsa_executable_symbol_get_info(symbol, HSA_EXECUTABLE_SYMBOL_INFO_NAME, name);
-
-    co->add_symbol(name);
-    return status;
-}
-
 hsa_status_t DebugAgent::intercept_hsa_executable_load_agent_code_object(
     decltype(hsa_executable_load_agent_code_object)* intercepted_fn,
     hsa_executable_t executable,
@@ -150,22 +136,6 @@ hsa_status_t DebugAgent::intercept_hsa_executable_load_agent_code_object(
     if (status != HSA_STATUS_SUCCESS)
         return status;
 
-    auto co = _code_object_manager->find_by_co_reader(code_object_reader);
-
-    if (co)
-    {
-        status = hsa_executable_iterate_symbols(executable, iterate_symbols_callback, co.get());
-        if (status != HSA_STATUS_SUCCESS)
-            _code_object_manager->_logger->error("Cannot iterate symbols");
-
-        std::ostringstream symbols_info_stream;
-        symbols_info_stream << "found symbols:";
-        
-        for (const auto& symbol : co->get_symbols())
-            symbols_info_stream << std::endl << "-- " << symbol;
-        
-        const std::string& symbol_info_string = symbols_info_stream.str();
-        _code_object_manager->_logger->info(*co, symbol_info_string);
-    }
+    _code_object_manager->find_code_object_symbols(executable, code_object_reader);
     return status;
 }
