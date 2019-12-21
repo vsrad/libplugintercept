@@ -22,6 +22,7 @@ public:
     size_t Size() const { return _size; }
     crc32_t CRC() const { return _crc; }
     void add_symbol(std::string str);
+    std::unordered_set<std::string>& get_symbols();
 
     static std::optional<CodeObject> try_read_from_file(const char* path);
 };

@@ -135,8 +135,6 @@ hsa_status_t iterate_symbols_callback(
     hsa_status_t status = hsa_executable_symbol_get_info(symbol, HSA_EXECUTABLE_SYMBOL_INFO_NAME, name);
 
     co->add_symbol(name);
-    std::cout << "-- INFO crc: " << co->CRC() << " found symbol: " << name << std::endl;
-
     return status;
 }
 
@@ -153,6 +151,21 @@ hsa_status_t DebugAgent::intercept_hsa_executable_load_agent_code_object(
         return status;
 
     auto co = _code_object_manager->find_by_co_reader(code_object_reader);
-    status = hsa_executable_iterate_symbols(executable, iterate_symbols_callback, co.get());
+
+    if (co)
+    {
+        status = hsa_executable_iterate_symbols(executable, iterate_symbols_callback, co.get());
+        if (status != HSA_STATUS_SUCCESS)
+            _logger->error("Cannot iterate symbols");
+
+        std::ostringstream symbols_info_stream;
+        symbols_info_stream << "Found symbols:";
+        
+        for (const auto& symbol : co->get_symbols())
+            symbols_info_stream << std::endl << "-- " << symbol;
+        
+        const std::string& symbol_info_string = symbols_info_stream.str();
+        _logger->info(symbol_info_string);
+    }
     return status;
 }
