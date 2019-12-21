@@ -11,6 +11,7 @@ struct TestLogger : Logger
     std::vector<std::string> errors;
     virtual void info(const std::string& msg) { infos.push_back(msg); }
     virtual void error(const std::string& msg) { errors.push_back(msg); }
+    virtual void warning(const std::string& msg) { errors.push_back(msg); }
 };
 
 TEST_CASE("swaps code object based on CRC match", "[co_swapper]")

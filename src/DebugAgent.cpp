@@ -156,16 +156,16 @@ hsa_status_t DebugAgent::intercept_hsa_executable_load_agent_code_object(
     {
         status = hsa_executable_iterate_symbols(executable, iterate_symbols_callback, co.get());
         if (status != HSA_STATUS_SUCCESS)
-            _logger->error("Cannot iterate symbols");
+            _code_object_manager->_logger->error("Cannot iterate symbols");
 
         std::ostringstream symbols_info_stream;
-        symbols_info_stream << "Found symbols:";
+        symbols_info_stream << "found symbols:";
         
         for (const auto& symbol : co->get_symbols())
             symbols_info_stream << std::endl << "-- " << symbol;
         
         const std::string& symbol_info_string = symbols_info_stream.str();
-        _logger->info(symbol_info_string);
+        _code_object_manager->_logger->info(*co, symbol_info_string);
     }
     return status;
 }

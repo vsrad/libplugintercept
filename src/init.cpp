@@ -49,7 +49,8 @@ extern "C" bool OnLoad(void* api_table_ptr, uint64_t rt_version, uint64_t failed
     {
         auto config = std::make_shared<agent::Config>();
         auto logger = std::make_shared<agent::AgentLogger>(config->agent_log_file());
-        _debug_agent = std::make_unique<agent::DebugAgent>(config, logger);
+        auto co_logger = std::make_shared<agent::CodeObjectLogger>(config->code_object_log_file());
+        _debug_agent = std::make_unique<agent::DebugAgent>(config, logger, co_logger);
 
         auto api_table = reinterpret_cast<HsaApiTable*>(api_table_ptr);
         _intercepted_api_table = std::make_unique<CoreApiTable>();
