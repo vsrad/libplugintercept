@@ -88,7 +88,7 @@ public:
         std::lock_guard lock(_lock);
         prepare_msg(co, msg);
 
-        info(_msg_stream.str());
+        warning(_msg_stream.str());
     }
 };
 } // namespace agent
