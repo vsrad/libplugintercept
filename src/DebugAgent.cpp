@@ -110,6 +110,12 @@ hsa_status_t DebugAgent::intercept_hsa_queue_create(
     if (status != HSA_STATUS_SUCCESS)
         return status;
 
+    if (_debug_buffer)
+    {
+        _logger->warning("Redundant debug buffer allocation");
+        return status;
+    }
+
     status = hsa_agent_iterate_regions(agent, find_region_callback, this);
     if (status != HSA_STATUS_SUCCESS || _gpu_local_region.handle == 0 || _system_region.handle == 0)
     {
