@@ -44,6 +44,13 @@ public:
         size_t size,
         hsa_code_object_reader_t* code_object_reader);
 
+    hsa_status_t intercept_hsa_code_object_deserialize(
+        decltype(hsa_code_object_deserialize)* intercepted_fn,
+        void* serialized_code_object,
+        size_t serialized_code_object_size,
+        const char* options,
+        hsa_code_object_t* code_object);
+
     hsa_status_t intercept_hsa_queue_create(
         decltype(hsa_queue_create)* intercepted_fn,
         hsa_agent_t agent,
@@ -62,6 +69,13 @@ public:
         hsa_code_object_reader_t code_object_reader,
         const char* options,
         hsa_loaded_code_object_t* loaded_code_object);
+
+    hsa_status_t intercept_hsa_executable_load_code_object(
+        decltype(hsa_executable_load_code_object)* intercepted_fn,
+        hsa_executable_t executable,
+        hsa_agent_t agent,
+        hsa_code_object_t code_object,
+        const char* options);
 };
 
 } // namespace agent

@@ -49,6 +49,23 @@ hsa_status_t DebugAgent::intercept_hsa_code_object_reader_create_from_memory(
     return intercepted_fn(code_object, size, code_object_reader);
 }
 
+hsa_status_t DebugAgent::intercept_hsa_code_object_deserialize(
+    decltype(hsa_code_object_deserialize)* intercepted_fn,
+    void* serialized_code_object,
+    size_t serialized_code_object_size,
+    const char* options,
+    hsa_code_object_t* code_object)
+{
+    auto co = _code_object_manager->InitCodeObject(serialized_code_object, serialized_code_object_size, code_object);
+    _code_object_manager->WriteCodeObject(co);
+
+    auto replacement_co = _code_object_swapper->get_swapped_code_object(*co, _debug_buffer);
+    if (replacement_co)
+        return intercepted_fn((void*)replacement_co->Ptr(), replacement_co->Size(), options, code_object);
+
+    return intercepted_fn(serialized_code_object, serialized_code_object_size, options, code_object);
+}
+
 hsa_status_t find_region_callback(
     hsa_region_t region,
     void* data)
@@ -137,5 +154,20 @@ hsa_status_t DebugAgent::intercept_hsa_executable_load_agent_code_object(
         return status;
 
     _code_object_manager->find_code_object_symbols(executable, code_object_reader);
+    return status;
+}
+
+hsa_status_t DebugAgent::intercept_hsa_executable_load_code_object(
+    decltype(hsa_executable_load_code_object)* intercepted_fn,
+    hsa_executable_t executable,
+    hsa_agent_t agent,
+    hsa_code_object_t code_object,
+    const char* options)
+{
+    hsa_status_t status = intercepted_fn(executable, agent, code_object, options);
+    if (status != HSA_STATUS_SUCCESS)
+        return status;
+
+    _code_object_manager->find_code_object_symbols(executable, code_object);
     return status;
 }
