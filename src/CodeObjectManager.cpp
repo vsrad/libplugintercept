@@ -162,25 +162,25 @@ void CodeObjectManager::iterate_symbols(hsa_executable_t& exec, std::shared_ptr<
     _logger->info(*code_object, symbol_info_string);
 }
 
-std::shared_ptr<CodeObject> CodeObjectManager::find_code_object_symbols(hsa_executable_t& exec, hsa_code_object_reader_t& co_reader)
+std::shared_ptr<CodeObject> CodeObjectManager::iterate_symbols(hsa_executable_t& exec, hsa_code_object_reader_t& co_reader)
 {
     auto co = find_by_co_reader(co_reader);
 
     if (co)
         iterate_symbols(exec, co);
     else
-        _logger->error("cannot find code object by hsa_code_object_reader_t: " + co_reader.handle);
+        _logger->error("cannot find code object by hsa_code_object_reader_t: " + std::to_string(co_reader.handle));
     return co;
 }
 
-std::shared_ptr<CodeObject> CodeObjectManager::find_code_object_symbols(hsa_executable_t& exec, hsa_code_object_t& code_object)
+std::shared_ptr<CodeObject> CodeObjectManager::iterate_symbols(hsa_executable_t& exec, hsa_code_object_t& code_object)
 {
     auto co = find_by_hsa_code_object(code_object);
 
     if (co)
         iterate_symbols(exec, co);
     else
-        _logger->error("cannot find code object by hsa_code_object_t: " + code_object.handle);
+        _logger->error("cannot find code object by hsa_code_object_t: " + std::to_string(code_object.handle));
     return co;
 }
 } // namespace agent
