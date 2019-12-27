@@ -40,6 +40,45 @@ TEST_CASE("init different code objects", "[co_manager]")
     REQUIRE(logger->errors.size() == 0);
 }
 
+TEST_CASE("write code object to the existed file", "[co_manager]")
+{
+    const char* CODE_OBJECT_DATA = "CODE OBJECT";
+
+    auto logger = std::make_shared<TestCodeObjectLogger>();
+    CodeObjectManager manager(DUMP_PATH, logger);
+
+    hsa_code_object_t co = {};
+    auto co_one = manager.InitCodeObject(CODE_OBJECT_DATA, sizeof(CODE_OBJECT_DATA), &co);
+    manager.WriteCodeObject(co_one);
+
+    std::vector<std::string> expected_info = {
+        "4212875390 intercepted code object",
+        "4212875390 code object is written to the file tests/tmp/4212875390.co"};
+    REQUIRE(logger->infos == expected_info);
+    REQUIRE(logger->warnings.size() == 0);
+    REQUIRE(logger->errors.size() == 0);
+}
+
+TEST_CASE("write code object to the non-existed file", "[co_manager]")
+{
+    const char* CODE_OBJECT_DATA = "CODE OBJECT";
+
+    auto logger = std::make_shared<TestCodeObjectLogger>();
+    CodeObjectManager manager("invalid-path", logger);
+
+    hsa_code_object_t co = {};
+    auto co_one = manager.InitCodeObject(CODE_OBJECT_DATA, sizeof(CODE_OBJECT_DATA), &co);
+    manager.WriteCodeObject(co_one);
+
+    std::vector<std::string> expected_info = {
+        "4212875390 intercepted code object"};
+    std::vector<std::string> expected_error = {
+        "4212875390 cannot write code object to the file invalid-path/4212875390.co"};
+    REQUIRE(logger->infos == expected_info);
+    REQUIRE(logger->errors == expected_error);
+    REQUIRE(logger->warnings.size() == 0);
+}
+
 TEST_CASE("redundant load code objects", "[co_manager]")
 {
     const char* CODE_OBJECT_DATA = "CODE OBJECT";
@@ -81,6 +120,8 @@ TEST_CASE("iterate symbols not existed code object", "[co_manager]")
         "cannot find code object by hsa_code_object_reader_t: 123",
         "cannot find code object by hsa_code_object_t: 456"};
     REQUIRE(logger->errors == expected_error);
+    REQUIRE(logger->infos.size() == 0);
+    REQUIRE(logger->warnings.size() == 0);
 }
 
 TEST_CASE("iterate symbols existed code object with invalid executable", "[co_manager]")
@@ -93,6 +134,7 @@ TEST_CASE("iterate symbols existed code object with invalid executable", "[co_ma
     hsa_executable_t exec = {789};
     auto co_one = manager.InitCodeObject("CODE OBJECT ONE", sizeof("CODE OBJECT ONE"), &co);
     auto co_two = manager.InitCodeObject("CODE OBJECT TWO", sizeof("CODE OBJECT TWO"), &co_reader);
+    REQUIRE(co_one->CRC() != co_two->CRC());
 
     manager.iterate_symbols(exec, co);
     manager.iterate_symbols(exec, co_reader);
@@ -105,4 +147,5 @@ TEST_CASE("iterate symbols existed code object with invalid executable", "[co_ma
         "2005276243 cannot iterate symbols of executable: 789"};
     REQUIRE(logger->infos == expected_info);
     REQUIRE(logger->errors == expected_error);
+    REQUIRE(logger->warnings.size() == 0);
 }
