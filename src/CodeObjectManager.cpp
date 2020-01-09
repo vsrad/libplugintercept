@@ -10,10 +10,17 @@ hsa_status_t iterate_symbols_callback(
 {
     auto co = reinterpret_cast<agent::CodeObject*>(data);
 
-    char* name = new char[128];
-    hsa_status_t status = hsa_executable_symbol_get_info(symbol, HSA_EXECUTABLE_SYMBOL_INFO_NAME, name);
+    uint32_t name_len;
+    hsa_status_t status = hsa_executable_symbol_get_info(symbol, HSA_EXECUTABLE_SYMBOL_INFO_NAME_LENGTH, &name_len);
+    if (status != HSA_STATUS_SUCCESS)
+        return status;
 
-    co->add_symbol(name);
+    char* name = new char[name_len];
+    status = hsa_executable_symbol_get_info(symbol, HSA_EXECUTABLE_SYMBOL_INFO_NAME, name);
+    if (status == HSA_STATUS_SUCCESS)
+        co->add_symbol(std::string(name));
+
+    delete[] name;
     return status;
 }
 

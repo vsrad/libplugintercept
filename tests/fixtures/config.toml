@@ -6,7 +6,7 @@ size = 1048576
 dump-file = "tests/tmp/debug_buffer"
 
 [code-object-dump]
-log = "-"
+log = "tests/tmp/co_dump.log"
 directory = "tests/tmp/"
 
 [[code-object-swap]]

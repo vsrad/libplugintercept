@@ -7,7 +7,7 @@ TEST_CASE("reads a valid configuration file", "[config]")
     REQUIRE(config.agent_log_file() == "-");
     REQUIRE(config.debug_buffer_size() == 1048576);
     REQUIRE(config.debug_buffer_dump_file() == "tests/tmp/debug_buffer");
-    REQUIRE(config.code_object_log_file() == "-");
+    REQUIRE(config.code_object_log_file() == "tests/tmp/co_dump.log");
     REQUIRE(config.code_object_dump_dir() == "tests/tmp/");
 
     std::vector<agent::CodeObjectSwap> expected_swaps = {
