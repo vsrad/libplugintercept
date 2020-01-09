@@ -39,14 +39,20 @@ hsa_status_t DebugAgent::intercept_hsa_code_object_reader_create_from_memory(
     size_t size,
     hsa_code_object_reader_t* code_object_reader)
 {
-    auto co = _code_object_manager->InitCodeObject(code_object, size, code_object_reader);
+    auto co = _code_object_manager->InitCodeObject(code_object, size);
     _code_object_manager->WriteCodeObject(co);
 
+    hsa_status_t status;
     auto replacement_co = _code_object_swapper->get_swapped_code_object(*co, _debug_buffer);
     if (replacement_co)
-        return intercepted_fn(replacement_co->Ptr(), replacement_co->Size(), code_object_reader);
+        status = intercepted_fn(replacement_co->Ptr(), replacement_co->Size(), code_object_reader);
+    else
+        status = intercepted_fn(code_object, size, code_object_reader);
 
-    return intercepted_fn(code_object, size, code_object_reader);
+    if (status == HSA_STATUS_SUCCESS && code_object_reader->handle != 0)
+        _code_object_manager->set_code_object_handle(co, *code_object_reader);
+
+    return status;
 }
 
 hsa_status_t DebugAgent::intercept_hsa_code_object_deserialize(
@@ -56,14 +62,20 @@ hsa_status_t DebugAgent::intercept_hsa_code_object_deserialize(
     const char* options,
     hsa_code_object_t* code_object)
 {
-    auto co = _code_object_manager->InitCodeObject(serialized_code_object, serialized_code_object_size, code_object);
+    auto co = _code_object_manager->InitCodeObject(serialized_code_object, serialized_code_object_size);
     _code_object_manager->WriteCodeObject(co);
 
+    hsa_status_t status;
     auto replacement_co = _code_object_swapper->get_swapped_code_object(*co, _debug_buffer);
     if (replacement_co)
-        return intercepted_fn((void*)replacement_co->Ptr(), replacement_co->Size(), options, code_object);
+        status = intercepted_fn((void*)replacement_co->Ptr(), replacement_co->Size(), options, code_object);
+    else
+        status = intercepted_fn(serialized_code_object, serialized_code_object_size, options, code_object);
 
-    return intercepted_fn(serialized_code_object, serialized_code_object_size, options, code_object);
+    if (status == HSA_STATUS_SUCCESS && code_object->handle != 0)
+        _code_object_manager->set_code_object_handle(co, *code_object);
+
+    return status;
 }
 
 hsa_status_t find_region_callback(

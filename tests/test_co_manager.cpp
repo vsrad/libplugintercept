@@ -26,10 +26,8 @@ TEST_CASE("init different code objects", "[co_manager]")
     auto logger = std::make_shared<TestCodeObjectLogger>();
     CodeObjectManager manager(DUMP_PATH, logger);
 
-    hsa_code_object_t co = {};
-    auto co_one = manager.InitCodeObject("CODE OBJECT ONE", sizeof("CODE OBJECT ONE"), &co);
-    hsa_code_object_reader_t co_reader = {};
-    auto co_two = manager.InitCodeObject("CODE OBJECT TWO", sizeof("CODE OBJECT TWO"), &co_reader);
+    auto co_one = manager.InitCodeObject("CODE OBJECT ONE", sizeof("CODE OBJECT ONE"));
+    auto co_two = manager.InitCodeObject("CODE OBJECT TWO", sizeof("CODE OBJECT TWO"));
 
     REQUIRE(co_one->CRC() != co_two->CRC());
     std::vector<std::string> expected_info = {
@@ -40,15 +38,14 @@ TEST_CASE("init different code objects", "[co_manager]")
     REQUIRE(logger->errors.size() == 0);
 }
 
-TEST_CASE("write code object to the existed file", "[co_manager]")
+TEST_CASE("dump code object to a valid path", "[co_manager]")
 {
     const char* CODE_OBJECT_DATA = "CODE OBJECT";
 
     auto logger = std::make_shared<TestCodeObjectLogger>();
     CodeObjectManager manager(DUMP_PATH, logger);
 
-    hsa_code_object_t co = {};
-    auto co_one = manager.InitCodeObject(CODE_OBJECT_DATA, sizeof(CODE_OBJECT_DATA), &co);
+    auto co_one = manager.InitCodeObject(CODE_OBJECT_DATA, sizeof(CODE_OBJECT_DATA));
     manager.WriteCodeObject(co_one);
 
     std::vector<std::string> expected_info = {
@@ -59,15 +56,14 @@ TEST_CASE("write code object to the existed file", "[co_manager]")
     REQUIRE(logger->errors.size() == 0);
 }
 
-TEST_CASE("write code object to the non-existed file", "[co_manager]")
+TEST_CASE("dump code object to an invalid path", "[co_manager]")
 {
     const char* CODE_OBJECT_DATA = "CODE OBJECT";
 
     auto logger = std::make_shared<TestCodeObjectLogger>();
     CodeObjectManager manager("invalid-path", logger);
 
-    hsa_code_object_t co = {};
-    auto co_one = manager.InitCodeObject(CODE_OBJECT_DATA, sizeof(CODE_OBJECT_DATA), &co);
+    auto co_one = manager.InitCodeObject(CODE_OBJECT_DATA, sizeof(CODE_OBJECT_DATA));
     manager.WriteCodeObject(co_one);
 
     std::vector<std::string> expected_info = {
@@ -86,12 +82,9 @@ TEST_CASE("redundant load code objects", "[co_manager]")
     auto logger = std::make_shared<TestCodeObjectLogger>();
     CodeObjectManager manager(DUMP_PATH, logger);
 
-    hsa_code_object_t co = {};
-    auto co_one = manager.InitCodeObject(CODE_OBJECT_DATA, sizeof(CODE_OBJECT_DATA), &co);
+    auto co_one = manager.InitCodeObject(CODE_OBJECT_DATA, sizeof(CODE_OBJECT_DATA));
     manager.WriteCodeObject(co_one);
-
-    hsa_code_object_reader_t co_reader = {};
-    auto co_two = manager.InitCodeObject(CODE_OBJECT_DATA, sizeof(CODE_OBJECT_DATA), &co_reader);
+    auto co_two = manager.InitCodeObject(CODE_OBJECT_DATA, sizeof(CODE_OBJECT_DATA));
 
     REQUIRE(co_one->CRC() == co_two->CRC());
     std::vector<std::string> expected_info = {
@@ -105,7 +98,7 @@ TEST_CASE("redundant load code objects", "[co_manager]")
     REQUIRE(logger->errors.size() == 0);
 }
 
-TEST_CASE("iterate symbols not existed code object", "[co_manager]")
+TEST_CASE("iterate symbols called on a non-existing code object", "[co_manager]")
 {
     auto logger = std::make_shared<TestCodeObjectLogger>();
     CodeObjectManager manager(DUMP_PATH, logger);
@@ -124,18 +117,32 @@ TEST_CASE("iterate symbols not existed code object", "[co_manager]")
     REQUIRE(logger->warnings.size() == 0);
 }
 
-TEST_CASE("iterate symbols existed code object with invalid executable", "[co_manager]")
+TEST_CASE("iterate symbols called with an invalid executable", "[co_manager]")
 {
     auto logger = std::make_shared<TestCodeObjectLogger>();
     CodeObjectManager manager(DUMP_PATH, logger);
 
-    hsa_code_object_reader_t co_reader = {123};
-    hsa_code_object_t co = {456};
-    hsa_executable_t exec = {789};
-    auto co_one = manager.InitCodeObject("CODE OBJECT ONE", sizeof("CODE OBJECT ONE"), &co);
-    auto co_two = manager.InitCodeObject("CODE OBJECT TWO", sizeof("CODE OBJECT TWO"), &co_reader);
+    // Create hsa_code_object_t and hsa_code_object_reader_t in separate functions
+    // to verify that CodeObjectManager does not reply on pointers to them, which may be
+    // unreliable.
+    auto prepare_co_one = [&]() -> std::tuple<hsa_code_object_t, std::shared_ptr<CodeObject>> {
+        hsa_code_object_t co = {12};
+        auto co_one = manager.InitCodeObject("CODE OBJECT ONE", sizeof("CODE OBJECT ONE"));
+        manager.set_code_object_handle(co_one, co);
+        return {co, co_one};
+    };
+    auto prepare_co_two = [&]() -> std::tuple<hsa_code_object_reader_t, std::shared_ptr<CodeObject>> {
+        hsa_code_object_reader_t co_reader = {23};
+        auto co_two = manager.InitCodeObject("CODE OBJECT TWO", sizeof("CODE OBJECT TWO"));
+        manager.set_code_object_handle(co_two, co_reader);
+        return {co_reader, co_two};
+    };
+
+    auto [co, co_one] = prepare_co_one();
+    auto [co_reader, co_two] = prepare_co_two();
     REQUIRE(co_one->CRC() != co_two->CRC());
 
+    hsa_executable_t exec = {789};
     manager.iterate_symbols(exec, co);
     manager.iterate_symbols(exec, co_reader);
 
