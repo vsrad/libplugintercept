@@ -19,27 +19,21 @@ private:
   std::string output_path;
 
 public:
-  HalfVectorAdd(int argc, const char **argv, 
-    std::string &clang, 
-    std::string &asm_source, 
+  HalfVectorAdd(int argc, const char **argv,
+    std::string &clang,
+    std::string &asm_source,
     std::string &include_dir,
     std::string &output_path)
-    : Dispatch(argc, argv), 
-      length(64), 
-      clang{std::move(clang) }, 
-      asm_source{std::move(asm_source) }, 
+    : Dispatch(argc, argv),
+      length(64),
+      clang{std::move(clang) },
+      asm_source{std::move(asm_source) },
       include_dir{std::move(include_dir) },
       output_path{std::move(output_path) } { }
 
   bool SetupCodeObject() override {
-    std::stringstream stream;
-
-    stream <<"cat  "
-      << asm_source << " | "
-      << clang << " -x assembler -target amdgcn--amdhsa -mcpu=gfx900 -mno-code-object-v3 -I"
-      << include_dir << " -o " << output_path << " -";
-
-    std::string clang_call = stream.str();
+    std::string clang_call = clang + " -x assembler -target amdgcn--amdhsa -mcpu=gfx900 -mno-code-object-v3 -I" + include_dir
+      + " -o " + output_path + " " + asm_source;
 
     output << "Execute: " << clang_call << std::endl;
     if (system(clang_call.c_str())) { output << "Error: kernel build failed - " << asm_source << std::endl; return false; }
