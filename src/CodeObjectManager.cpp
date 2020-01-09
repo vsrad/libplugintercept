@@ -154,7 +154,7 @@ void CodeObjectManager::iterate_symbols(hsa_executable_t& exec, std::shared_ptr<
     hsa_status_t status = hsa_executable_iterate_symbols(exec, iterate_symbols_callback, code_object.get());
     if (status != HSA_STATUS_SUCCESS)
     {
-        _logger->error(*code_object, "cannot iterate symbols of executable: " + exec.handle);
+        _logger->error(*code_object, "cannot iterate symbols of executable: " + std::to_string(exec.handle));
         return;
     }
 

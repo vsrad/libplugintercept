@@ -143,8 +143,8 @@ TEST_CASE("iterate symbols existed code object with invalid executable", "[co_ma
         "2005276243 intercepted code object",
         "428259000 intercepted code object"};
     std::vector<std::string> expected_error = {
-        "428259000 cannot iterate symbols of executable: 789"
-        "2005276243 cannot iterate symbols of executable: 789"};
+        "2005276243 cannot iterate symbols of executable: 789",
+        "428259000 cannot iterate symbols of executable: 789"};
     REQUIRE(logger->infos == expected_info);
     REQUIRE(logger->errors == expected_error);
     REQUIRE(logger->warnings.size() == 0);
