@@ -21,7 +21,7 @@ hsa_status_t iterate_symbols_callback(
     char* name = new char[name_len];
     status = hsa_executable_symbol_get_info(symbol, HSA_EXECUTABLE_SYMBOL_INFO_NAME, name);
     if (status == HSA_STATUS_SUCCESS)
-        co->add_symbol(std::string(name));
+        co->add_symbol(std::string(name, name_len));
 
     delete[] name;
     return status;
@@ -151,18 +151,28 @@ void CodeObjectManager::iterate_symbols(hsa_executable_t exec, CodeObject& code_
     _logger->info(code_object, symbol_info_string);
 }
 
-void CodeObjectManager::iterate_symbols(hsa_executable_t exec, hsa_code_object_reader_t reader)
+void CodeObjectManager::set_code_object_executable(hsa_executable_t exec, hsa_code_object_reader_t reader)
 {
     if (auto co = find_by_reader(reader))
+    {
+        _code_objects_by_exec_handle[exec.handle] = co;
         iterate_symbols(exec, *co);
+    }
     else
+    {
         _logger->error("cannot find code object by hsa_code_object_reader_t: " + std::to_string(reader.handle));
+    }
 }
 
-void CodeObjectManager::iterate_symbols(hsa_executable_t exec, hsa_code_object_t hsaco)
+void CodeObjectManager::set_code_object_executable(hsa_executable_t exec, hsa_code_object_t hsaco)
 {
     if (auto co = find_by_hsaco(hsaco))
+    {
+        _code_objects_by_exec_handle[exec.handle] = co;
         iterate_symbols(exec, *co);
+    }
     else
+    {
         _logger->error("cannot find code object by hsa_code_object_t: " + std::to_string(hsaco.handle));
+    }
 }

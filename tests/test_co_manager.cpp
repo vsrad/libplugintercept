@@ -83,8 +83,8 @@ TEST_CASE("iterate symbols called on a nonexistent code object", "[co_manager]")
     hsa_code_object_reader_t co_reader = {123};
     hsa_code_object_t co = {456};
     hsa_executable_t exec = {0};
-    manager.iterate_symbols(exec, co_reader);
-    manager.iterate_symbols(exec, co);
+    manager.set_code_object_executable(exec, co_reader);
+    manager.set_code_object_executable(exec, co);
 
     std::vector<std::string> expected_error = {
         "cannot find code object by hsa_code_object_reader_t: 123",
@@ -120,8 +120,8 @@ TEST_CASE("iterate symbols called with an invalid executable", "[co_manager]")
     REQUIRE(co_one->CRC() != co_two->CRC());
 
     hsa_executable_t exec = {789};
-    manager.iterate_symbols(exec, co);
-    manager.iterate_symbols(exec, co_reader);
+    manager.set_code_object_executable(exec, co);
+    manager.set_code_object_executable(exec, co_reader);
 
     std::vector<std::string> expected_info = {
         "crc: 2005276243 intercepted code object",

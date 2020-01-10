@@ -166,10 +166,8 @@ hsa_status_t DebugAgent::intercept_hsa_executable_load_agent_code_object(
     hsa_loaded_code_object_t* loaded_code_object)
 {
     hsa_status_t status = intercepted_fn(executable, agent, code_object_reader, options, loaded_code_object);
-    if (status != HSA_STATUS_SUCCESS)
-        return status;
-
-    _code_object_manager->iterate_symbols(executable, code_object_reader);
+    if (status == HSA_STATUS_SUCCESS)
+        _code_object_manager->set_code_object_executable(executable, code_object_reader);
     return status;
 }
 
@@ -181,9 +179,7 @@ hsa_status_t DebugAgent::intercept_hsa_executable_load_code_object(
     const char* options)
 {
     hsa_status_t status = intercepted_fn(executable, agent, code_object, options);
-    if (status != HSA_STATUS_SUCCESS)
-        return status;
-
-    _code_object_manager->iterate_symbols(executable, code_object);
+    if (status == HSA_STATUS_SUCCESS)
+        _code_object_manager->set_code_object_executable(executable, code_object);
     return status;
 }
