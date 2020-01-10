@@ -1,15 +1,17 @@
 #include "CodeObjectManager.hpp"
+#include <cassert>
 #include <cstring>
 #include <fstream>
 #include <iostream>
-#include <cassert>
+
+using namespace agent;
 
 hsa_status_t iterate_symbols_callback(
     hsa_executable_t exec,
     hsa_executable_symbol_t symbol,
     void* data)
 {
-    auto co = reinterpret_cast<agent::CodeObject*>(data);
+    auto co = reinterpret_cast<CodeObject*>(data);
 
     uint32_t name_len;
     hsa_status_t status = hsa_executable_symbol_get_info(symbol, HSA_EXECUTABLE_SYMBOL_INFO_NAME_LENGTH, &name_len);
@@ -25,70 +27,78 @@ hsa_status_t iterate_symbols_callback(
     return status;
 }
 
-namespace agent
+std::string CodeObjectManager::co_dump_path(crc32_t co_crc) const
 {
-std::string CodeObjectManager::CreateFilepath(std::string& filename)
-{
-    _path_builder.str("");
-    _path_builder.clear();
-    _path_builder << _path << "/" << filename << ".co";
-
-    return _path_builder.str();
+    return std::string(_dump_dir).append("/").append(std::to_string(co_crc)).append(".co");
 }
 
-void CodeObjectManager::CheckIdentitiyExistingCodeObject(agent::CodeObject& code_object)
+void CodeObjectManager::handle_crc_collision(const CodeObject& code_object)
 {
-    auto filename = std::to_string(code_object.CRC());
-    auto filepath = CreateFilepath(filename);
-
+    auto filepath = co_dump_path(code_object.CRC());
     std::ifstream in(filepath, std::ios::binary | std::ios::ate);
-    if (!in.fail())
+    if (!in)
     {
-        if (in.is_open())
-        {
-            size_t prev_size = std::string::size_type(in.tellg());
+        _logger->error(code_object, "cannot open " + filepath + " to check against a new code object with the same CRC");
+        return;
+    }
 
-            if (prev_size == code_object.Size())
-            {
-                char* prev_ptr = (char*)std::malloc(code_object.Size());
-                in.seekg(0, std::ios::beg);
-                std::copy(std::istreambuf_iterator<char>(in),
-                          std::istreambuf_iterator<char>(),
-                          prev_ptr);
+    size_t prev_size = std::string::size_type(in.tellg());
+    if (prev_size == code_object.Size())
+    {
+        char* prev_ptr = (char*)std::malloc(code_object.Size());
+        in.seekg(0, std::ios::beg);
+        std::copy(std::istreambuf_iterator<char>(in),
+                  std::istreambuf_iterator<char>(),
+                  prev_ptr);
 
-                auto res = std::memcmp(code_object.Ptr(), prev_ptr, code_object.Size());
-                if (res)
-                    _logger->error(code_object, "code object not equals with last code object: " + filepath);
-                else
-                    _logger->warning(code_object, "redundant load: " + filepath);
-
-                std::free(prev_ptr);
-            }
-            else
-            {
-                _logger->error(code_object, "code object not equals with last code object: " + filepath);
-            }
-        }
+        auto res = std::memcmp(code_object.Ptr(), prev_ptr, code_object.Size());
+        if (res)
+            _logger->error(code_object, "CRC collision: " + filepath);
         else
-        {
-            _logger->error(code_object, "cannot open code object file to check equivalence of new input code object: " + filepath);
-        }
+            _logger->warning(code_object, "redundant load: " + filepath);
+
+        std::free(prev_ptr);
+    }
+    else
+    {
+        std::ostringstream msg;
+        msg << "CRC collision: " << filepath << " (" << prev_size << " bytes) "
+            << " vs new code object (" << code_object.Size() << " bytes)";
+        _logger->error(code_object, msg.str());
     }
 }
 
-std::shared_ptr<CodeObject> CodeObjectManager::InitCodeObject(const void* ptr, size_t size)
+std::shared_ptr<CodeObject> CodeObjectManager::record_code_object(const void* ptr, size_t size)
 {
-    auto code_object = std::shared_ptr<CodeObject>(new CodeObject(ptr, size));
+    auto code_object = std::make_shared<CodeObject>(ptr, size);
     auto key = code_object->CRC();
 
     _logger->info(*code_object, "intercepted code object");
 
     std::unique_lock lock(_mutex);
     if (_code_objects.find(key) != _code_objects.end())
-        CheckIdentitiyExistingCodeObject(*code_object);
+        handle_crc_collision(*code_object);
+    else
+        dump_code_object(*code_object);
 
     _code_objects[key] = code_object;
     return code_object;
+}
+
+void CodeObjectManager::dump_code_object(const CodeObject& code_object)
+{
+    auto filepath = co_dump_path(code_object.CRC());
+    std::ofstream fs(filepath, std::ios::out | std::ios::binary);
+    if (fs)
+    {
+        fs.write((char*)code_object.Ptr(), code_object.Size());
+        fs.close();
+        _logger->info(code_object, "code object is written to the file " + filepath);
+    }
+    else
+    {
+        _logger->error(code_object, "cannot write code object to the file " + filepath);
+    }
 }
 
 void CodeObjectManager::set_code_object_handle(std::shared_ptr<CodeObject> co, hsa_code_object_reader_t reader)
@@ -101,25 +111,6 @@ void CodeObjectManager::set_code_object_handle(std::shared_ptr<CodeObject> co, h
 {
     assert(hsaco.handle != 0);
     _code_objects_by_hsaco_handle[hsaco.handle] = co;
-}
-
-void CodeObjectManager::WriteCodeObject(std::shared_ptr<CodeObject>& code_object)
-{
-    auto filename = std::to_string(code_object->CRC());
-    auto filepath = CreateFilepath(filename);
-
-    std::shared_lock lock(_mutex);
-    std::ofstream fs(filepath, std::ios::out | std::ios::binary);
-    if (!fs.is_open())
-    {
-        _logger->error(*code_object, "cannot write code object to the file " + filepath);
-        return;
-    }
-
-    fs.write((char*)code_object->Ptr(), code_object->Size());
-    fs.close();
-
-    _logger->info(*code_object, "code object is written to the file " + filepath);
 }
 
 std::shared_ptr<CodeObject> CodeObjectManager::find_by_reader(hsa_code_object_reader_t reader)
@@ -175,4 +166,3 @@ void CodeObjectManager::iterate_symbols(hsa_executable_t exec, hsa_code_object_t
     else
         _logger->error("cannot find code object by hsa_code_object_t: " + std::to_string(hsaco.handle));
 }
-} // namespace agent

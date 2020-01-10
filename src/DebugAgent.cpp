@@ -39,8 +39,7 @@ hsa_status_t DebugAgent::intercept_hsa_code_object_reader_create_from_memory(
     size_t size,
     hsa_code_object_reader_t* code_object_reader)
 {
-    auto co = _code_object_manager->InitCodeObject(code_object, size);
-    _code_object_manager->WriteCodeObject(co);
+    auto co = _code_object_manager->record_code_object(code_object, size);
 
     hsa_status_t status;
     auto replacement_co = _code_object_swapper->get_swapped_code_object(*co, _debug_buffer);
@@ -62,8 +61,7 @@ hsa_status_t DebugAgent::intercept_hsa_code_object_deserialize(
     const char* options,
     hsa_code_object_t* code_object)
 {
-    auto co = _code_object_manager->InitCodeObject(serialized_code_object, serialized_code_object_size);
-    _code_object_manager->WriteCodeObject(co);
+    auto co = _code_object_manager->record_code_object(serialized_code_object, serialized_code_object_size);
 
     hsa_status_t status;
     auto replacement_co = _code_object_swapper->get_swapped_code_object(*co, _debug_buffer);

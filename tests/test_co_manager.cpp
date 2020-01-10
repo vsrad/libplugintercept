@@ -26,31 +26,15 @@ TEST_CASE("init different code objects", "[co_manager]")
     auto logger = std::make_shared<TestCodeObjectLogger>();
     CodeObjectManager manager(DUMP_PATH, logger);
 
-    auto co_one = manager.InitCodeObject("CODE OBJECT ONE", sizeof("CODE OBJECT ONE"));
-    auto co_two = manager.InitCodeObject("CODE OBJECT TWO", sizeof("CODE OBJECT TWO"));
+    auto co_one = manager.record_code_object("CODE OBJECT ONE", sizeof("CODE OBJECT ONE"));
+    auto co_two = manager.record_code_object("CODE OBJECT TWO", sizeof("CODE OBJECT TWO"));
 
     REQUIRE(co_one->CRC() != co_two->CRC());
     std::vector<std::string> expected_info = {
         "2005276243 intercepted code object",
-        "428259000 intercepted code object"};
-    REQUIRE(logger->infos == expected_info);
-    REQUIRE(logger->warnings.size() == 0);
-    REQUIRE(logger->errors.size() == 0);
-}
-
-TEST_CASE("dump code object to a valid path", "[co_manager]")
-{
-    const char* CODE_OBJECT_DATA = "CODE OBJECT";
-
-    auto logger = std::make_shared<TestCodeObjectLogger>();
-    CodeObjectManager manager(DUMP_PATH, logger);
-
-    auto co_one = manager.InitCodeObject(CODE_OBJECT_DATA, sizeof(CODE_OBJECT_DATA));
-    manager.WriteCodeObject(co_one);
-
-    std::vector<std::string> expected_info = {
-        "4212875390 intercepted code object",
-        "4212875390 code object is written to the file tests/tmp/4212875390.co"};
+        "2005276243 code object is written to the file tests/tmp/2005276243.co",
+        "428259000 intercepted code object",
+        "428259000 code object is written to the file tests/tmp/428259000.co"};
     REQUIRE(logger->infos == expected_info);
     REQUIRE(logger->warnings.size() == 0);
     REQUIRE(logger->errors.size() == 0);
@@ -62,9 +46,7 @@ TEST_CASE("dump code object to an invalid path", "[co_manager]")
 
     auto logger = std::make_shared<TestCodeObjectLogger>();
     CodeObjectManager manager("invalid-path", logger);
-
-    auto co_one = manager.InitCodeObject(CODE_OBJECT_DATA, sizeof(CODE_OBJECT_DATA));
-    manager.WriteCodeObject(co_one);
+    auto co_one = manager.record_code_object(CODE_OBJECT_DATA, sizeof(CODE_OBJECT_DATA));
 
     std::vector<std::string> expected_info = {
         "4212875390 intercepted code object"};
@@ -82,9 +64,8 @@ TEST_CASE("redundant load code objects", "[co_manager]")
     auto logger = std::make_shared<TestCodeObjectLogger>();
     CodeObjectManager manager(DUMP_PATH, logger);
 
-    auto co_one = manager.InitCodeObject(CODE_OBJECT_DATA, sizeof(CODE_OBJECT_DATA));
-    manager.WriteCodeObject(co_one);
-    auto co_two = manager.InitCodeObject(CODE_OBJECT_DATA, sizeof(CODE_OBJECT_DATA));
+    auto co_one = manager.record_code_object(CODE_OBJECT_DATA, sizeof(CODE_OBJECT_DATA));
+    auto co_two = manager.record_code_object(CODE_OBJECT_DATA, sizeof(CODE_OBJECT_DATA));
 
     REQUIRE(co_one->CRC() == co_two->CRC());
     std::vector<std::string> expected_info = {
@@ -98,7 +79,7 @@ TEST_CASE("redundant load code objects", "[co_manager]")
     REQUIRE(logger->errors.size() == 0);
 }
 
-TEST_CASE("iterate symbols called on a non-existing code object", "[co_manager]")
+TEST_CASE("iterate symbols called on a nonexistent code object", "[co_manager]")
 {
     auto logger = std::make_shared<TestCodeObjectLogger>();
     CodeObjectManager manager(DUMP_PATH, logger);
@@ -127,13 +108,13 @@ TEST_CASE("iterate symbols called with an invalid executable", "[co_manager]")
     // unreliable.
     auto prepare_co_one = [&]() -> std::tuple<hsa_code_object_t, std::shared_ptr<CodeObject>> {
         hsa_code_object_t co = {12};
-        auto co_one = manager.InitCodeObject("CODE OBJECT ONE", sizeof("CODE OBJECT ONE"));
+        auto co_one = manager.record_code_object("CODE OBJECT ONE", sizeof("CODE OBJECT ONE"));
         manager.set_code_object_handle(co_one, co);
         return {co, co_one};
     };
     auto prepare_co_two = [&]() -> std::tuple<hsa_code_object_reader_t, std::shared_ptr<CodeObject>> {
         hsa_code_object_reader_t co_reader = {23};
-        auto co_two = manager.InitCodeObject("CODE OBJECT TWO", sizeof("CODE OBJECT TWO"));
+        auto co_two = manager.record_code_object("CODE OBJECT TWO", sizeof("CODE OBJECT TWO"));
         manager.set_code_object_handle(co_two, co_reader);
         return {co_reader, co_two};
     };
@@ -148,7 +129,9 @@ TEST_CASE("iterate symbols called with an invalid executable", "[co_manager]")
 
     std::vector<std::string> expected_info = {
         "2005276243 intercepted code object",
-        "428259000 intercepted code object"};
+        "2005276243 code object is written to the file tests/tmp/2005276243.co",
+        "428259000 intercepted code object",
+        "428259000 code object is written to the file tests/tmp/428259000.co"};
     std::vector<std::string> expected_error = {
         "2005276243 cannot iterate symbols of executable: 789",
         "428259000 cannot iterate symbols of executable: 789"};
