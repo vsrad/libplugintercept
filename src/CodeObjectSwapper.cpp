@@ -4,7 +4,7 @@
 
 using namespace agent;
 
-std::optional<CodeObject> do_swap(const CodeObjectSwap& swap, const std::unique_ptr<Buffer>& debug_buffer, Logger& logger)
+std::optional<CodeObject> do_swap(const CodeObjectSwap& swap, const std::unique_ptr<Buffer>& debug_buffer, AgentLogger& logger)
 {
     if (!swap.external_command.empty())
     {

@@ -18,7 +18,7 @@ private:
     std::map<decltype(hsa_code_object_reader_t::handle), std::shared_ptr<CodeObject>> _code_objects_by_reader_handle;
     std::map<decltype(hsa_code_object_t::handle), std::shared_ptr<CodeObject>> _code_objects_by_hsaco_handle;
     std::string _dump_dir;
-    std::shared_ptr<CodeObjectLoggerInterface> _logger;
+    std::shared_ptr<CodeObjectLogger> _logger;
     std::shared_mutex _mutex;
 
     std::string co_dump_path(crc32_t co_crc) const;
@@ -29,7 +29,7 @@ private:
     void iterate_symbols(hsa_executable_t exec, CodeObject& code_object);
 
 public:
-    CodeObjectManager(std::string dump_dir, std::shared_ptr<CodeObjectLoggerInterface> logger)
+    CodeObjectManager(std::string dump_dir, std::shared_ptr<CodeObjectLogger> logger)
         : _dump_dir{dump_dir}, _logger{logger} {}
     std::shared_ptr<CodeObject> record_code_object(const void* ptr, size_t size);
     void set_code_object_handle(std::shared_ptr<CodeObject> co, hsa_code_object_reader_t reader);

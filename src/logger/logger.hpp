@@ -1,5 +1,6 @@
 #pragma once
 
+#include "../CodeObject.hpp"
 #include <fstream>
 #include <functional>
 #include <iostream>
@@ -10,63 +11,16 @@
 
 namespace agent
 {
+template <char const* info_marker, char const* warning_marker, char const* error_marker>
 class Logger
-{
-public:
-    virtual void info(const std::string& msg) = 0;
-    virtual void error(const std::string& msg) = 0;
-    virtual void warning(const std::string& msg) = 0;
-};
-
-class CodeObjectLoggerInterface
-{
-public:
-    virtual void info(const std::string& msg) = 0;
-    virtual void error(const std::string& msg) = 0;
-    virtual void warning(const std::string& msg) = 0;
-
-    virtual void info(const agent::CodeObject& co, const std::string& msg) = 0;
-    virtual void error(const agent::CodeObject& co, const std::string& msg) = 0;
-    virtual void warning(const agent::CodeObject& co, const std::string& msg) = 0;
-};
-
-class AgentLogger : public Logger
-{
-private:
-    std::reference_wrapper<std::ostream> _out;
-    std::ofstream _file_output;
-
-public:
-    AgentLogger(const std::string& path) : _out(std::ref(std::cout)), _file_output()
-    {
-        if (path != "-")
-        {
-            _file_output.open(path, std::ios::out | std::ios::app);
-            _out = std::ref<std::ostream>(_file_output);
-        }
-    }
-
-    void info(const std::string& msg) override { _out.get() << "[INFO] " << msg << std::endl; }
-    void error(const std::string& msg) override { _out.get() << "[ERROR] " << msg << std::endl; }
-    void warning(const std::string& msg) override { _out.get() << "[WARNING] " << msg << std::endl; }
-};
-
-class CodeObjectLogger : public CodeObjectLoggerInterface
 {
 private:
     std::reference_wrapper<std::ostream> _out;
     std::ofstream _file_output;
     std::mutex _lock;
 
-    std::string prepare_msg(const agent::CodeObject& co, const std::string& msg)
-    {
-        std::ostringstream msg_stream;
-        msg_stream << "crc: " << co.CRC() << " " << msg;
-        return msg_stream.str();
-    }
-
 public:
-    CodeObjectLogger(const std::string& path) : _out(std::ref(std::cout)), _file_output()
+    Logger(const std::string& path) : _out(std::ref(std::cout)), _file_output()
     {
         if (path != "-")
         {
@@ -75,12 +29,48 @@ public:
         }
     }
 
-    void info(const std::string& msg) override { std::lock_guard lock(_lock); _out.get() << "[CO INFO] " << msg << std::endl; }
-    void error(const std::string& msg) override { std::lock_guard lock(_lock); _out.get() << "[CO ERROR] " << msg << std::endl; }
-    void warning(const std::string& msg) override { std::lock_guard lock(_lock); _out.get() << "[CO WARNING] " << msg << std::endl; }
+    virtual void info(const std::string& msg)
+    {
+        std::lock_guard lock(_lock);
+        _out.get() << info_marker << msg << std::endl;
+    }
 
-    void info(const agent::CodeObject& co, const std::string& msg) override { auto str = prepare_msg(co, msg); info(str); }
-    void error(const agent::CodeObject& co, const std::string& msg) override { auto str = prepare_msg(co, msg); error(str); }
-    void warning(const agent::CodeObject& co, const std::string& msg) override { auto str = prepare_msg(co, msg); warning(str); }
+    virtual void error(const std::string& msg)
+    {
+        std::lock_guard lock(_lock);
+        _out.get() << error_marker << msg << std::endl;
+    }
+
+    virtual void warning(const std::string& msg)
+    {
+        std::lock_guard lock(_lock);
+        _out.get() << warning_marker << msg << std::endl;
+    }
+};
+
+extern const char agent_info[], agent_error[], agent_warning[];
+
+typedef Logger<agent_info, agent_error, agent_warning> AgentLogger;
+
+extern const char co_info[], co_error[], co_warning[];
+
+class CodeObjectLogger : public Logger<co_info, co_error, co_warning>
+{
+private:
+    std::string co_msg(const agent::CodeObject& co, const std::string& msg)
+    {
+        return std::string("crc: ").append(std::to_string(co.CRC())).append(" ").append(msg);
+    }
+
+public:
+    CodeObjectLogger(const std::string& path) : Logger(path) {}
+
+    virtual void info(const std::string& msg) override { Logger::info(msg); }
+    virtual void error(const std::string& msg) override { Logger::error(msg); }
+    virtual void warning(const std::string& msg) override { Logger::warning(msg); }
+
+    void info(const agent::CodeObject& co, const std::string& msg) { info(co_msg(co, msg)); }
+    void error(const agent::CodeObject& co, const std::string& msg) { error(co_msg(co, msg)); }
+    void warning(const agent::CodeObject& co, const std::string& msg) { warning(co_msg(co, msg)); }
 };
 } // namespace agent

@@ -19,13 +19,13 @@ private:
     hsa_region_t _gpu_local_region;
     hsa_region_t _system_region;
     std::shared_ptr<Config> _config;
-    std::shared_ptr<Logger> _logger;
+    std::shared_ptr<AgentLogger> _logger;
     std::unique_ptr<CodeObjectManager> _code_object_manager;
     std::unique_ptr<CodeObjectSwapper> _code_object_swapper;
     std::unique_ptr<Buffer> _debug_buffer;
 
 public:
-    DebugAgent(std::shared_ptr<Config> config, std::shared_ptr<Logger> logger, std::shared_ptr<CodeObjectLogger> co_logger)
+    DebugAgent(std::shared_ptr<Config> config, std::shared_ptr<AgentLogger> logger, std::shared_ptr<CodeObjectLogger> co_logger)
         : _gpu_local_region{0}, _system_region{0}, _config(config), _logger(logger),
           _code_object_manager(std::make_unique<CodeObjectManager>(config->code_object_dump_dir(), co_logger)),
           _code_object_swapper(std::make_unique<CodeObjectSwapper>(config->code_object_swaps(), logger)) {}

@@ -5,7 +5,8 @@ add_library(plugintercept SHARED
     ${CMAKE_CURRENT_SOURCE_DIR}/CodeObject.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/CodeObjectManager.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/CodeObjectSwapper.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/external_command.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/external_command.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/logger/logger.cpp)
 
 get_property(CRCPP_INCLUDE_DIR GLOBAL PROPERTY CRCPP_INCLUDE_DIR)
 get_property(CPPTOML_INCLUDE_DIR GLOBAL PROPERTY CPPTOML_INCLUDE_DIR)

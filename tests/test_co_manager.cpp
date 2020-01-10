@@ -6,19 +6,15 @@
 
 using namespace agent;
 
-struct TestCodeObjectLogger : CodeObjectLoggerInterface
+struct TestCodeObjectLogger : CodeObjectLogger
 {
-    TestCodeObjectLogger() {}
+    TestCodeObjectLogger() : CodeObjectLogger("-") {}
     std::vector<std::string> infos;
     std::vector<std::string> warnings;
     std::vector<std::string> errors;
-    virtual void info(const std::string& msg) { infos.push_back(msg); }
-    virtual void error(const std::string& msg) { errors.push_back(msg); }
-    virtual void warning(const std::string& msg) { warnings.push_back(msg); }
-
-    virtual void info(const CodeObject& co, const std::string& msg) { infos.push_back(std::to_string(co.CRC()) + " " + msg); }
-    virtual void error(const CodeObject& co, const std::string& msg) { errors.push_back(std::to_string(co.CRC()) + " " + msg); }
-    virtual void warning(const CodeObject& co, const std::string& msg) { warnings.push_back(std::to_string(co.CRC()) + " " + msg); }
+    virtual void info(const std::string& msg) override { infos.push_back(msg); }
+    virtual void error(const std::string& msg) override { errors.push_back(msg); }
+    virtual void warning(const std::string& msg) override { warnings.push_back(msg); }
 };
 
 TEST_CASE("init different code objects", "[co_manager]")
@@ -31,10 +27,10 @@ TEST_CASE("init different code objects", "[co_manager]")
 
     REQUIRE(co_one->CRC() != co_two->CRC());
     std::vector<std::string> expected_info = {
-        "2005276243 intercepted code object",
-        "2005276243 code object is written to the file tests/tmp/2005276243.co",
-        "428259000 intercepted code object",
-        "428259000 code object is written to the file tests/tmp/428259000.co"};
+        "crc: 2005276243 intercepted code object",
+        "crc: 2005276243 code object is written to the file tests/tmp/2005276243.co",
+        "crc: 428259000 intercepted code object",
+        "crc: 428259000 code object is written to the file tests/tmp/428259000.co"};
     REQUIRE(logger->infos == expected_info);
     REQUIRE(logger->warnings.size() == 0);
     REQUIRE(logger->errors.size() == 0);
@@ -49,9 +45,9 @@ TEST_CASE("dump code object to an invalid path", "[co_manager]")
     auto co_one = manager.record_code_object(CODE_OBJECT_DATA, sizeof(CODE_OBJECT_DATA));
 
     std::vector<std::string> expected_info = {
-        "4212875390 intercepted code object"};
+        "crc: 4212875390 intercepted code object"};
     std::vector<std::string> expected_error = {
-        "4212875390 cannot write code object to the file invalid-path/4212875390.co"};
+        "crc: 4212875390 cannot write code object to the file invalid-path/4212875390.co"};
     REQUIRE(logger->infos == expected_info);
     REQUIRE(logger->errors == expected_error);
     REQUIRE(logger->warnings.size() == 0);
@@ -69,11 +65,11 @@ TEST_CASE("redundant load code objects", "[co_manager]")
 
     REQUIRE(co_one->CRC() == co_two->CRC());
     std::vector<std::string> expected_info = {
-        "4212875390 intercepted code object",
-        "4212875390 code object is written to the file tests/tmp/4212875390.co",
-        "4212875390 intercepted code object"};
+        "crc: 4212875390 intercepted code object",
+        "crc: 4212875390 code object is written to the file tests/tmp/4212875390.co",
+        "crc: 4212875390 intercepted code object"};
     std::vector<std::string> expected_warning = {
-        "4212875390 redundant load: tests/tmp/4212875390.co"};
+        "crc: 4212875390 redundant load: tests/tmp/4212875390.co"};
     REQUIRE(logger->infos == expected_info);
     REQUIRE(logger->warnings == expected_warning);
     REQUIRE(logger->errors.size() == 0);
@@ -128,13 +124,13 @@ TEST_CASE("iterate symbols called with an invalid executable", "[co_manager]")
     manager.iterate_symbols(exec, co_reader);
 
     std::vector<std::string> expected_info = {
-        "2005276243 intercepted code object",
-        "2005276243 code object is written to the file tests/tmp/2005276243.co",
-        "428259000 intercepted code object",
-        "428259000 code object is written to the file tests/tmp/428259000.co"};
+        "crc: 2005276243 intercepted code object",
+        "crc: 2005276243 code object is written to the file tests/tmp/2005276243.co",
+        "crc: 428259000 intercepted code object",
+        "crc: 428259000 code object is written to the file tests/tmp/428259000.co"};
     std::vector<std::string> expected_error = {
-        "2005276243 cannot iterate symbols of executable: 789",
-        "428259000 cannot iterate symbols of executable: 789"};
+        "crc: 2005276243 cannot iterate symbols of executable: 789",
+        "crc: 428259000 cannot iterate symbols of executable: 789"};
     REQUIRE(logger->infos == expected_info);
     REQUIRE(logger->errors == expected_error);
     REQUIRE(logger->warnings.size() == 0);

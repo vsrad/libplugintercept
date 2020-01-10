@@ -4,14 +4,15 @@
 
 using namespace agent;
 
-struct TestLogger : Logger
+struct TestLogger : AgentLogger
 {
-    TestLogger() : infos(), errors() {}
+    TestLogger() : AgentLogger("-") {}
     std::vector<std::string> infos;
     std::vector<std::string> errors;
-    virtual void info(const std::string& msg) { infos.push_back(msg); }
-    virtual void error(const std::string& msg) { errors.push_back(msg); }
-    virtual void warning(const std::string& msg) { errors.push_back(msg); }
+    std::vector<std::string> warnings;
+    virtual void info(const std::string& msg) override { infos.push_back(msg); }
+    virtual void error(const std::string& msg) override { errors.push_back(msg); }
+    virtual void warning(const std::string& msg) override { warnings.push_back(msg); }
 };
 
 TEST_CASE("swaps code object based on CRC match", "[co_swapper]")
