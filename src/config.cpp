@@ -52,6 +52,21 @@ Config::Config()
             else
                 throw std::runtime_error("Error when parsing configuration file " + config_path + ": missing code-object-swap.load-file");
 
+            auto symbols = swap_config->get_table_array("symbol");
+            if (symbols)
+            {
+                for (const auto& symbol : *symbols)
+                {
+                    auto name = symbol->get_as<std::string>("name");
+                    auto replacement_name = symbol->get_as<std::string>("replacement-name");
+                    if (!name)
+                        throw std::runtime_error("Error when parsing configuration file " + config_path + ": code-object-swap.symbol is missing name");
+                    if (!replacement_name)
+                        throw std::runtime_error("Error when parsing configuration file " + config_path + ": code-object-swap.symbol is missing replacement-name");
+                    swap.symbol_swaps.push_back({*name, *replacement_name});
+                }
+            }
+
             _code_object_swaps->push_back(swap);
         }
     }

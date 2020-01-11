@@ -10,10 +10,6 @@ log = "tests/tmp/co_dump.log"
 directory = "tests/tmp/"
 
 [[code-object-swap]]
-when-crc = 0xDEADBEEF
-load-file = "replacement.co"
-
-[[code-object-swap]]
 when-call-count = 1
 load-file = "tests/tmp/replacement.co"
 exec-before-load = """bash -o pipefail -c '\
@@ -21,3 +17,17 @@ exec-before-load = """bash -o pipefail -c '\
     -l 31 -w v[tid] -s 96 -r s0 -t 0 tests/kernels/dbg_kernel.s \
   | /opt/rocm/opencl/bin/x86_64/clang -x assembler -target amdgcn--amdhsa -mcpu=gfx900 -mno-code-object-v3 \
     -Itests/kernels/include -o tests/tmp/replacement.co -'"""
+
+[[code-object-swap]]
+when-crc = 0xCAFE666
+load-file = "replacement.co"
+  [[code-object-swap.symbol]]
+  name = "conv2d"
+  replacement-name = "conv2d_test_new"
+  [[code-object-swap.symbol]]
+  name = "conv2d_transpose"
+  replacement-name = "conv2d_test_new_transpose"
+
+[[code-object-swap]]
+when-crc = 0xDEADBEEF
+load-file = "replacement.co"
