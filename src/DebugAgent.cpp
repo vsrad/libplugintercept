@@ -49,7 +49,7 @@ hsa_status_t DebugAgent::intercept_hsa_code_object_reader_create_from_memory(
         status = intercepted_fn(code_object, size, code_object_reader);
 
     if (status == HSA_STATUS_SUCCESS && code_object_reader->handle != 0)
-        _code_object_manager->set_code_object_handle(co, *code_object_reader);
+        co->set_hsa_code_object_reader(*code_object_reader);
 
     return status;
 }
@@ -71,7 +71,7 @@ hsa_status_t DebugAgent::intercept_hsa_code_object_deserialize(
         status = intercepted_fn(serialized_code_object, serialized_code_object_size, options, code_object);
 
     if (status == HSA_STATUS_SUCCESS && code_object->handle != 0)
-        _code_object_manager->set_code_object_handle(co, *code_object);
+        co->set_hsa_code_object(*code_object);
 
     return status;
 }
@@ -167,7 +167,7 @@ hsa_status_t DebugAgent::intercept_hsa_executable_load_agent_code_object(
 {
     hsa_status_t status = intercepted_fn(executable, agent, code_object_reader, options, loaded_code_object);
     if (status == HSA_STATUS_SUCCESS)
-        _code_object_manager->set_code_object_executable(executable, code_object_reader);
+        _code_object_manager->iterate_symbols(executable, code_object_reader);
     return status;
 }
 
@@ -180,6 +180,6 @@ hsa_status_t DebugAgent::intercept_hsa_executable_load_code_object(
 {
     hsa_status_t status = intercepted_fn(executable, agent, code_object, options);
     if (status == HSA_STATUS_SUCCESS)
-        _code_object_manager->set_code_object_executable(executable, code_object);
+        _code_object_manager->iterate_symbols(executable, code_object);
     return status;
 }

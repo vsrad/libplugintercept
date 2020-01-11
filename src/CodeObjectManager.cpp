@@ -21,7 +21,7 @@ hsa_status_t iterate_symbols_callback(
     char* name = new char[name_len];
     status = hsa_executable_symbol_get_info(symbol, HSA_EXECUTABLE_SYMBOL_INFO_NAME, name);
     if (status == HSA_STATUS_SUCCESS)
-        co->add_symbol(std::string(name, name_len));
+        co->add_symbol(symbol, std::string(name, name_len));
 
     delete[] name;
     return status;
@@ -71,17 +71,17 @@ void CodeObjectManager::handle_crc_collision(const CodeObject& code_object)
 std::shared_ptr<CodeObject> CodeObjectManager::record_code_object(const void* ptr, size_t size)
 {
     auto code_object = std::make_shared<CodeObject>(ptr, size);
-    auto key = code_object->CRC();
-
     _logger->info(*code_object, "intercepted code object");
 
+    auto crc_eq = [crc = code_object->CRC()](auto const& co) { return co->CRC() == crc; };
+
     std::unique_lock lock(_mutex);
-    if (_code_objects.find(key) != _code_objects.end())
+    if (std::find_if(_code_objects.begin(), _code_objects.end(), crc_eq) != _code_objects.end())
         handle_crc_collision(*code_object);
     else
         dump_code_object(*code_object);
 
-    _code_objects[key] = code_object;
+    _code_objects.push_back(code_object);
     return code_object;
 }
 
@@ -101,78 +101,46 @@ void CodeObjectManager::dump_code_object(const CodeObject& code_object)
     }
 }
 
-void CodeObjectManager::set_code_object_handle(std::shared_ptr<CodeObject> co, hsa_code_object_reader_t reader)
+void CodeObjectManager::iterate_symbols(hsa_executable_t exec, std::shared_ptr<CodeObject> code_object)
 {
-    assert(reader.handle != 0);
-    _code_objects_by_reader_handle[reader.handle] = co;
-}
-
-void CodeObjectManager::set_code_object_handle(std::shared_ptr<CodeObject> co, hsa_code_object_t hsaco)
-{
-    assert(hsaco.handle != 0);
-    _code_objects_by_hsaco_handle[hsaco.handle] = co;
-}
-
-std::shared_ptr<CodeObject> CodeObjectManager::find_by_reader(hsa_code_object_reader_t reader)
-{
-    std::shared_lock lock(_mutex);
-    auto it = _code_objects_by_reader_handle.find(reader.handle);
-    if (it != _code_objects_by_reader_handle.end())
-        return it->second;
-    return {};
-}
-
-std::shared_ptr<CodeObject> CodeObjectManager::find_by_hsaco(hsa_code_object_t hsaco)
-{
-    std::shared_lock lock(_mutex);
-    auto it = _code_objects_by_hsaco_handle.find(hsaco.handle);
-    if (it != _code_objects_by_hsaco_handle.end())
-        return it->second;
-    return {};
-}
-
-void CodeObjectManager::iterate_symbols(hsa_executable_t exec, CodeObject& code_object)
-{
-    hsa_status_t status = hsa_executable_iterate_symbols(exec, iterate_symbols_callback, &code_object);
+    hsa_status_t status = hsa_executable_iterate_symbols(exec, iterate_symbols_callback, &*code_object);
     if (status != HSA_STATUS_SUCCESS)
     {
-        _logger->error(code_object, "cannot iterate symbols of executable: " + std::to_string(exec.handle));
+        _logger->error(*code_object, "cannot iterate symbols of executable: " + std::to_string(exec.handle));
         return;
     }
 
     std::ostringstream symbols_info_stream;
     symbols_info_stream << "found symbols:";
 
-    for (const auto& symbol : code_object.get_symbols())
+    for (const auto& [sym_handle, name] : code_object->symbols())
+    {
+        _code_objects_by_symbol[sym_handle] = code_object;
         symbols_info_stream << std::endl
-                            << "-- " << symbol;
+                            << "-- " << name;
+    }
 
-    const std::string& symbol_info_string = symbols_info_stream.str();
-    _logger->info(code_object, symbol_info_string);
+    _logger->info(*code_object, symbols_info_stream.str());
 }
 
-void CodeObjectManager::set_code_object_executable(hsa_executable_t exec, hsa_code_object_reader_t reader)
+void CodeObjectManager::iterate_symbols(hsa_executable_t exec, hsa_code_object_reader_t reader)
 {
-    if (auto co = find_by_reader(reader))
-    {
-        _code_objects_by_exec_handle[exec.handle] = co;
-        iterate_symbols(exec, *co);
-    }
+    std::shared_lock lock(_mutex);
+    auto reader_eq = [hndl = reader.handle](auto const& co) { return co->hsa_code_object_reader().handle == hndl; };
+    auto it = std::find_if(_code_objects.begin(), _code_objects.end(), reader_eq);
+    if (it != _code_objects.end())
+        iterate_symbols(exec, *it);
     else
-    {
         _logger->error("cannot find code object by hsa_code_object_reader_t: " + std::to_string(reader.handle));
-    }
 }
 
-void CodeObjectManager::set_code_object_executable(hsa_executable_t exec, hsa_code_object_t hsaco)
+void CodeObjectManager::iterate_symbols(hsa_executable_t exec, hsa_code_object_t hsaco)
 {
-    if (auto co = find_by_hsaco(hsaco))
-    {
-        _code_objects_by_exec_handle[exec.handle] = co;
-        iterate_symbols(exec, *co);
-    }
+    std::shared_lock lock(_mutex);
+    auto hsaco_eq = [hndl = hsaco.handle](auto const& co) { return co->hsa_code_object().handle == hndl; };
+    auto it = std::find_if(_code_objects.begin(), _code_objects.end(), hsaco_eq);
+    if (it != _code_objects.end())
+        iterate_symbols(exec, *it);
     else
-    {
         _logger->error("cannot find code object by hsa_code_object_t: " + std::to_string(hsaco.handle));
-    }
 }
