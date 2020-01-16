@@ -6,27 +6,6 @@
 
 using namespace agent;
 
-hsa_status_t iterate_symbols_callback(
-    hsa_executable_t exec,
-    hsa_executable_symbol_t symbol,
-    void* data)
-{
-    auto co = reinterpret_cast<CodeObject*>(data);
-
-    uint32_t name_len;
-    hsa_status_t status = hsa_executable_symbol_get_info(symbol, HSA_EXECUTABLE_SYMBOL_INFO_NAME_LENGTH, &name_len);
-    if (status != HSA_STATUS_SUCCESS)
-        return status;
-
-    char* name = new char[name_len];
-    status = hsa_executable_symbol_get_info(symbol, HSA_EXECUTABLE_SYMBOL_INFO_NAME, name);
-    if (status == HSA_STATUS_SUCCESS)
-        co->add_symbol(symbol, std::string(name, name_len));
-
-    delete[] name;
-    return status;
-}
-
 std::string CodeObjectManager::co_dump_path(crc32_t co_crc) const
 {
     return std::string(_dump_dir).append("/").append(std::to_string(co_crc)).append(".co");
@@ -103,8 +82,7 @@ void CodeObjectManager::dump_code_object(const CodeObject& code_object)
 
 void CodeObjectManager::iterate_symbols(hsa_executable_t exec, std::shared_ptr<CodeObject> code_object)
 {
-    hsa_status_t status = hsa_executable_iterate_symbols(exec, iterate_symbols_callback, &*code_object);
-    if (status != HSA_STATUS_SUCCESS)
+    if (code_object->fill_symbols(exec) != HSA_STATUS_SUCCESS)
     {
         _logger->error(*code_object, "cannot iterate symbols of executable: " + std::to_string(exec.handle));
         return;
