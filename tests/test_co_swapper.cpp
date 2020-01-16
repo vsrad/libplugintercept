@@ -17,11 +17,11 @@ struct TestLogger : AgentLogger
 
 TEST_CASE("swaps code object based on CRC match", "[co_swapper]")
 {
-    CodeObject co_matching("CODE OBJECT", sizeof("CODE OBJECT"));
-    CodeObject co_other("SOME OTHER CO", sizeof("SOME OTHER CO"));
-    REQUIRE(co_matching.CRC() != co_other.CRC());
+    auto co_matching = std::make_shared<CodeObject>("CODE OBJECT", sizeof("CODE OBJECT"));
+    auto co_other = std::make_shared<CodeObject>("SOME OTHER CO", sizeof("SOME OTHER CO"));
+    REQUIRE(co_matching->CRC() != co_other->CRC());
 
-    std::vector<CodeObjectSwap> swaps = {{.condition = {co_matching.CRC()},
+    std::vector<CodeObjectSwap> swaps = {{.condition = {co_matching->CRC()},
                                           .replacement_path = "tests/fixtures/asdf"}};
     CodeObjectSwapper cosw(std::make_shared<std::vector<CodeObjectSwap>>(swaps), std::make_shared<TestLogger>());
     auto swapped_matching = cosw.get_swapped_code_object(co_matching, std::unique_ptr<Buffer>());
@@ -37,9 +37,9 @@ TEST_CASE("swaps code object based on the call # match", "[co_swapper]")
     std::vector<CodeObjectSwap> swaps = {{.condition = {call_count_t(3)},
                                           .replacement_path = "tests/fixtures/asdf"}};
     CodeObjectSwapper cosw(std::make_shared<std::vector<CodeObjectSwap>>(swaps), std::make_shared<TestLogger>());
-    REQUIRE(!cosw.get_swapped_code_object(CodeObject("", 0), std::unique_ptr<Buffer>()));
-    REQUIRE(!cosw.get_swapped_code_object(CodeObject("", 0), std::unique_ptr<Buffer>()));
-    auto third_call = cosw.get_swapped_code_object(CodeObject("", 0), std::unique_ptr<Buffer>());
+    REQUIRE(!cosw.get_swapped_code_object(std::make_shared<CodeObject>("", 0), std::unique_ptr<Buffer>()));
+    REQUIRE(!cosw.get_swapped_code_object(std::make_shared<CodeObject>("", 0), std::unique_ptr<Buffer>()));
+    auto third_call = cosw.get_swapped_code_object(std::make_shared<CodeObject>("", 0), std::unique_ptr<Buffer>());
     REQUIRE(third_call);
     std::string swapped_data(static_cast<const char*>(third_call->Ptr()), third_call->Size());
     REQUIRE(swapped_data == "ASDF\n");
@@ -54,7 +54,7 @@ TEST_CASE("runs external command before swapping the code object if specified", 
           .replacement_path = "tests/tmp/co_swapper_time",
           .external_command = "echo " + std::to_string(time) + " > tests/tmp/co_swapper_time"}};
     CodeObjectSwapper cosw(std::make_shared<std::vector<CodeObjectSwap>>(swaps), logger);
-    auto swapped = cosw.get_swapped_code_object(CodeObject("", 0), std::unique_ptr<Buffer>());
+    auto swapped = cosw.get_swapped_code_object(std::make_shared<CodeObject>("", 0), std::unique_ptr<Buffer>());
     REQUIRE(swapped);
     std::string swapped_data(static_cast<const char*>(swapped->Ptr()), swapped->Size());
     REQUIRE(swapped_data == std::to_string(time) + "\n");
@@ -71,7 +71,7 @@ TEST_CASE("logs external command output on failure", "[co_swapper]")
           .replacement_path = "t",
           .external_command = "echo h; asdfasdf"}};
     CodeObjectSwapper cosw(std::make_shared<std::vector<CodeObjectSwap>>(swaps), logger);
-    auto swapped = cosw.get_swapped_code_object(CodeObject("SOME CO", sizeof("SOME CO")), std::unique_ptr<Buffer>());
+    auto swapped = cosw.get_swapped_code_object(std::make_shared<CodeObject>("SOME CO", sizeof("SOME CO")), std::unique_ptr<Buffer>());
     REQUIRE(!swapped);
 
     std::vector<std::string> expected_error_log = {
@@ -80,7 +80,7 @@ TEST_CASE("logs external command output on failure", "[co_swapper]")
     REQUIRE(logger->errors == expected_error_log);
 
     logger->errors.clear();
-    auto swapped2 = cosw.get_swapped_code_object(CodeObject("SOME CO", sizeof("SOME CO")), std::unique_ptr<Buffer>());
+    auto swapped2 = cosw.get_swapped_code_object(std::make_shared<CodeObject>("SOME CO", sizeof("SOME CO")), std::unique_ptr<Buffer>());
     REQUIRE(!swapped2);
 
     std::vector<std::string> expected_error_log2 = {

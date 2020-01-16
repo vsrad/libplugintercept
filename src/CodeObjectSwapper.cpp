@@ -4,11 +4,38 @@
 
 using namespace agent;
 
-std::optional<CodeObject> do_swap(const CodeObjectSwap& swap, const std::unique_ptr<Buffer>& debug_buffer, AgentLogger& logger)
+std::optional<CodeObject> CodeObjectSwapper::get_swapped_code_object(std::shared_ptr<CodeObject> source, const std::unique_ptr<Buffer>& debug_buffer)
+{
+    call_count_t current_call = ++_call_counter;
+
+    for (auto& swap : *_swaps)
+        if (auto target_call_count = std::get_if<call_count_t>(&swap.condition))
+        {
+            if (*target_call_count == current_call)
+            {
+                _logger->info(
+                    "Code object load #" + std::to_string(*target_call_count) + ": swapping for " + swap.replacement_path);
+                return do_swap(swap, source, debug_buffer);
+            }
+        }
+        else if (auto target_crc = std::get_if<crc32_t>(&swap.condition))
+        {
+            if (*target_crc == source->CRC())
+            {
+                _logger->info(
+                    "Code object load with CRC = " + std::to_string(*target_crc) + ": swapping for " + swap.replacement_path);
+                return do_swap(swap, source, debug_buffer);
+            }
+        }
+
+    return {};
+}
+
+std::optional<CodeObject> CodeObjectSwapper::do_swap(const CodeObjectSwap& swap, std::shared_ptr<CodeObject> source, const std::unique_ptr<Buffer>& debug_buffer)
 {
     if (!swap.external_command.empty())
     {
-        logger.info("Executing `" + swap.external_command + "`");
+        _logger->info("Executing `" + swap.external_command + "`");
         ExternalCommand cmd(swap.external_command);
         std::map<std::string, std::string> environment;
 
@@ -19,7 +46,7 @@ std::optional<CodeObject> do_swap(const CodeObjectSwap& swap, const std::unique_
         }
         else
         {
-            logger.info("ASM_DBG_BUF_SIZE and ASM_DBG_BUF_ADDR are not set because the debug buffer has not been allocated yet.");
+            _logger->info("ASM_DBG_BUF_SIZE and ASM_DBG_BUF_ADDR are not set because the debug buffer has not been allocated yet.");
         }
 
         int retcode = cmd.execute(environment);
@@ -35,41 +62,19 @@ std::optional<CodeObject> do_swap(const CodeObjectSwap& swap, const std::unique_
             if (!stderr.empty())
                 error_log << "\n=== Stderr:\n"
                           << stderr;
-            logger.error(error_log.str());
+            _logger->error(error_log.str());
             return {};
         }
-        logger.info("The command has finished successfully");
+        _logger->info("The command has finished successfully");
     }
 
     auto new_co = CodeObject::try_read_from_file(swap.replacement_path.c_str());
     if (!new_co)
-        logger.error("Unable to load the replacement code object from " + swap.replacement_path);
-    return new_co;
-}
+        _logger->error("Unable to load the replacement code object from " + swap.replacement_path);
 
-std::optional<CodeObject> CodeObjectSwapper::get_swapped_code_object(const CodeObject& source, const std::unique_ptr<Buffer>& debug_buffer)
-{
-    call_count_t current_call = ++_call_counter;
+    if (swap.symbol_swaps.empty())
+        return new_co;
 
-    for (auto& swap : *_swaps)
-        if (auto target_call_count = std::get_if<call_count_t>(&swap.condition))
-        {
-            if (*target_call_count == current_call)
-            {
-                _logger->info(
-                    "Code object load #" + std::to_string(*target_call_count) + ": swapping for " + swap.replacement_path);
-                return do_swap(swap, debug_buffer, *_logger);
-            }
-        }
-        else if (auto target_crc = std::get_if<crc32_t>(&swap.condition))
-        {
-            if (*target_crc == source.CRC())
-            {
-                _logger->info(
-                    "Code object load with CRC = " + std::to_string(*target_crc) + ": swapping for " + swap.replacement_path);
-                return do_swap(swap, debug_buffer, *_logger);
-            }
-        }
-
+    _symbol_swaps.emplace(source, std::make_pair(swap, *new_co));
     return {};
 }
