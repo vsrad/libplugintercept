@@ -75,6 +75,54 @@ std::optional<CodeObject> CodeObjectSwapper::do_swap(const CodeObjectSwap& swap,
     if (swap.symbol_swaps.empty())
         return new_co;
 
-    _symbol_swaps.emplace(source, std::make_pair(swap, *new_co));
+    _symbol_swaps.emplace(source, SymbolSwap{.swap = swap, .replacement_co = *new_co, .exec = {0}});
     return {};
+}
+
+hsa_status_t create_executable(CodeObject& co, hsa_agent_t agent, hsa_executable_t* executable, const char** error_callsite)
+{
+    hsa_code_object_reader_t co_reader;
+    hsa_status_t status = hsa_code_object_reader_create_from_memory(co.Ptr(), co.Size(), &co_reader);
+    if (status != HSA_STATUS_SUCCESS)
+    {
+        *error_callsite = "hsa_code_object_reader_create_from_memory";
+        return status;
+    }
+    status = hsa_executable_create(HSA_PROFILE_FULL, HSA_EXECUTABLE_STATE_UNFROZEN, NULL, executable);
+    if (status != HSA_STATUS_SUCCESS)
+    {
+        *error_callsite = "hsa_executable_create";
+        return status;
+    }
+    status = hsa_executable_load_agent_code_object(*executable, agent, co_reader, NULL, NULL);
+    if (status != HSA_STATUS_SUCCESS)
+    {
+        *error_callsite = "hsa_executable_load_agent_code_object";
+        return status;
+    }
+    status = co.fill_symbols(*executable);
+    if (status != HSA_STATUS_SUCCESS)
+        *error_callsite = "hsa_executable_iterate_symbols";
+    return status;
+}
+
+void CodeObjectSwapper::prepare_symbol_swap(std::shared_ptr<CodeObject> source, hsa_agent_t agent)
+{
+    if (auto it{_symbol_swaps.find(source)}; it != _symbol_swaps.end())
+    {
+        auto& swap = it->second;
+        const char *error_site, *err;
+        hsa_status_t status = create_executable(swap.replacement_co, agent, &swap.exec, &error_site);
+        if (status != HSA_STATUS_SUCCESS)
+        {
+            hsa_status_string(status, &err);
+            _logger->error(std::string("Unable to prepare replacement code object for CRC = ")
+                               .append(std::to_string(source->CRC()))
+                               .append(": ")
+                               .append(error_site)
+                               .append(" failed with ")
+                               .append(err));
+            swap.exec = {0};
+        }
+    }
 }

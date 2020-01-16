@@ -67,8 +67,7 @@ std::shared_ptr<CodeObject> CodeObjectManager::record_code_object(const void* pt
 void CodeObjectManager::dump_code_object(const CodeObject& code_object)
 {
     auto filepath = co_dump_path(code_object.CRC());
-    std::ofstream fs(filepath, std::ios::out | std::ios::binary);
-    if (fs)
+    if (std::ofstream fs{filepath, std::ios::out | std::ios::binary})
     {
         fs.write((char*)code_object.Ptr(), code_object.Size());
         fs.close();
@@ -101,24 +100,34 @@ void CodeObjectManager::iterate_symbols(hsa_executable_t exec, std::shared_ptr<C
     _logger->info(*code_object, symbols_info_stream.str());
 }
 
-void CodeObjectManager::iterate_symbols(hsa_executable_t exec, hsa_code_object_reader_t reader)
+std::shared_ptr<CodeObject> CodeObjectManager::iterate_symbols(hsa_executable_t exec, hsa_code_object_reader_t reader)
 {
     std::shared_lock lock(_mutex);
     auto reader_eq = [hndl = reader.handle](auto const& co) { return co->hsa_code_object_reader().handle == hndl; };
-    auto it = std::find_if(_code_objects.begin(), _code_objects.end(), reader_eq);
-    if (it != _code_objects.end())
+    if (auto it{std::find_if(_code_objects.begin(), _code_objects.end(), reader_eq)}; it != _code_objects.end())
+    {
         iterate_symbols(exec, *it);
+        return *it;
+    }
     else
+    {
         _logger->error("cannot find code object by hsa_code_object_reader_t: " + std::to_string(reader.handle));
+        return {};
+    }
 }
 
-void CodeObjectManager::iterate_symbols(hsa_executable_t exec, hsa_code_object_t hsaco)
+std::shared_ptr<CodeObject> CodeObjectManager::iterate_symbols(hsa_executable_t exec, hsa_code_object_t hsaco)
 {
     std::shared_lock lock(_mutex);
     auto hsaco_eq = [hndl = hsaco.handle](auto const& co) { return co->hsa_code_object().handle == hndl; };
-    auto it = std::find_if(_code_objects.begin(), _code_objects.end(), hsaco_eq);
-    if (it != _code_objects.end())
+    if (auto it{std::find_if(_code_objects.begin(), _code_objects.end(), hsaco_eq)}; it != _code_objects.end())
+    {
         iterate_symbols(exec, *it);
+        return *it;
+    }
     else
+    {
         _logger->error("cannot find code object by hsa_code_object_t: " + std::to_string(hsaco.handle));
+        return {};
+    }
 }
