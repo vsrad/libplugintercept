@@ -76,6 +76,12 @@ public:
         hsa_agent_t agent,
         hsa_code_object_t code_object,
         const char* options);
+
+    hsa_status_t intercept_hsa_executable_symbol_get_info(
+        decltype(hsa_executable_symbol_get_info)* intercepted_fn,
+        hsa_executable_symbol_t executable_symbol,
+        hsa_executable_symbol_info_t attribute,
+        void* value);
 };
 
 } // namespace agent

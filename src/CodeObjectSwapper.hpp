@@ -29,5 +29,6 @@ public:
         : _swaps(swaps), _logger(logger), _call_counter(0) {}
     std::optional<CodeObject> get_swapped_code_object(std::shared_ptr<CodeObject> source, const std::unique_ptr<Buffer>& debug_buffer);
     void prepare_symbol_swap(std::shared_ptr<CodeObject> source, hsa_agent_t agent);
+    std::optional<hsa_executable_symbol_t> swap_symbol(std::shared_ptr<CodeObject> source, const std::string& source_symbol_name);
 };
 }; // namespace agent

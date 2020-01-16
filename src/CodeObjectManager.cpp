@@ -92,7 +92,7 @@ void CodeObjectManager::iterate_symbols(hsa_executable_t exec, std::shared_ptr<C
 
     for (const auto& [sym_handle, name] : code_object->symbols())
     {
-        _code_objects_by_symbol[sym_handle] = code_object;
+        _code_object_symbols.emplace(sym_handle, std::make_pair(code_object, name));
         symbols_info_stream << std::endl
                             << "-- " << name;
     }
@@ -130,4 +130,11 @@ std::shared_ptr<CodeObject> CodeObjectManager::iterate_symbols(hsa_executable_t 
         _logger->error("cannot find code object by hsa_code_object_t: " + std::to_string(hsaco.handle));
         return {};
     }
+}
+
+std::optional<std::pair<std::shared_ptr<CodeObject>, const std::string&>> CodeObjectManager::lookup_symbol(hsa_executable_symbol_t symbol)
+{
+    if (auto it{_code_object_symbols.find(symbol.handle)}; it != _code_object_symbols.end())
+        return {it->second};
+    return {};
 }

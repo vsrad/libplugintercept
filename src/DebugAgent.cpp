@@ -166,7 +166,8 @@ hsa_status_t DebugAgent::intercept_hsa_executable_load_agent_code_object(
     hsa_loaded_code_object_t* loaded_code_object)
 {
     hsa_status_t status = intercepted_fn(executable, agent, code_object_reader, options, loaded_code_object);
-    if (status == HSA_STATUS_SUCCESS) {
+    if (status == HSA_STATUS_SUCCESS)
+    {
         auto co = _code_object_manager->iterate_symbols(executable, code_object_reader);
         _code_object_swapper->prepare_symbol_swap(co, agent);
     }
@@ -181,9 +182,37 @@ hsa_status_t DebugAgent::intercept_hsa_executable_load_code_object(
     const char* options)
 {
     hsa_status_t status = intercepted_fn(executable, agent, code_object, options);
-    if (status == HSA_STATUS_SUCCESS) {
+    if (status == HSA_STATUS_SUCCESS)
+    {
         auto co = _code_object_manager->iterate_symbols(executable, code_object);
         _code_object_swapper->prepare_symbol_swap(co, agent);
     }
     return status;
+}
+
+hsa_status_t DebugAgent::intercept_hsa_executable_symbol_get_info(
+    decltype(hsa_executable_symbol_get_info)* intercepted_fn,
+    hsa_executable_symbol_t executable_symbol,
+    hsa_executable_symbol_info_t attribute,
+    void* value)
+{
+    switch (attribute)
+    {
+    case HSA_EXECUTABLE_SYMBOL_INFO_NAME_LENGTH:
+    case HSA_EXECUTABLE_SYMBOL_INFO_NAME:
+    case HSA_EXECUTABLE_SYMBOL_INFO_MODULE_NAME_LENGTH:
+    case HSA_EXECUTABLE_SYMBOL_INFO_MODULE_NAME:
+        // The source symbol name may differ from the replacement name; return the former because host code may rely on it.
+        return intercepted_fn(executable_symbol, attribute, value);
+    default:
+        auto co_symbol = _code_object_manager->lookup_symbol(executable_symbol);
+        if (co_symbol)
+        {
+            auto& [co, sym_name] = *co_symbol;
+            if (auto replacement_sym{_code_object_swapper->swap_symbol(co, sym_name)})
+                return intercepted_fn(*replacement_sym, attribute, value);
+        }
+
+        return intercepted_fn(executable_symbol, attribute, value);
+    }
 }

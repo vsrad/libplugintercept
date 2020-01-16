@@ -65,6 +65,16 @@ hsa_status_t intercept_hsa_executable_load_code_object(
         executable, agent, code_object, options);
 }
 
+hsa_status_t intercept_hsa_executable_symbol_get_info(
+    hsa_executable_symbol_t executable_symbol,
+    hsa_executable_symbol_info_t attribute,
+    void* value)
+{
+    return _debug_agent->intercept_hsa_executable_symbol_get_info(
+        _intercepted_api_table->hsa_executable_symbol_get_info_fn,
+        executable_symbol, attribute, value);
+}
+
 extern "C" bool OnLoad(void* api_table_ptr, uint64_t rt_version, uint64_t failed_tool_cnt, const char* const* failed_tool_names)
 {
     try
@@ -83,6 +93,7 @@ extern "C" bool OnLoad(void* api_table_ptr, uint64_t rt_version, uint64_t failed
         api_table->core_->hsa_code_object_deserialize_fn = intercept_hsa_code_object_deserialize;
         api_table->core_->hsa_executable_load_agent_code_object_fn = intercept_hsa_executable_load_agent_code_object;
         api_table->core_->hsa_executable_load_code_object_fn = intercept_hsa_executable_load_code_object;
+        api_table->core_->hsa_executable_symbol_get_info_fn = intercept_hsa_executable_symbol_get_info;
     }
     catch (const std::exception& e)
     {

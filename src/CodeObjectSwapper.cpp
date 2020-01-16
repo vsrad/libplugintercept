@@ -126,3 +126,21 @@ void CodeObjectSwapper::prepare_symbol_swap(std::shared_ptr<CodeObject> source, 
         }
     }
 }
+
+std::optional<hsa_executable_symbol_t> CodeObjectSwapper::swap_symbol(std::shared_ptr<CodeObject> source, const std::string& source_symbol_name)
+{
+    if (auto it{_symbol_swaps.find(source)}; it != _symbol_swaps.end())
+    {
+        auto src_rep_it = std::find_if(it->second.swap.symbol_swaps.begin(), it->second.swap.symbol_swaps.end(),
+                                       [name = source_symbol_name](const auto& src_rep_names) { return src_rep_names.first == name; });
+        if (src_rep_it != it->second.swap.symbol_swaps.end())
+        {
+            auto& replacement_symbols = it->second.replacement_co.symbols();
+            auto sym_it = std::find_if(replacement_symbols.begin(), replacement_symbols.end(),
+                                       [name = src_rep_it->second](const auto& src_rep_names) { return src_rep_names.second == name; });
+            if (sym_it != replacement_symbols.end())
+                return {hsa_executable_symbol_t{sym_it->first}};
+        }
+    }
+    return {};
+}
