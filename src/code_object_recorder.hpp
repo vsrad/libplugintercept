@@ -1,6 +1,6 @@
 #pragma once
 
-#include "CodeObject.hpp"
+#include "code_object.hpp"
 #include "logger/logger.hpp"
 #include <memory>
 #include <shared_mutex>
@@ -10,7 +10,7 @@
 namespace agent
 {
 
-class CodeObjectManager
+class CodeObjectRecorder
 {
 private:
     std::vector<std::shared_ptr<CodeObject>> _code_objects;
@@ -25,7 +25,7 @@ private:
     void iterate_symbols(hsa_executable_t exec, std::shared_ptr<CodeObject> code_object);
 
 public:
-    CodeObjectManager(std::string dump_dir, std::shared_ptr<CodeObjectLogger> logger)
+    CodeObjectRecorder(std::string dump_dir, std::shared_ptr<CodeObjectLogger> logger)
         : _dump_dir{dump_dir}, _logger{logger} {}
     std::shared_ptr<CodeObject> record_code_object(const void* ptr, size_t size);
     std::shared_ptr<CodeObject> iterate_symbols(hsa_executable_t exec, hsa_code_object_reader_t reader);

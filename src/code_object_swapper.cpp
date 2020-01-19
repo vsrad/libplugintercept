@@ -1,4 +1,4 @@
-#include "CodeObjectSwapper.hpp"
+#include "code_object_swapper.hpp"
 #include "external_command.hpp"
 #include <sstream>
 
@@ -20,7 +20,7 @@ std::optional<CodeObject> CodeObjectSwapper::get_swapped_code_object(std::shared
         }
         else if (auto target_crc = std::get_if<crc32_t>(&swap.condition))
         {
-            if (*target_crc == source->CRC())
+            if (*target_crc == source->crc())
             {
                 _logger->info(
                     "Code object load with CRC = " + std::to_string(*target_crc) + ": swapping for " + swap.replacement_path);
@@ -96,7 +96,7 @@ void CodeObjectSwapper::prepare_symbol_swap(std::shared_ptr<CodeObject> source, 
         {
             hsa_status_string(status, &err);
             _logger->error(std::string("Unable to prepare replacement code object for CRC = ")
-                               .append(std::to_string(source->CRC()))
+                               .append(std::to_string(source->crc()))
                                .append(": ")
                                .append(error_site)
                                .append(" failed with ")

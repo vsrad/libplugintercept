@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstddef>
+
 namespace agent
 {
 class Buffer

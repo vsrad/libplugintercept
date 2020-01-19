@@ -23,9 +23,9 @@ private:
 
 public:
     CodeObject(const void* ptr, size_t size);
-    const void* Ptr() const { return _ptr; }
-    size_t Size() const { return _size; }
-    crc32_t CRC() const { return _crc; }
+    const void* ptr() const { return _ptr; }
+    size_t size() const { return _size; }
+    crc32_t crc() const { return _crc; }
     const std::map<decltype(hsa_executable_symbol_t::handle), std::string>& symbols() const { return _symbols; }
     hsa_code_object_reader_t hsa_code_object_reader() const { return _reader; }
     hsa_code_object_t hsa_code_object() const { return _hsaco; }

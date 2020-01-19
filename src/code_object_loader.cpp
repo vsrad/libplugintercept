@@ -10,7 +10,7 @@ hsa_status_t CodeObjectLoader::create_executable(
 {
     hsa_code_object_reader_t co_reader;
     hsa_status_t status = _non_intercepted_api_table->hsa_code_object_reader_create_from_memory_fn(
-        co.Ptr(), co.Size(), &co_reader);
+        co.ptr(), co.size(), &co_reader);
     if (status != HSA_STATUS_SUCCESS)
     {
         *error_callsite = "hsa_code_object_reader_create_from_memory";

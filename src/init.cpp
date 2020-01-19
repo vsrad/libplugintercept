@@ -1,6 +1,4 @@
-#include "DebugAgent.hpp"
-#include "config.hpp"
-#include "logger/logger.hpp"
+#include "debug_agent.hpp"
 #include <iostream>
 
 std::unique_ptr<agent::DebugAgent> _debug_agent;

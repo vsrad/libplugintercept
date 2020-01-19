@@ -1,9 +1,9 @@
 #pragma once
 
-#include "CodeObjectManager.hpp"
-#include "CodeObjectSwapper.hpp"
 #include "buffer.hpp"
 #include "code_object_loader.hpp"
+#include "code_object_recorder.hpp"
+#include "code_object_swapper.hpp"
 #include "config.hpp"
 #include "logger/logger.hpp"
 #include <memory>
@@ -18,9 +18,9 @@ private:
     hsa_region_t _system_region;
     std::shared_ptr<Config> _config;
     std::shared_ptr<AgentLogger> _logger;
-    std::unique_ptr<CodeObjectLoader> _code_object_loader;
-    std::unique_ptr<CodeObjectManager> _code_object_manager;
-    std::unique_ptr<CodeObjectSwapper> _code_object_swapper;
+    std::unique_ptr<CodeObjectLoader> _co_loader;
+    std::unique_ptr<CodeObjectRecorder> _co_recorder;
+    std::unique_ptr<CodeObjectSwapper> _co_swapper;
     std::unique_ptr<Buffer> _debug_buffer;
 
 public:
@@ -29,9 +29,9 @@ public:
                std::shared_ptr<CodeObjectLogger> co_logger,
                std::unique_ptr<CodeObjectLoader> co_loader)
         : _gpu_local_region{0}, _system_region{0}, _config(config), _logger(logger),
-          _code_object_loader(std::move(co_loader)),
-          _code_object_manager(std::make_unique<CodeObjectManager>(config->code_object_dump_dir(), co_logger)),
-          _code_object_swapper(std::make_unique<CodeObjectSwapper>(config->code_object_swaps(), logger)) {}
+          _co_loader(std::move(co_loader)),
+          _co_recorder(std::make_unique<CodeObjectRecorder>(config->code_object_dump_dir(), co_logger)),
+          _co_swapper(std::make_unique<CodeObjectSwapper>(config->code_object_swaps(), logger)) {}
 
     hsa_region_t gpu_region() const { return _gpu_local_region; }
     hsa_region_t system_region() const { return _system_region; }

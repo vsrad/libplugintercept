@@ -3,7 +3,7 @@
 #define AMD_INTERNAL_BUILD
 #include <hsa_api_trace.h>
 
-#include "CodeObject.hpp"
+#include "code_object.hpp"
 #include <memory>
 
 namespace agent

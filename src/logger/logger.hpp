@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../CodeObject.hpp"
+#include "../code_object.hpp"
 #include <fstream>
 #include <functional>
 #include <iostream>
@@ -59,7 +59,7 @@ class CodeObjectLogger : public Logger<co_info, co_error, co_warning>
 private:
     std::string co_msg(const agent::CodeObject& co, const std::string& msg)
     {
-        return std::string("crc: ").append(std::to_string(co.CRC())).append(" ").append(msg);
+        return std::string("crc: ").append(std::to_string(co.crc())).append(" ").append(msg);
     }
 
 public:

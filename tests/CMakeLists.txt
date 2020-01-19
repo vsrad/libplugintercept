@@ -1,8 +1,8 @@
 add_executable(tests
   main.cpp
   test_config.cpp
+  test_co_recorder.cpp
   test_co_swapper.cpp
-  test_co_manager.cpp
   test_external_command.cpp
   test_integration.cpp
 )
