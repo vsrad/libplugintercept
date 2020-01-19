@@ -14,12 +14,12 @@ CodeObject::CodeObject(const void* ptr, size_t size)
       _size{size},
       _crc{CRC::Calculate(_ptr, size, _crc_table)} {}
 
-hsa_status_t CodeObject::fill_symbols(hsa_executable_t exec)
+hsa_status_t RecordedCodeObject::fill_symbols(hsa_executable_t exec)
 {
     return hsa_executable_iterate_symbols(exec, fill_symbols_callback, this);
 }
 
-hsa_status_t CodeObject::fill_symbols_callback(hsa_executable_t exec, hsa_executable_symbol_t sym, void* data)
+hsa_status_t RecordedCodeObject::fill_symbols_callback(hsa_executable_t exec, hsa_executable_symbol_t sym, void* data)
 {
     uint32_t name_len;
     hsa_status_t status = hsa_executable_symbol_get_info(sym, HSA_EXECUTABLE_SYMBOL_INFO_NAME_LENGTH, &name_len);
@@ -29,7 +29,7 @@ hsa_status_t CodeObject::fill_symbols_callback(hsa_executable_t exec, hsa_execut
     std::string name(name_len, '\0');
     status = hsa_executable_symbol_get_info(sym, HSA_EXECUTABLE_SYMBOL_INFO_NAME, name.data());
     if (status == HSA_STATUS_SUCCESS)
-        reinterpret_cast<CodeObject*>(data)->_symbols[sym.handle] = name;
+        reinterpret_cast<RecordedCodeObject*>(data)->_symbols.emplace(std::move(name), sym);
 
     return status;
 }

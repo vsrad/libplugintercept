@@ -4,7 +4,7 @@
 
 using namespace agent;
 
-std::optional<CodeObject> CodeObjectSwapper::get_swapped_code_object(std::shared_ptr<CodeObject> source, const std::unique_ptr<Buffer>& debug_buffer)
+std::optional<CodeObject> CodeObjectSwapper::get_swapped_code_object(std::shared_ptr<RecordedCodeObject> source, const std::unique_ptr<Buffer>& debug_buffer)
 {
     call_count_t current_call = ++_call_counter;
 
@@ -31,7 +31,7 @@ std::optional<CodeObject> CodeObjectSwapper::get_swapped_code_object(std::shared
     return {};
 }
 
-std::optional<CodeObject> CodeObjectSwapper::do_swap(const CodeObjectSwap& swap, std::shared_ptr<CodeObject> source, const std::unique_ptr<Buffer>& debug_buffer)
+std::optional<CodeObject> CodeObjectSwapper::do_swap(const CodeObjectSwap& swap, std::shared_ptr<RecordedCodeObject> source, const std::unique_ptr<Buffer>& debug_buffer)
 {
     if (!swap.external_command.empty())
     {
@@ -79,7 +79,37 @@ std::optional<CodeObject> CodeObjectSwapper::do_swap(const CodeObjectSwap& swap,
     return {};
 }
 
-void CodeObjectSwapper::prepare_symbol_swap(std::shared_ptr<CodeObject> source, CodeObjectLoader& co_loader, hsa_agent_t agent)
+hsa_status_t CodeObjectSwapper::map_swapped_symbols(hsa_executable_t exec, hsa_executable_symbol_t sym, void* data)
+{
+    auto& [swapper, swap_it] = *reinterpret_cast<std::pair<CodeObjectSwapper*, decltype(_symbol_swaps)::iterator&>*>(data);
+
+    uint32_t name_len;
+    hsa_status_t status = hsa_executable_symbol_get_info(sym, HSA_EXECUTABLE_SYMBOL_INFO_NAME_LENGTH, &name_len);
+    if (status != HSA_STATUS_SUCCESS)
+        return status;
+
+    std::string current_sym_name(name_len, '\0');
+    status = hsa_executable_symbol_get_info(sym, HSA_EXECUTABLE_SYMBOL_INFO_NAME, current_sym_name.data());
+    if (status != HSA_STATUS_SUCCESS)
+        return status;
+
+    auto& src_symbols = swap_it->first->symbols();
+
+    for (auto& [src_sym_name, repl_sym_name] : swap_it->second.swap.symbol_swaps)
+    {
+        if (current_sym_name != repl_sym_name)
+            continue;
+        if (auto src_sym{src_symbols.find(src_sym_name)}; src_sym != src_symbols.end())
+            swapper->_swapped_symbols[src_sym->second.handle] = sym;
+        else
+            swapper->_logger->warning(
+                "Symbol " + src_sym_name + " not found in code object, will not be replaced with " + repl_sym_name);
+    }
+
+    return HSA_STATUS_SUCCESS;
+}
+
+void CodeObjectSwapper::prepare_symbol_swap(std::shared_ptr<RecordedCodeObject> source, CodeObjectLoader& co_loader, hsa_agent_t agent)
 {
     if (auto it{_symbol_swaps.find(source)}; it != _symbol_swaps.end())
     {
@@ -88,7 +118,8 @@ void CodeObjectSwapper::prepare_symbol_swap(std::shared_ptr<CodeObject> source, 
         hsa_status_t status = co_loader.create_executable(swap.replacement_co, agent, &swap.exec, &error_site);
         if (status == HSA_STATUS_SUCCESS)
         {
-            status = swap.replacement_co.fill_symbols(swap.exec);
+            auto mapper_data = std::make_pair<CodeObjectSwapper*, decltype(_symbol_swaps)::iterator&>(this, it);
+            status = hsa_executable_iterate_symbols(swap.exec, map_swapped_symbols, &mapper_data);
             if (status != HSA_STATUS_SUCCESS)
                 error_site = "hsa_executable_iterate_symbols";
         }
@@ -106,20 +137,9 @@ void CodeObjectSwapper::prepare_symbol_swap(std::shared_ptr<CodeObject> source, 
     }
 }
 
-std::optional<hsa_executable_symbol_t> CodeObjectSwapper::swap_symbol(std::shared_ptr<CodeObject> source, const std::string& source_symbol_name)
+std::optional<hsa_executable_symbol_t> CodeObjectSwapper::swap_symbol(hsa_executable_symbol_t sym)
 {
-    if (auto it{_symbol_swaps.find(source)}; it != _symbol_swaps.end())
-    {
-        auto src_rep_it = std::find_if(it->second.swap.symbol_swaps.begin(), it->second.swap.symbol_swaps.end(),
-                                       [name = source_symbol_name](const auto& src_rep_names) { return src_rep_names.first == name; });
-        if (src_rep_it != it->second.swap.symbol_swaps.end())
-        {
-            auto& replacement_symbols = it->second.replacement_co.symbols();
-            auto sym_it = std::find_if(replacement_symbols.begin(), replacement_symbols.end(),
-                                       [name = src_rep_it->second](const auto& src_rep_names) { return src_rep_names.second == name; });
-            if (sym_it != replacement_symbols.end())
-                return {hsa_executable_symbol_t{sym_it->first}};
-        }
-    }
+    if (auto it{_swapped_symbols.find(sym.handle)}; it != _swapped_symbols.end())
+        return {it->second};
     return {};
 }

@@ -47,9 +47,9 @@ void CodeObjectRecorder::handle_crc_collision(const CodeObject& code_object)
     }
 }
 
-std::shared_ptr<CodeObject> CodeObjectRecorder::record_code_object(const void* ptr, size_t size)
+std::shared_ptr<RecordedCodeObject> CodeObjectRecorder::record_code_object(const void* ptr, size_t size)
 {
-    auto code_object = std::make_shared<CodeObject>(ptr, size);
+    auto code_object = std::make_shared<RecordedCodeObject>(ptr, size);
     _logger->info(*code_object, "intercepted code object");
 
     auto crc_eq = [crc = code_object->crc()](auto const& co) { return co->crc() == crc; };
@@ -78,7 +78,7 @@ void CodeObjectRecorder::dump_code_object(const CodeObject& code_object)
     }
 }
 
-void CodeObjectRecorder::iterate_symbols(hsa_executable_t exec, std::shared_ptr<CodeObject> code_object)
+void CodeObjectRecorder::iterate_symbols(hsa_executable_t exec, std::shared_ptr<RecordedCodeObject> code_object)
 {
     if (code_object->fill_symbols(exec) != HSA_STATUS_SUCCESS)
     {
@@ -89,17 +89,14 @@ void CodeObjectRecorder::iterate_symbols(hsa_executable_t exec, std::shared_ptr<
     std::ostringstream symbols_info_stream;
     symbols_info_stream << "found symbols:";
 
-    for (const auto& [sym_handle, name] : code_object->symbols())
-    {
-        _code_object_symbols.emplace(sym_handle, std::make_pair(code_object, name));
+    for (const auto& it : code_object->symbols())
         symbols_info_stream << std::endl
-                            << "-- " << name;
-    }
+                            << "-- " << it.first;
 
     _logger->info(*code_object, symbols_info_stream.str());
 }
 
-std::shared_ptr<CodeObject> CodeObjectRecorder::iterate_symbols(hsa_executable_t exec, hsa_code_object_reader_t reader)
+std::shared_ptr<RecordedCodeObject> CodeObjectRecorder::iterate_symbols(hsa_executable_t exec, hsa_code_object_reader_t reader)
 {
     std::shared_lock lock(_mutex);
     auto reader_eq = [hndl = reader.handle](auto const& co) { return co->hsa_code_object_reader().handle == hndl; };
@@ -115,7 +112,7 @@ std::shared_ptr<CodeObject> CodeObjectRecorder::iterate_symbols(hsa_executable_t
     }
 }
 
-std::shared_ptr<CodeObject> CodeObjectRecorder::iterate_symbols(hsa_executable_t exec, hsa_code_object_t hsaco)
+std::shared_ptr<RecordedCodeObject> CodeObjectRecorder::iterate_symbols(hsa_executable_t exec, hsa_code_object_t hsaco)
 {
     std::shared_lock lock(_mutex);
     auto hsaco_eq = [hndl = hsaco.handle](auto const& co) { return co->hsa_code_object().handle == hndl; };
@@ -129,11 +126,4 @@ std::shared_ptr<CodeObject> CodeObjectRecorder::iterate_symbols(hsa_executable_t
         _logger->error("cannot find code object by hsa_code_object_t: " + std::to_string(hsaco.handle));
         return {};
     }
-}
-
-std::optional<std::pair<std::shared_ptr<CodeObject>, const std::string&>> CodeObjectRecorder::lookup_symbol(hsa_executable_symbol_t symbol)
-{
-    if (auto it{_code_object_symbols.find(symbol.handle)}; it != _code_object_symbols.end())
-        return {it->second};
-    return {};
 }
