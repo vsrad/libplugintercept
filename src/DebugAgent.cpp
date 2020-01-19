@@ -169,7 +169,7 @@ hsa_status_t DebugAgent::intercept_hsa_executable_load_agent_code_object(
     if (status == HSA_STATUS_SUCCESS)
     {
         auto co = _code_object_manager->iterate_symbols(executable, code_object_reader);
-        _code_object_swapper->prepare_symbol_swap(co, agent);
+        _code_object_swapper->prepare_symbol_swap(co, *_code_object_loader, agent);
     }
     return status;
 }
@@ -185,7 +185,7 @@ hsa_status_t DebugAgent::intercept_hsa_executable_load_code_object(
     if (status == HSA_STATUS_SUCCESS)
     {
         auto co = _code_object_manager->iterate_symbols(executable, code_object);
-        _code_object_swapper->prepare_symbol_swap(co, agent);
+        _code_object_swapper->prepare_symbol_swap(co, *_code_object_loader, agent);
     }
     return status;
 }

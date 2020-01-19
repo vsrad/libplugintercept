@@ -1,11 +1,9 @@
 #pragma once
 
-#define AMD_INTERNAL_BUILD
-#include <hsa_api_trace.h>
-
 #include "CodeObjectManager.hpp"
 #include "CodeObjectSwapper.hpp"
 #include "buffer.hpp"
+#include "code_object_loader.hpp"
 #include "config.hpp"
 #include "logger/logger.hpp"
 #include <memory>
@@ -20,13 +18,18 @@ private:
     hsa_region_t _system_region;
     std::shared_ptr<Config> _config;
     std::shared_ptr<AgentLogger> _logger;
+    std::unique_ptr<CodeObjectLoader> _code_object_loader;
     std::unique_ptr<CodeObjectManager> _code_object_manager;
     std::unique_ptr<CodeObjectSwapper> _code_object_swapper;
     std::unique_ptr<Buffer> _debug_buffer;
 
 public:
-    DebugAgent(std::shared_ptr<Config> config, std::shared_ptr<AgentLogger> logger, std::shared_ptr<CodeObjectLogger> co_logger)
+    DebugAgent(std::shared_ptr<Config> config,
+               std::shared_ptr<AgentLogger> logger,
+               std::shared_ptr<CodeObjectLogger> co_logger,
+               std::unique_ptr<CodeObjectLoader> co_loader)
         : _gpu_local_region{0}, _system_region{0}, _config(config), _logger(logger),
+          _code_object_loader(std::move(co_loader)),
           _code_object_manager(std::make_unique<CodeObjectManager>(config->code_object_dump_dir(), co_logger)),
           _code_object_swapper(std::make_unique<CodeObjectSwapper>(config->code_object_swaps(), logger)) {}
 

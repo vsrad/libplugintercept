@@ -79,40 +79,19 @@ std::optional<CodeObject> CodeObjectSwapper::do_swap(const CodeObjectSwap& swap,
     return {};
 }
 
-hsa_status_t create_executable(CodeObject& co, hsa_agent_t agent, hsa_executable_t* executable, const char** error_callsite)
-{
-    hsa_code_object_reader_t co_reader;
-    hsa_status_t status = hsa_code_object_reader_create_from_memory(co.Ptr(), co.Size(), &co_reader);
-    if (status != HSA_STATUS_SUCCESS)
-    {
-        *error_callsite = "hsa_code_object_reader_create_from_memory";
-        return status;
-    }
-    status = hsa_executable_create(HSA_PROFILE_FULL, HSA_EXECUTABLE_STATE_UNFROZEN, NULL, executable);
-    if (status != HSA_STATUS_SUCCESS)
-    {
-        *error_callsite = "hsa_executable_create";
-        return status;
-    }
-    status = hsa_executable_load_agent_code_object(*executable, agent, co_reader, NULL, NULL);
-    if (status != HSA_STATUS_SUCCESS)
-    {
-        *error_callsite = "hsa_executable_load_agent_code_object";
-        return status;
-    }
-    status = co.fill_symbols(*executable);
-    if (status != HSA_STATUS_SUCCESS)
-        *error_callsite = "hsa_executable_iterate_symbols";
-    return status;
-}
-
-void CodeObjectSwapper::prepare_symbol_swap(std::shared_ptr<CodeObject> source, hsa_agent_t agent)
+void CodeObjectSwapper::prepare_symbol_swap(std::shared_ptr<CodeObject> source, CodeObjectLoader& co_loader, hsa_agent_t agent)
 {
     if (auto it{_symbol_swaps.find(source)}; it != _symbol_swaps.end())
     {
         auto& swap = it->second;
         const char *error_site, *err;
-        hsa_status_t status = create_executable(swap.replacement_co, agent, &swap.exec, &error_site);
+        hsa_status_t status = co_loader.create_executable(swap.replacement_co, agent, &swap.exec, &error_site);
+        if (status == HSA_STATUS_SUCCESS)
+        {
+            status = swap.replacement_co.fill_symbols(swap.exec);
+            if (status != HSA_STATUS_SUCCESS)
+                error_site = "hsa_executable_iterate_symbols";
+        }
         if (status != HSA_STATUS_SUCCESS)
         {
             hsa_status_string(status, &err);

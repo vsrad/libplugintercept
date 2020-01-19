@@ -5,6 +5,7 @@ add_library(plugintercept SHARED
     ${CMAKE_CURRENT_SOURCE_DIR}/CodeObject.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/CodeObjectManager.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/CodeObjectSwapper.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/code_object_loader.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/external_command.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/logger/logger.cpp)
 

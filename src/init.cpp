@@ -4,7 +4,7 @@
 #include <iostream>
 
 std::unique_ptr<agent::DebugAgent> _debug_agent;
-std::unique_ptr<CoreApiTable> _intercepted_api_table;
+std::shared_ptr<CoreApiTable> _intercepted_api_table;
 
 hsa_status_t intercept_hsa_queue_create(
     hsa_agent_t agent,
@@ -79,13 +79,8 @@ extern "C" bool OnLoad(void* api_table_ptr, uint64_t rt_version, uint64_t failed
 {
     try
     {
-        auto config = std::make_shared<agent::Config>();
-        auto logger = std::make_shared<agent::AgentLogger>(config->agent_log_file());
-        auto co_logger = std::make_shared<agent::CodeObjectLogger>(config->code_object_log_file());
-        _debug_agent = std::make_unique<agent::DebugAgent>(config, logger, co_logger);
-
         auto api_table = reinterpret_cast<HsaApiTable*>(api_table_ptr);
-        _intercepted_api_table = std::make_unique<CoreApiTable>();
+        _intercepted_api_table = std::make_shared<CoreApiTable>();
         memcpy(_intercepted_api_table.get(), static_cast<const void*>(api_table->core_), sizeof(CoreApiTable));
 
         api_table->core_->hsa_queue_create_fn = intercept_hsa_queue_create;
@@ -94,6 +89,12 @@ extern "C" bool OnLoad(void* api_table_ptr, uint64_t rt_version, uint64_t failed
         api_table->core_->hsa_executable_load_agent_code_object_fn = intercept_hsa_executable_load_agent_code_object;
         api_table->core_->hsa_executable_load_code_object_fn = intercept_hsa_executable_load_code_object;
         api_table->core_->hsa_executable_symbol_get_info_fn = intercept_hsa_executable_symbol_get_info;
+
+        auto config = std::make_shared<agent::Config>();
+        auto logger = std::make_shared<agent::AgentLogger>(config->agent_log_file());
+        auto co_logger = std::make_shared<agent::CodeObjectLogger>(config->code_object_log_file());
+        auto co_loader = std::make_unique<agent::CodeObjectLoader>(_intercepted_api_table);
+        _debug_agent = std::make_unique<agent::DebugAgent>(config, logger, co_logger, std::move(co_loader));
     }
     catch (const std::exception& e)
     {
