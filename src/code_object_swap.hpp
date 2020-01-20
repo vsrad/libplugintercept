@@ -1,13 +1,10 @@
 #pragma once
 
-#include <cstdint>
+#include "code_object.hpp"
 #include <ostream>
 #include <string>
 #include <variant>
 #include <vector>
-
-typedef uint32_t crc32_t;
-typedef uint64_t call_count_t;
 
 namespace agent
 {

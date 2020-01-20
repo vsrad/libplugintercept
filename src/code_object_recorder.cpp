@@ -47,20 +47,22 @@ void CodeObjectRecorder::handle_crc_collision(const CodeObject& code_object)
     }
 }
 
-std::shared_ptr<RecordedCodeObject> CodeObjectRecorder::record_code_object(const void* ptr, size_t size)
+RecordedCodeObject& CodeObjectRecorder::record_code_object(const void* ptr, size_t size)
 {
-    auto code_object = std::make_shared<RecordedCodeObject>(ptr, size);
-    _logger->info(*code_object, "intercepted code object");
+    std::scoped_lock lock(_mutex);
+    auto load_call_no = ++_load_call_counter;
 
-    auto crc_eq = [crc = code_object->crc()](auto const& co) { return co->crc() == crc; };
+    _code_objects.emplace_front(ptr, size, load_call_no);
+    auto& code_object = _code_objects.front();
 
-    std::unique_lock lock(_mutex);
+    _logger->info(code_object, "intercepted code object");
+
+    auto crc_eq = [load_call_no, crc = code_object.crc()](auto const& co) { return co.load_call_no() != load_call_no && co.crc() == crc; };
     if (std::find_if(_code_objects.begin(), _code_objects.end(), crc_eq) != _code_objects.end())
-        handle_crc_collision(*code_object);
+        handle_crc_collision(code_object);
     else
-        dump_code_object(*code_object);
+        dump_code_object(code_object);
 
-    _code_objects.push_back(code_object);
     return code_object;
 }
 
@@ -78,32 +80,32 @@ void CodeObjectRecorder::dump_code_object(const CodeObject& code_object)
     }
 }
 
-void CodeObjectRecorder::iterate_symbols(hsa_executable_t exec, std::shared_ptr<RecordedCodeObject> code_object)
+void CodeObjectRecorder::iterate_symbols(hsa_executable_t exec, RecordedCodeObject& code_object)
 {
-    if (code_object->fill_symbols(exec) != HSA_STATUS_SUCCESS)
+    if (code_object.fill_symbols(exec) != HSA_STATUS_SUCCESS)
     {
-        _logger->error(*code_object, "cannot iterate symbols of executable: " + std::to_string(exec.handle));
+        _logger->error(code_object, "cannot iterate symbols of executable: " + std::to_string(exec.handle));
         return;
     }
 
     std::ostringstream symbols_info_stream;
     symbols_info_stream << "found symbols:";
 
-    for (const auto& it : code_object->symbols())
+    for (const auto& it : code_object.symbols())
         symbols_info_stream << std::endl
                             << "-- " << it.first;
 
-    _logger->info(*code_object, symbols_info_stream.str());
+    _logger->info(code_object, symbols_info_stream.str());
 }
 
-std::shared_ptr<RecordedCodeObject> CodeObjectRecorder::iterate_symbols(hsa_executable_t exec, hsa_code_object_reader_t reader)
+std::optional<std::reference_wrapper<RecordedCodeObject>> CodeObjectRecorder::record_code_object_executable(hsa_executable_t exec, hsa_code_object_reader_t reader)
 {
     std::shared_lock lock(_mutex);
-    auto reader_eq = [hndl = reader.handle](auto const& co) { return co->hsa_code_object_reader().handle == hndl; };
+    auto reader_eq = [hndl = reader.handle](auto const& co) { return co.hsa_code_object_reader().handle == hndl; };
     if (auto it{std::find_if(_code_objects.begin(), _code_objects.end(), reader_eq)}; it != _code_objects.end())
     {
         iterate_symbols(exec, *it);
-        return *it;
+        return {std::ref(*it)};
     }
     else
     {
@@ -112,14 +114,14 @@ std::shared_ptr<RecordedCodeObject> CodeObjectRecorder::iterate_symbols(hsa_exec
     }
 }
 
-std::shared_ptr<RecordedCodeObject> CodeObjectRecorder::iterate_symbols(hsa_executable_t exec, hsa_code_object_t hsaco)
+std::optional<std::reference_wrapper<RecordedCodeObject>> CodeObjectRecorder::record_code_object_executable(hsa_executable_t exec, hsa_code_object_t hsaco)
 {
     std::shared_lock lock(_mutex);
-    auto hsaco_eq = [hndl = hsaco.handle](auto const& co) { return co->hsa_code_object().handle == hndl; };
+    auto hsaco_eq = [hndl = hsaco.handle](auto const& co) { return co.hsa_code_object().handle == hndl; };
     if (auto it{std::find_if(_code_objects.begin(), _code_objects.end(), hsaco_eq)}; it != _code_objects.end())
     {
         iterate_symbols(exec, *it);
-        return *it;
+        return {std::ref(*it)};
     }
     else
     {

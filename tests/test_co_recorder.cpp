@@ -22,15 +22,22 @@ TEST_CASE("init different code objects", "[co_recorder]")
     auto logger = std::make_shared<TestCodeObjectLogger>();
     CodeObjectRecorder recorder(DUMP_PATH, logger);
 
-    auto co_one = recorder.record_code_object("CODE OBJECT ONE", sizeof("CODE OBJECT ONE"));
-    auto co_two = recorder.record_code_object("CODE OBJECT TWO", sizeof("CODE OBJECT TWO"));
+    auto& co_one = recorder.record_code_object("CODE OBJECT ONE", sizeof("CODE OBJECT ONE"));
+    auto& co_two = recorder.record_code_object("CODE OBJECT TWO", sizeof("CODE OBJECT TWO"));
+    auto& co_three = recorder.record_code_object("CODE OBJECT THREE", sizeof("CODE OBJECT THREE"));
+    REQUIRE(co_one.load_call_no() == 1);
+    REQUIRE(co_two.load_call_no() == 2);
+    REQUIRE(co_three.load_call_no() == 3);
 
-    REQUIRE(co_one->crc() != co_two->crc());
+    REQUIRE(co_one.crc() != co_two.crc());
+    REQUIRE(co_one.crc() != co_three.crc());
     std::vector<std::string> expected_info = {
         "crc: 2005276243 intercepted code object",
         "crc: 2005276243 code object is written to the file tests/tmp/2005276243.co",
         "crc: 428259000 intercepted code object",
-        "crc: 428259000 code object is written to the file tests/tmp/428259000.co"};
+        "crc: 428259000 code object is written to the file tests/tmp/428259000.co",
+        "crc: 4099621386 intercepted code object",
+        "crc: 4099621386 code object is written to the file tests/tmp/4099621386.co"};
     REQUIRE(logger->infos == expected_info);
     REQUIRE(logger->warnings.size() == 0);
     REQUIRE(logger->errors.size() == 0);
@@ -42,7 +49,7 @@ TEST_CASE("dump code object to an invalid path", "[co_recorder]")
 
     auto logger = std::make_shared<TestCodeObjectLogger>();
     CodeObjectRecorder recorder("invalid-path", logger);
-    auto co_one = recorder.record_code_object(CODE_OBJECT_DATA, sizeof(CODE_OBJECT_DATA));
+    recorder.record_code_object(CODE_OBJECT_DATA, sizeof(CODE_OBJECT_DATA));
 
     std::vector<std::string> expected_info = {
         "crc: 4212875390 intercepted code object"};
@@ -60,10 +67,10 @@ TEST_CASE("redundant load code objects", "[co_recorder]")
     auto logger = std::make_shared<TestCodeObjectLogger>();
     CodeObjectRecorder recorder(DUMP_PATH, logger);
 
-    auto co_one = recorder.record_code_object(CODE_OBJECT_DATA, sizeof(CODE_OBJECT_DATA));
-    auto co_two = recorder.record_code_object(CODE_OBJECT_DATA, sizeof(CODE_OBJECT_DATA));
+    auto& co_one = recorder.record_code_object(CODE_OBJECT_DATA, sizeof(CODE_OBJECT_DATA));
+    auto& co_two = recorder.record_code_object(CODE_OBJECT_DATA, sizeof(CODE_OBJECT_DATA));
 
-    REQUIRE(co_one->crc() == co_two->crc());
+    REQUIRE(co_one.crc() == co_two.crc());
     std::vector<std::string> expected_info = {
         "crc: 4212875390 intercepted code object",
         "crc: 4212875390 code object is written to the file tests/tmp/4212875390.co",
@@ -75,7 +82,7 @@ TEST_CASE("redundant load code objects", "[co_recorder]")
     REQUIRE(logger->errors.size() == 0);
 }
 
-TEST_CASE("iterate symbols called on a nonexistent code object", "[co_recorder]")
+TEST_CASE("record executable called on a nonexistent code object", "[co_recorder]")
 {
     auto logger = std::make_shared<TestCodeObjectLogger>();
     CodeObjectRecorder recorder(DUMP_PATH, logger);
@@ -83,8 +90,8 @@ TEST_CASE("iterate symbols called on a nonexistent code object", "[co_recorder]"
     hsa_code_object_reader_t co_reader = {123};
     hsa_code_object_t co = {456};
     hsa_executable_t exec = {0};
-    recorder.iterate_symbols(exec, co_reader);
-    recorder.iterate_symbols(exec, co);
+    REQUIRE(!recorder.record_code_object_executable(exec, co_reader));
+    REQUIRE(!recorder.record_code_object_executable(exec, co));
 
     std::vector<std::string> expected_error = {
         "cannot find code object by hsa_code_object_reader_t: 123",
@@ -94,7 +101,7 @@ TEST_CASE("iterate symbols called on a nonexistent code object", "[co_recorder]"
     REQUIRE(logger->warnings.size() == 0);
 }
 
-TEST_CASE("iterate symbols called with an invalid executable", "[co_recorder]")
+TEST_CASE("record executable called with an invalid executable", "[co_recorder]")
 {
     auto logger = std::make_shared<TestCodeObjectLogger>();
     CodeObjectRecorder recorder(DUMP_PATH, logger);
@@ -102,26 +109,32 @@ TEST_CASE("iterate symbols called with an invalid executable", "[co_recorder]")
     // Create hsa_code_object_t and hsa_code_object_reader_t in separate functions
     // to verify that CodeObjectRecorder does not reply on pointers to them, which may be
     // unreliable.
-    auto prepare_co_one = [&]() -> std::tuple<hsa_code_object_t, std::shared_ptr<CodeObject>> {
+    auto prepare_co_one = [&]() -> std::tuple<hsa_code_object_t, const RecordedCodeObject&> {
         hsa_code_object_t co = {12};
-        auto co_one = recorder.record_code_object("CODE OBJECT ONE", sizeof("CODE OBJECT ONE"));
-        co_one->set_hsa_code_object(co);
+        auto& co_one = recorder.record_code_object("CODE OBJECT ONE", sizeof("CODE OBJECT ONE"));
+        co_one.set_hsa_code_object(co);
         return {co, co_one};
     };
-    auto prepare_co_two = [&]() -> std::tuple<hsa_code_object_reader_t, std::shared_ptr<CodeObject>> {
+    auto prepare_co_two = [&]() -> std::tuple<hsa_code_object_reader_t, const RecordedCodeObject&> {
         hsa_code_object_reader_t co_reader = {23};
-        auto co_two = recorder.record_code_object("CODE OBJECT TWO", sizeof("CODE OBJECT TWO"));
-        co_two->set_hsa_code_object_reader(co_reader);
+        auto& co_two = recorder.record_code_object("CODE OBJECT TWO", sizeof("CODE OBJECT TWO"));
+        co_two.set_hsa_code_object_reader(co_reader);
         return {co_reader, co_two};
     };
 
     auto [co, co_one] = prepare_co_one();
     auto [co_reader, co_two] = prepare_co_two();
-    REQUIRE(co_one->crc() != co_two->crc());
+    REQUIRE(co_one.crc() != co_two.crc());
 
     hsa_executable_t exec = {789};
-    recorder.iterate_symbols(exec, co);
-    recorder.iterate_symbols(exec, co_reader);
+    auto recorded_one = recorder.record_code_object_executable(exec, co);
+    auto recorded_two = recorder.record_code_object_executable(exec, co_reader);
+    REQUIRE(recorded_one);
+    REQUIRE(recorded_one->get().load_call_no() == co_one.load_call_no());
+    REQUIRE(recorded_one->get().load_call_no() == 1);
+    REQUIRE(recorded_two);
+    REQUIRE(recorded_two->get().load_call_no() == co_two.load_call_no());
+    REQUIRE(recorded_two->get().load_call_no() == 2);
 
     std::vector<std::string> expected_info = {
         "crc: 2005276243 intercepted code object",

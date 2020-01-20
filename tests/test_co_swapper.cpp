@@ -17,15 +17,15 @@ struct TestLogger : AgentLogger
 
 TEST_CASE("swaps code object based on CRC match", "[co_swapper]")
 {
-    auto co_matching = std::make_shared<RecordedCodeObject>("CODE OBJECT", sizeof("CODE OBJECT"));
-    auto co_other = std::make_shared<RecordedCodeObject>("SOME OTHER CO", sizeof("SOME OTHER CO"));
-    REQUIRE(co_matching->crc() != co_other->crc());
+    RecordedCodeObject co_matching("CODE OBJECT", sizeof("CODE OBJECT"), 1);
+    RecordedCodeObject co_other("SOME OTHER CO", sizeof("SOME OTHER CO"), 2);
+    REQUIRE(co_matching.crc() != co_other.crc());
 
-    std::vector<CodeObjectSwap> swaps = {{.condition = {co_matching->crc()},
+    std::vector<CodeObjectSwap> swaps = {{.condition = {co_matching.crc()},
                                           .replacement_path = "tests/fixtures/asdf"}};
     CodeObjectSwapper cosw(std::make_shared<std::vector<CodeObjectSwap>>(swaps), std::make_shared<TestLogger>());
-    auto swapped_matching = cosw.get_swapped_code_object(co_matching, std::unique_ptr<Buffer>());
-    auto swapped_other = cosw.get_swapped_code_object(co_other, std::unique_ptr<Buffer>());
+    auto swapped_matching = cosw.swap_code_object(co_matching, std::unique_ptr<Buffer>());
+    auto swapped_other = cosw.swap_code_object(co_other, std::unique_ptr<Buffer>());
     REQUIRE(swapped_matching);
     REQUIRE(!swapped_other);
     std::string swapped_data(static_cast<const char*>(swapped_matching->ptr()), swapped_matching->size());
@@ -37,11 +37,11 @@ TEST_CASE("swaps code object based on the call # match", "[co_swapper]")
     std::vector<CodeObjectSwap> swaps = {{.condition = {call_count_t(3)},
                                           .replacement_path = "tests/fixtures/asdf"}};
     CodeObjectSwapper cosw(std::make_shared<std::vector<CodeObjectSwap>>(swaps), std::make_shared<TestLogger>());
-    REQUIRE(!cosw.get_swapped_code_object(std::make_shared<RecordedCodeObject>("", 0), std::unique_ptr<Buffer>()));
-    REQUIRE(!cosw.get_swapped_code_object(std::make_shared<RecordedCodeObject>("", 0), std::unique_ptr<Buffer>()));
-    auto third_call = cosw.get_swapped_code_object(std::make_shared<RecordedCodeObject>("", 0), std::unique_ptr<Buffer>());
-    REQUIRE(third_call);
-    std::string swapped_data(static_cast<const char*>(third_call->ptr()), third_call->size());
+    REQUIRE(!cosw.swap_code_object(RecordedCodeObject("", 0, 1), std::unique_ptr<Buffer>()));
+    auto matching = cosw.swap_code_object(RecordedCodeObject("", 0, 3), std::unique_ptr<Buffer>());
+    REQUIRE(!cosw.swap_code_object(RecordedCodeObject("", 0, 4), std::unique_ptr<Buffer>()));
+    REQUIRE(matching);
+    std::string swapped_data(static_cast<const char*>(matching->ptr()), matching->size());
     REQUIRE(swapped_data == "ASDF\n");
 }
 
@@ -54,7 +54,7 @@ TEST_CASE("runs external command before swapping the code object if specified", 
           .replacement_path = "tests/tmp/co_swapper_time",
           .external_command = "echo " + std::to_string(time) + " > tests/tmp/co_swapper_time"}};
     CodeObjectSwapper cosw(std::make_shared<std::vector<CodeObjectSwap>>(swaps), logger);
-    auto swapped = cosw.get_swapped_code_object(std::make_shared<RecordedCodeObject>("", 0), std::unique_ptr<Buffer>());
+    auto swapped = cosw.swap_code_object(RecordedCodeObject("", 0, 1), std::unique_ptr<Buffer>());
     REQUIRE(swapped);
     std::string swapped_data(static_cast<const char*>(swapped->ptr()), swapped->size());
     REQUIRE(swapped_data == std::to_string(time) + "\n");
@@ -71,7 +71,7 @@ TEST_CASE("logs external command output on failure", "[co_swapper]")
           .replacement_path = "t",
           .external_command = "echo h; asdfasdf"}};
     CodeObjectSwapper cosw(std::make_shared<std::vector<CodeObjectSwap>>(swaps), logger);
-    auto swapped = cosw.get_swapped_code_object(std::make_shared<RecordedCodeObject>("SOME CO", sizeof("SOME CO")), std::unique_ptr<Buffer>());
+    auto swapped = cosw.swap_code_object(RecordedCodeObject("SOME CO", sizeof("SOME CO"), 1), std::unique_ptr<Buffer>());
     REQUIRE(!swapped);
 
     std::vector<std::string> expected_error_log = {
@@ -80,7 +80,7 @@ TEST_CASE("logs external command output on failure", "[co_swapper]")
     REQUIRE(logger->errors == expected_error_log);
 
     logger->errors.clear();
-    auto swapped2 = cosw.get_swapped_code_object(std::make_shared<RecordedCodeObject>("SOME CO", sizeof("SOME CO")), std::unique_ptr<Buffer>());
+    auto swapped2 = cosw.swap_code_object(RecordedCodeObject("SOME CO", sizeof("SOME CO"), 2), std::unique_ptr<Buffer>());
     REQUIRE(!swapped2);
 
     std::vector<std::string> expected_error_log2 = {

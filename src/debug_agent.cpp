@@ -39,17 +39,17 @@ hsa_status_t DebugAgent::intercept_hsa_code_object_reader_create_from_memory(
     size_t size,
     hsa_code_object_reader_t* code_object_reader)
 {
-    auto co = _co_recorder->record_code_object(code_object, size);
+    auto& co = _co_recorder->record_code_object(code_object, size);
 
     hsa_status_t status;
-    auto replacement_co = _co_swapper->get_swapped_code_object(co, _debug_buffer);
+    auto replacement_co = _co_swapper->swap_code_object(co, _debug_buffer);
     if (replacement_co)
         status = intercepted_fn(replacement_co->ptr(), replacement_co->size(), code_object_reader);
     else
         status = intercepted_fn(code_object, size, code_object_reader);
 
     if (status == HSA_STATUS_SUCCESS && code_object_reader->handle != 0)
-        co->set_hsa_code_object_reader(*code_object_reader);
+        co.set_hsa_code_object_reader(*code_object_reader);
 
     return status;
 }
@@ -61,17 +61,17 @@ hsa_status_t DebugAgent::intercept_hsa_code_object_deserialize(
     const char* options,
     hsa_code_object_t* code_object)
 {
-    auto co = _co_recorder->record_code_object(serialized_code_object, serialized_code_object_size);
+    auto& co = _co_recorder->record_code_object(serialized_code_object, serialized_code_object_size);
 
     hsa_status_t status;
-    auto replacement_co = _co_swapper->get_swapped_code_object(co, _debug_buffer);
+    auto replacement_co = _co_swapper->swap_code_object(co, _debug_buffer);
     if (replacement_co)
         status = intercepted_fn((void*)replacement_co->ptr(), replacement_co->size(), options, code_object);
     else
         status = intercepted_fn(serialized_code_object, serialized_code_object_size, options, code_object);
 
     if (status == HSA_STATUS_SUCCESS && code_object->handle != 0)
-        co->set_hsa_code_object(*code_object);
+        co.set_hsa_code_object(*code_object);
 
     return status;
 }
@@ -168,8 +168,8 @@ hsa_status_t DebugAgent::intercept_hsa_executable_load_agent_code_object(
     hsa_status_t status = intercepted_fn(executable, agent, code_object_reader, options, loaded_code_object);
     if (status == HSA_STATUS_SUCCESS)
     {
-        auto co = _co_recorder->iterate_symbols(executable, code_object_reader);
-        _co_swapper->prepare_symbol_swap(co, *_co_loader, agent);
+        if (auto co = _co_recorder->record_code_object_executable(executable, code_object_reader))
+            _co_swapper->prepare_symbol_swap(co->get(), *_co_loader, agent);
     }
     return status;
 }
@@ -184,8 +184,8 @@ hsa_status_t DebugAgent::intercept_hsa_executable_load_code_object(
     hsa_status_t status = intercepted_fn(executable, agent, code_object, options);
     if (status == HSA_STATUS_SUCCESS)
     {
-        auto co = _co_recorder->iterate_symbols(executable, code_object);
-        _co_swapper->prepare_symbol_swap(co, *_co_loader, agent);
+        if (auto co = _co_recorder->record_code_object_executable(executable, code_object))
+            _co_swapper->prepare_symbol_swap(co->get(), *_co_loader, agent);
     }
     return status;
 }
