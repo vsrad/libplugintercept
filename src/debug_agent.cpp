@@ -25,7 +25,7 @@ void DebugAgent::write_debug_buffer_to_file()
     std::ofstream fs(_config->debug_buffer_dump_file(), std::ios::out | std::ios::binary);
     if (!fs.is_open())
     {
-        _logger->error("Failed to open " + _config->debug_buffer_dump_file() + " for writing");
+        _logger->error("Failed to open " + _config->debug_buffer_dump_file() + " for dumping debug buffer");
         return;
     }
     fs.write(reinterpret_cast<char*>(_debug_buffer->SystemPtr()), _debug_buffer->Size());
@@ -122,7 +122,12 @@ hsa_status_t DebugAgent::intercept_hsa_queue_create(
 
     if (_debug_buffer)
     {
-        _logger->warning("Redundant debug buffer allocation");
+        _logger->warning("hsa_queue_create is called multiple times, debug buffer allocation may be invalid");
+        return status;
+    }
+    if (_config->debug_buffer_size() == 0)
+    {
+        _logger->warning("Debug buffer will not be allocated (debug buffer set is set to 0)");
         return status;
     }
 

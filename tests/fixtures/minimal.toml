@@ -1,0 +1,6 @@
+[agent]
+log = "agent.log"
+
+[code-object-dump]
+log = "co.log"
+directory = "/co/dump/dir"

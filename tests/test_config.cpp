@@ -29,3 +29,18 @@ TEST_CASE("reads a valid configuration file", "[config]")
     std::vector<agent::CodeObjectSwap> swaps = *config.code_object_swaps();
     REQUIRE(swaps == expected_swaps);
 }
+
+TEST_CASE("reads a minimal configuration file", "[config]")
+{
+    auto old_config = getenv("ASM_DBG_CONFIG");
+    setenv("ASM_DBG_CONFIG", "tests/fixtures/minimal.toml", 1);
+    agent::Config config;
+    setenv("ASM_DBG_CONFIG", old_config, 1);
+
+    REQUIRE(config.agent_log_file() == "agent.log");
+    REQUIRE(config.code_object_log_file() == "co.log");
+    REQUIRE(config.code_object_dump_dir() == "/co/dump/dir");
+    REQUIRE(config.code_object_swaps()->empty());
+    REQUIRE(config.debug_buffer_dump_file() == "");
+    REQUIRE(config.debug_buffer_size() == 0);
+}
