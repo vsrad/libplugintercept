@@ -23,6 +23,9 @@ private:
     std::unique_ptr<CodeObjectSwapper> _co_swapper;
     std::unique_ptr<Buffer> _debug_buffer;
 
+    template <typename T>
+    std::optional<T> load_swapped_code_object(hsa_agent_t agent, RecordedCodeObject& co);
+
 public:
     DebugAgent(std::shared_ptr<Config> config,
                std::shared_ptr<AgentLogger> logger,

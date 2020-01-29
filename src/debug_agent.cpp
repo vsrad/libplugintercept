@@ -40,17 +40,9 @@ hsa_status_t DebugAgent::intercept_hsa_code_object_reader_create_from_memory(
     hsa_code_object_reader_t* code_object_reader)
 {
     auto& co = _co_recorder->record_code_object(code_object, size);
-
-    hsa_status_t status;
-    auto replacement_co = _co_swapper->swap_code_object(co, _debug_buffer);
-    if (replacement_co)
-        status = intercepted_fn(replacement_co->ptr(), replacement_co->size(), code_object_reader);
-    else
-        status = intercepted_fn(code_object, size, code_object_reader);
-
+    hsa_status_t status = intercepted_fn(code_object, size, code_object_reader);
     if (status == HSA_STATUS_SUCCESS && code_object_reader->handle != 0)
         co.set_hsa_code_object_reader(*code_object_reader);
-
     return status;
 }
 
@@ -62,17 +54,9 @@ hsa_status_t DebugAgent::intercept_hsa_code_object_deserialize(
     hsa_code_object_t* code_object)
 {
     auto& co = _co_recorder->record_code_object(serialized_code_object, serialized_code_object_size);
-
-    hsa_status_t status;
-    auto replacement_co = _co_swapper->swap_code_object(co, _debug_buffer);
-    if (replacement_co)
-        status = intercepted_fn((void*)replacement_co->ptr(), replacement_co->size(), options, code_object);
-    else
-        status = intercepted_fn(serialized_code_object, serialized_code_object_size, options, code_object);
-
+    hsa_status_t status = intercepted_fn(serialized_code_object, serialized_code_object_size, options, code_object);
     if (status == HSA_STATUS_SUCCESS && code_object->handle != 0)
         co.set_hsa_code_object(*code_object);
-
     return status;
 }
 
@@ -170,12 +154,14 @@ hsa_status_t DebugAgent::intercept_hsa_executable_load_agent_code_object(
     const char* options,
     hsa_loaded_code_object_t* loaded_code_object)
 {
+    auto co = _co_recorder->find_code_object(code_object_reader);
+    if (auto replacement_co = _co_swapper->swap_code_object(co->get(), _debug_buffer))
+        if (auto replacement_reader = load_swapped_code_object<hsa_code_object_reader_t>(agent, co->get()))
+            return intercepted_fn(executable, agent, *replacement_reader, options, loaded_code_object);
+
     hsa_status_t status = intercepted_fn(executable, agent, code_object_reader, options, loaded_code_object);
-    if (status == HSA_STATUS_SUCCESS)
-    {
-        if (auto co = _co_recorder->record_code_object_executable(executable, code_object_reader))
-            _co_swapper->prepare_symbol_swap(co->get(), *_co_loader, agent);
-    }
+    if (co && status == HSA_STATUS_SUCCESS)
+        _co_recorder->iterate_symbols(executable, co->get());
     return status;
 }
 
@@ -186,12 +172,14 @@ hsa_status_t DebugAgent::intercept_hsa_executable_load_code_object(
     hsa_code_object_t code_object,
     const char* options)
 {
+    auto co = _co_recorder->find_code_object(code_object);
+    if (auto replacement_co = _co_swapper->swap_code_object(co->get(), _debug_buffer))
+        if (auto replacement_hsaco = load_swapped_code_object<hsa_code_object_t>(agent, co->get()))
+            return intercepted_fn(executable, agent, *replacement_hsaco, options);
+
     hsa_status_t status = intercepted_fn(executable, agent, code_object, options);
-    if (status == HSA_STATUS_SUCCESS)
-    {
-        if (auto co = _co_recorder->record_code_object_executable(executable, code_object))
-            _co_swapper->prepare_symbol_swap(co->get(), *_co_loader, agent);
-    }
+    if (co && status == HSA_STATUS_SUCCESS)
+        _co_recorder->iterate_symbols(executable, co->get());
     return status;
 }
 
@@ -214,4 +202,37 @@ hsa_status_t DebugAgent::intercept_hsa_executable_symbol_get_info(
             return intercepted_fn(*replacement_sym, attribute, value);
         return intercepted_fn(executable_symbol, attribute, value);
     }
+}
+
+template <typename T>
+std::optional<T> DebugAgent::load_swapped_code_object(hsa_agent_t agent, RecordedCodeObject& co)
+{
+    if (auto replacement_co = _co_swapper->swap_code_object(co, _debug_buffer))
+    {
+        T loaded_replacement;
+        const char* error_callsite;
+        hsa_status_t status = _co_loader->load_from_memory(*replacement_co, &loaded_replacement, &error_callsite);
+        if (status == HSA_STATUS_SUCCESS)
+        {
+            /* Load the original executable to iterate its symbols */
+            hsa_executable_t original_exec;
+            const char* error_callsite;
+            hsa_status_t status = _co_loader->create_executable(co, agent, &original_exec, &error_callsite);
+            if (status == HSA_STATUS_SUCCESS)
+                _co_recorder->iterate_symbols(original_exec, co);
+            else
+                _logger->hsa_error("Unable to load executable with CRC = " + std::to_string(co.crc()), status, error_callsite);
+
+            return {loaded_replacement};
+        }
+        else
+        {
+            _logger->hsa_error("Failed to load replacement code object for CRC = " + std::to_string(co.crc()), status, error_callsite);
+        }
+    }
+    else
+    {
+        _co_swapper->prepare_symbol_swap(co, *_co_loader, agent);
+    }
+    return {};
 }

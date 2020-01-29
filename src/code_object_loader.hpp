@@ -17,6 +17,16 @@ public:
     CodeObjectLoader(std::shared_ptr<CoreApiTable> non_intercepted_api_table)
         : _non_intercepted_api_table(non_intercepted_api_table) {}
 
+    hsa_status_t load_from_memory(
+        const CodeObject& co,
+        hsa_code_object_reader_t* reader,
+        const char** error_callsite);
+
+    hsa_status_t load_from_memory(
+        const CodeObject& co,
+        hsa_code_object_t* hsaco,
+        const char** error_callsite);
+
     hsa_status_t create_executable(
         const CodeObject& co,
         hsa_agent_t agent,

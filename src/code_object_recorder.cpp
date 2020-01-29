@@ -72,11 +72,11 @@ void CodeObjectRecorder::dump_code_object(const CodeObject& code_object)
     if (std::ofstream fs{filepath, std::ios::out | std::ios::binary})
     {
         fs.write((char*)code_object.ptr(), code_object.size());
-        _logger->info(code_object, "code object is written to the file " + filepath);
+        _logger->info(code_object, "code object is written to " + filepath);
     }
     else
     {
-        _logger->error(code_object, "cannot write code object to the file " + filepath);
+        _logger->error(code_object, "cannot write code object to " + filepath);
     }
 }
 
@@ -85,47 +85,38 @@ void CodeObjectRecorder::iterate_symbols(hsa_executable_t exec, RecordedCodeObje
     if (code_object.fill_symbols(exec) != HSA_STATUS_SUCCESS)
     {
         _logger->error(code_object, "cannot iterate symbols of executable: " + std::to_string(exec.handle));
-        return;
     }
-
-    std::ostringstream symbols_info_stream;
-    symbols_info_stream << "found symbols:";
-
-    for (const auto& it : code_object.symbols())
-        symbols_info_stream << std::endl
-                            << "-- " << it.first;
-
-    _logger->info(code_object, symbols_info_stream.str());
+    else if (code_object.symbols().empty())
+    {
+        _logger->info(code_object, "no symbols found");
+    }
+    else
+    {
+        std::string symbols;
+        for (const auto& it : code_object.symbols())
+            symbols.append(symbols.empty() ? "code object symbols: " : ", ").append(it.first);
+        _logger->info(code_object, symbols);
+    }
 }
 
-std::optional<std::reference_wrapper<RecordedCodeObject>> CodeObjectRecorder::record_code_object_executable(hsa_executable_t exec, hsa_code_object_reader_t reader)
+std::optional<std::reference_wrapper<RecordedCodeObject>> CodeObjectRecorder::find_code_object(hsa_code_object_reader_t reader)
 {
     std::shared_lock lock(_mutex);
     auto reader_eq = [hndl = reader.handle](auto const& co) { return co.hsa_code_object_reader().handle == hndl; };
     if (auto it{std::find_if(_code_objects.begin(), _code_objects.end(), reader_eq)}; it != _code_objects.end())
-    {
-        iterate_symbols(exec, *it);
         return {std::ref(*it)};
-    }
-    else
-    {
-        _logger->error("cannot find code object by hsa_code_object_reader_t: " + std::to_string(reader.handle));
-        return {};
-    }
+
+    _logger->error("cannot find code object by hsa_code_object_reader_t: " + std::to_string(reader.handle));
+    return {};
 }
 
-std::optional<std::reference_wrapper<RecordedCodeObject>> CodeObjectRecorder::record_code_object_executable(hsa_executable_t exec, hsa_code_object_t hsaco)
+std::optional<std::reference_wrapper<RecordedCodeObject>> CodeObjectRecorder::find_code_object(hsa_code_object_t hsaco)
 {
     std::shared_lock lock(_mutex);
     auto hsaco_eq = [hndl = hsaco.handle](auto const& co) { return co.hsa_code_object().handle == hndl; };
     if (auto it{std::find_if(_code_objects.begin(), _code_objects.end(), hsaco_eq)}; it != _code_objects.end())
-    {
-        iterate_symbols(exec, *it);
         return {std::ref(*it)};
-    }
-    else
-    {
-        _logger->error("cannot find code object by hsa_code_object_t: " + std::to_string(hsaco.handle));
-        return {};
-    }
+
+    _logger->error("cannot find code object by hsa_code_object_t: " + std::to_string(hsaco.handle));
+    return {};
 }
