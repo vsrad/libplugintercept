@@ -1,4 +1,8 @@
-set(ASM_CLANG_FLAGS -x assembler -target amdgcn--amdhsa -mcpu=gfx900 -mno-code-object-v3)
+execute_process(
+    COMMAND bash "-c" "/opt/rocm/bin/rocminfo | grep -om1 gfx9.."
+    OUTPUT_VARIABLE GFX_VERSION
+    OUTPUT_STRIP_TRAILING_WHITESPACE)
+set(ASM_CLANG_FLAGS -x assembler -target amdgcn--amdhsa -mcpu=${GFX_VERSION} -mno-code-object-v3)
 set(ASM_CLANG_CMD ${CLANG} ${ASM_CLANG_FLAGS} -I${CMAKE_CURRENT_SOURCE_DIR}/include)
 add_custom_target(dbg_kernel
     COMMAND ${ASM_CLANG_CMD} ${CMAKE_CURRENT_SOURCE_DIR}/dbg_kernel.s -o dbg_kernel.co

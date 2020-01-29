@@ -16,13 +16,11 @@ TEST_CASE("kernel runs to completion", "[integration]")
 
     std::string line;
     REQUIRE(std::getline(co_dump_log, line));
-    REQUIRE(line == "[CO INFO] crc: 2412300725 intercepted code object");
+    REQUIRE(line == "[CO INFO] crc: 326705597 intercepted code object");
     REQUIRE(std::getline(co_dump_log, line));
-    REQUIRE(line == "[CO INFO] crc: 2412300725 code object is written to the file tests/tmp//2412300725.co");
+    REQUIRE(line == "[CO INFO] crc: 326705597 code object is written to tests/tmp//326705597.co");
     REQUIRE(std::getline(co_dump_log, line));
-    REQUIRE(line == "[CO INFO] crc: 2412300725 found symbols:");
-    REQUIRE(std::getline(co_dump_log, line));
-    REQUIRE(line == "-- dbg_kernel");
+    REQUIRE(line == "[CO INFO] crc: 326705597 code object symbols: dbg_kernel");
 
     auto debug_buffer = std::ifstream("tests/tmp/debug_buffer", std::ios::binary | std::ios::ate);
     REQUIRE(debug_buffer);

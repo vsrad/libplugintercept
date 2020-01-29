@@ -33,11 +33,11 @@ TEST_CASE("init different code objects", "[co_recorder]")
     REQUIRE(co_one.crc() != co_three.crc());
     std::vector<std::string> expected_info = {
         "crc: 2005276243 intercepted code object",
-        "crc: 2005276243 code object is written to the file tests/tmp/2005276243.co",
+        "crc: 2005276243 code object is written to tests/tmp/2005276243.co",
         "crc: 428259000 intercepted code object",
-        "crc: 428259000 code object is written to the file tests/tmp/428259000.co",
+        "crc: 428259000 code object is written to tests/tmp/428259000.co",
         "crc: 4099621386 intercepted code object",
-        "crc: 4099621386 code object is written to the file tests/tmp/4099621386.co"};
+        "crc: 4099621386 code object is written to tests/tmp/4099621386.co"};
     REQUIRE(logger->infos == expected_info);
     REQUIRE(logger->warnings.size() == 0);
     REQUIRE(logger->errors.size() == 0);
@@ -54,7 +54,7 @@ TEST_CASE("dump code object to an invalid path", "[co_recorder]")
     std::vector<std::string> expected_info = {
         "crc: 4212875390 intercepted code object"};
     std::vector<std::string> expected_error = {
-        "crc: 4212875390 cannot write code object to the file invalid-path/4212875390.co"};
+        "crc: 4212875390 cannot write code object to invalid-path/4212875390.co"};
     REQUIRE(logger->infos == expected_info);
     REQUIRE(logger->errors == expected_error);
     REQUIRE(logger->warnings.size() == 0);
@@ -73,7 +73,7 @@ TEST_CASE("redundant load code objects", "[co_recorder]")
     REQUIRE(co_one.crc() == co_two.crc());
     std::vector<std::string> expected_info = {
         "crc: 4212875390 intercepted code object",
-        "crc: 4212875390 code object is written to the file tests/tmp/4212875390.co",
+        "crc: 4212875390 code object is written to tests/tmp/4212875390.co",
         "crc: 4212875390 intercepted code object"};
     std::vector<std::string> expected_warning = {
         "crc: 4212875390 redundant load: tests/tmp/4212875390.co"};
@@ -82,16 +82,15 @@ TEST_CASE("redundant load code objects", "[co_recorder]")
     REQUIRE(logger->errors.size() == 0);
 }
 
-TEST_CASE("record executable called on a nonexistent code object", "[co_recorder]")
+TEST_CASE("find code object called on a nonexistent code object", "[co_recorder]")
 {
     auto logger = std::make_shared<TestCodeObjectLogger>();
     CodeObjectRecorder recorder(DUMP_PATH, logger);
 
     hsa_code_object_reader_t co_reader = {123};
     hsa_code_object_t co = {456};
-    hsa_executable_t exec = {0};
-    REQUIRE(!recorder.record_code_object_executable(exec, co_reader));
-    REQUIRE(!recorder.record_code_object_executable(exec, co));
+    REQUIRE(!recorder.find_code_object(co_reader));
+    REQUIRE(!recorder.find_code_object(co));
 
     std::vector<std::string> expected_error = {
         "cannot find code object by hsa_code_object_reader_t: 123",
@@ -101,7 +100,7 @@ TEST_CASE("record executable called on a nonexistent code object", "[co_recorder
     REQUIRE(logger->warnings.size() == 0);
 }
 
-TEST_CASE("record executable called with an invalid executable", "[co_recorder]")
+TEST_CASE("find code object called with an invalid executable", "[co_recorder]")
 {
     auto logger = std::make_shared<TestCodeObjectLogger>();
     CodeObjectRecorder recorder(DUMP_PATH, logger);
@@ -126,9 +125,8 @@ TEST_CASE("record executable called with an invalid executable", "[co_recorder]"
     auto [co_reader, co_two] = prepare_co_two();
     REQUIRE(co_one.crc() != co_two.crc());
 
-    hsa_executable_t exec = {789};
-    auto recorded_one = recorder.record_code_object_executable(exec, co);
-    auto recorded_two = recorder.record_code_object_executable(exec, co_reader);
+    auto recorded_one = recorder.find_code_object(co);
+    auto recorded_two = recorder.find_code_object(co_reader);
     REQUIRE(recorded_one);
     REQUIRE(recorded_one->get().load_call_no() == co_one.load_call_no());
     REQUIRE(recorded_one->get().load_call_no() == 1);
@@ -138,13 +136,9 @@ TEST_CASE("record executable called with an invalid executable", "[co_recorder]"
 
     std::vector<std::string> expected_info = {
         "crc: 2005276243 intercepted code object",
-        "crc: 2005276243 code object is written to the file tests/tmp/2005276243.co",
+        "crc: 2005276243 code object is written to tests/tmp/2005276243.co",
         "crc: 428259000 intercepted code object",
-        "crc: 428259000 code object is written to the file tests/tmp/428259000.co"};
-    std::vector<std::string> expected_error = {
-        "crc: 2005276243 cannot iterate symbols of executable: 789",
-        "crc: 428259000 cannot iterate symbols of executable: 789"};
+        "crc: 428259000 code object is written to tests/tmp/428259000.co"};
     REQUIRE(logger->infos == expected_info);
-    REQUIRE(logger->errors == expected_error);
     REQUIRE(logger->warnings.size() == 0);
 }
