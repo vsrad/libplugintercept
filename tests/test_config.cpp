@@ -20,7 +20,8 @@ TEST_CASE("reads a valid configuration file", "[config]")
          .external_command = "bash -o pipefail -c '"
                              "perl tests/fixtures/breakpoint.pl -ba $ASM_DBG_BUF_ADDR -bs $ASM_DBG_BUF_SIZE "
                              "-l 31 -w v[tid] -s 96 -r s0 -t 0 tests/kernels/dbg_kernel.s | "
-                             "/opt/rocm/opencl/bin/x86_64/clang -x assembler -target amdgcn--amdhsa -mcpu=gfx900 -mno-code-object-v3 "
+                             "/opt/rocm/opencl/bin/x86_64/clang -x assembler -target amdgcn--amdhsa "
+                             "-mcpu=`/opt/rocm/bin/rocminfo | grep -om1 gfx9..` -mno-code-object-v3 "
                              "-Itests/kernels/include -o tests/tmp/replacement.co -'"},
         with_symbols,
         {.condition = {crc32_t(0xDEADBEEF)},
