@@ -50,24 +50,24 @@ public:
 
 extern const char agent_info[], agent_error[], agent_warning[];
 
-typedef Logger<agent_info, agent_error, agent_warning> AgentLogger;
+class AgentLogger : public Logger<agent_info, agent_error, agent_warning>
+{
+public:
+    AgentLogger(const std::string& path) : Logger(path) {}
+    void hsa_error(std::string msg, hsa_status_t status, const char* error_callsite);
+};
 
 extern const char co_info[], co_error[], co_warning[];
 
 class CodeObjectLogger : public Logger<co_info, co_error, co_warning>
 {
 private:
-    std::string co_msg(const agent::CodeObject& co, const std::string& msg)
-    {
-        return std::string("crc: ").append(std::to_string(co.crc())).append(" ").append(msg);
-    }
+    std::string co_msg(const agent::CodeObject& co, const std::string& msg);
 
 public:
     CodeObjectLogger(const std::string& path) : Logger(path) {}
 
-    virtual void info(const std::string& msg) override { Logger::info(msg); }
-    virtual void error(const std::string& msg) override { Logger::error(msg); }
-    virtual void warning(const std::string& msg) override { Logger::warning(msg); }
+    using Logger::info, Logger::error, Logger::warning;
 
     void info(const agent::CodeObject& co, const std::string& msg) { info(co_msg(co, msg)); }
     void error(const agent::CodeObject& co, const std::string& msg) { error(co_msg(co, msg)); }
