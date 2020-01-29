@@ -1,10 +1,10 @@
 #pragma once
 
-#include "buffer.hpp"
 #include "code_object_loader.hpp"
 #include "code_object_recorder.hpp"
 #include "code_object_swapper.hpp"
 #include "config.hpp"
+#include "debug_buffer.hpp"
 #include "logger/logger.hpp"
 #include <memory>
 #include <string>
@@ -21,7 +21,7 @@ private:
     std::unique_ptr<CodeObjectLoader> _co_loader;
     std::unique_ptr<CodeObjectRecorder> _co_recorder;
     std::unique_ptr<CodeObjectSwapper> _co_swapper;
-    std::unique_ptr<Buffer> _debug_buffer;
+    std::unique_ptr<DebugBuffer> _debug_buffer;
 
     template <typename T>
     std::optional<T> load_swapped_code_object(hsa_agent_t agent, RecordedCodeObject& co);
@@ -56,17 +56,6 @@ public:
         size_t serialized_code_object_size,
         const char* options,
         hsa_code_object_t* code_object);
-
-    hsa_status_t intercept_hsa_queue_create(
-        decltype(hsa_queue_create)* intercepted_fn,
-        hsa_agent_t agent,
-        uint32_t size,
-        hsa_queue_type32_t type,
-        void (*callback)(hsa_status_t status, hsa_queue_t* source, void* data),
-        void* data,
-        uint32_t private_segment_size,
-        uint32_t group_segment_size,
-        hsa_queue_t** queue);
 
     hsa_status_t intercept_hsa_executable_load_agent_code_object(
         decltype(hsa_executable_load_agent_code_object)* intercepted_fn,

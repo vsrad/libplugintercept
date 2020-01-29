@@ -4,21 +4,6 @@
 std::unique_ptr<agent::DebugAgent> _debug_agent;
 std::shared_ptr<CoreApiTable> _intercepted_api_table;
 
-hsa_status_t intercept_hsa_queue_create(
-    hsa_agent_t agent,
-    uint32_t size,
-    hsa_queue_type32_t type,
-    void (*callback)(hsa_status_t status, hsa_queue_t* source, void* data),
-    void* data,
-    uint32_t private_segment_size,
-    uint32_t group_segment_size,
-    hsa_queue_t** queue)
-{
-    return _debug_agent->intercept_hsa_queue_create(
-        _intercepted_api_table->hsa_queue_create_fn,
-        agent, size, type, callback, data, private_segment_size, group_segment_size, queue);
-}
-
 hsa_status_t intercept_hsa_code_object_reader_create_from_memory(
     const void* code_object,
     size_t size,
@@ -81,7 +66,6 @@ extern "C" bool OnLoad(void* api_table_ptr, uint64_t rt_version, uint64_t failed
         _intercepted_api_table = std::make_shared<CoreApiTable>();
         memcpy(_intercepted_api_table.get(), static_cast<const void*>(api_table->core_), sizeof(CoreApiTable));
 
-        api_table->core_->hsa_queue_create_fn = intercept_hsa_queue_create;
         api_table->core_->hsa_code_object_reader_create_from_memory_fn = intercept_hsa_code_object_reader_create_from_memory;
         api_table->core_->hsa_code_object_deserialize_fn = intercept_hsa_code_object_deserialize;
         api_table->core_->hsa_executable_load_agent_code_object_fn = intercept_hsa_executable_load_agent_code_object;
