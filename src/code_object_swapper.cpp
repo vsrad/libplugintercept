@@ -4,7 +4,10 @@
 
 using namespace agent;
 
-std::optional<CodeObject> CodeObjectSwapper::swap_code_object(const RecordedCodeObject& source, const std::unique_ptr<Buffer>& debug_buffer)
+std::optional<CodeObject> CodeObjectSwapper::swap_code_object(
+    const RecordedCodeObject& source,
+    const std::unique_ptr<Buffer>& debug_buffer,
+    hsa_agent_t agent)
 {
     for (auto& swap : *_swaps)
         if (auto target_call_count = std::get_if<call_count_t>(&swap.condition))
@@ -13,7 +16,7 @@ std::optional<CodeObject> CodeObjectSwapper::swap_code_object(const RecordedCode
             {
                 _logger->info(
                     "Code object load #" + std::to_string(*target_call_count) + ": swapping for " + swap.replacement_path);
-                return do_swap(swap, source, debug_buffer);
+                return do_swap(swap, source, debug_buffer, agent);
             }
         }
         else if (auto target_crc = std::get_if<crc32_t>(&swap.condition))
@@ -22,14 +25,18 @@ std::optional<CodeObject> CodeObjectSwapper::swap_code_object(const RecordedCode
             {
                 _logger->info(
                     "Code object load with CRC = " + std::to_string(*target_crc) + ": swapping for " + swap.replacement_path);
-                return do_swap(swap, source, debug_buffer);
+                return do_swap(swap, source, debug_buffer, agent);
             }
         }
 
     return {};
 }
 
-std::optional<CodeObject> CodeObjectSwapper::do_swap(const CodeObjectSwap& swap, const RecordedCodeObject& source, const std::unique_ptr<Buffer>& debug_buffer)
+std::optional<CodeObject> CodeObjectSwapper::do_swap(
+    const CodeObjectSwap& swap,
+    const RecordedCodeObject& source,
+    const std::unique_ptr<Buffer>& debug_buffer,
+    hsa_agent_t agent)
 {
     if (!swap.external_command.empty())
     {
@@ -72,7 +79,19 @@ std::optional<CodeObject> CodeObjectSwapper::do_swap(const CodeObjectSwap& swap,
 
     if (!swap.symbol_swaps.empty())
     {
-        _symbol_swaps.emplace(source.load_call_no(), SymbolSwap{.swap = swap, .replacement_co = *new_co, .exec = {0}});
+        const char* error_callsite;
+        hsa_executable_t executable;
+        hsa_status_t status = _co_loader.create_executable(*new_co, agent, &executable, &error_callsite);
+        if (status == HSA_STATUS_SUCCESS)
+        {
+            auto mapper_data = std::make_tuple<CodeObjectSwapper*, const RecordedCodeObject*, const CodeObjectSwap*>(this, &source, &swap);
+            status = hsa_executable_iterate_symbols(executable, map_swapped_symbols, &mapper_data);
+            error_callsite = "hsa_executable_iterate_symbols";
+        }
+        if (status != HSA_STATUS_SUCCESS)
+        {
+            _logger->hsa_error("Unable to prepare replacement code object for CRC = " + std::to_string(source.crc()), status, error_callsite);
+        }
         return {};
     }
 
@@ -81,7 +100,7 @@ std::optional<CodeObject> CodeObjectSwapper::do_swap(const CodeObjectSwap& swap,
 
 hsa_status_t CodeObjectSwapper::map_swapped_symbols(hsa_executable_t exec, hsa_executable_symbol_t sym, void* data)
 {
-    auto& [swapper, source, swap] = *reinterpret_cast<std::tuple<CodeObjectSwapper*, const RecordedCodeObject*, SymbolSwap&>*>(data);
+    auto [this_, source, swap] = *reinterpret_cast<std::tuple<CodeObjectSwapper*, const RecordedCodeObject*, const CodeObjectSwap*>*>(data);
 
     uint32_t name_len;
     hsa_status_t status = hsa_executable_symbol_get_info(sym, HSA_EXECUTABLE_SYMBOL_INFO_NAME_LENGTH, &name_len);
@@ -95,39 +114,18 @@ hsa_status_t CodeObjectSwapper::map_swapped_symbols(hsa_executable_t exec, hsa_e
 
     auto& src_symbols = source->symbols();
 
-    for (auto& [src_sym_name, repl_sym_name] : swap.swap.symbol_swaps)
+    for (auto& [src_sym_name, repl_sym_name] : swap->symbol_swaps)
     {
         if (current_sym_name != repl_sym_name)
             continue;
         if (auto src_sym{src_symbols.find(src_sym_name)}; src_sym != src_symbols.end())
-            swapper->_swapped_symbols[src_sym->second.handle] = sym;
+            this_->_swapped_symbols[src_sym->second.handle] = sym;
         else
-            swapper->_logger->warning(
+            this_->_logger->warning(
                 "Symbol " + src_sym_name + " not found in code object, will not be replaced with " + repl_sym_name);
     }
 
     return HSA_STATUS_SUCCESS;
-}
-
-void CodeObjectSwapper::prepare_symbol_swap(const RecordedCodeObject& source, CodeObjectLoader& co_loader, hsa_agent_t agent)
-{
-    if (auto it{_symbol_swaps.find(source.load_call_no())}; it != _symbol_swaps.end())
-    {
-        auto& swap = it->second;
-        const char* error_callsite;
-        hsa_status_t status = co_loader.create_executable(swap.replacement_co, agent, &swap.exec, &error_callsite);
-        if (status == HSA_STATUS_SUCCESS)
-        {
-            auto mapper_data = std::make_tuple<CodeObjectSwapper*, const RecordedCodeObject*, SymbolSwap&>(this, &source, swap);
-            status = hsa_executable_iterate_symbols(swap.exec, map_swapped_symbols, &mapper_data);
-            error_callsite = "hsa_executable_iterate_symbols";
-        }
-        if (status != HSA_STATUS_SUCCESS)
-        {
-            _logger->hsa_error("Unable to prepare replacement code object for CRC = " + std::to_string(source.crc()), status, error_callsite);
-            swap.exec = {0};
-        }
-    }
 }
 
 std::optional<hsa_executable_symbol_t> CodeObjectSwapper::swap_symbol(hsa_executable_symbol_t sym)

@@ -31,7 +31,7 @@ public:
                std::unique_ptr<CodeObjectLoader> co_loader)
         : _config(config), _logger(logger), _co_loader(std::move(co_loader)),
           _co_recorder(std::make_unique<CodeObjectRecorder>(config->code_object_dump_dir(), co_logger)),
-          _co_swapper(std::make_unique<CodeObjectSwapper>(config->code_object_swaps(), logger)) {}
+          _co_swapper(std::make_unique<CodeObjectSwapper>(config->code_object_swaps(), logger, *co_loader)) {}
 
     ~DebugAgent() noexcept { write_debug_buffer_to_file(); }
 
