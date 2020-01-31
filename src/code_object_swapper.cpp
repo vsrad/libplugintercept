@@ -9,93 +9,82 @@ std::optional<CodeObject> CodeObjectSwapper::swap_code_object(
     const std::unique_ptr<Buffer>& debug_buffer,
     hsa_agent_t agent)
 {
-    for (auto& swap : *_swaps)
+    auto swap_eq = [crc = source.crc(), call_no = source.load_call_no()](auto const& swap) {
         if (auto target_call_count = std::get_if<call_count_t>(&swap.condition))
-        {
-            if (*target_call_count == source.load_call_no())
-            {
-                _logger->info(
-                    "Code object load #" + std::to_string(*target_call_count) + ": swapping for " + swap.replacement_path);
-                return do_swap(swap, source, debug_buffer, agent);
-            }
-        }
-        else if (auto target_crc = std::get_if<crc32_t>(&swap.condition))
-        {
-            if (*target_crc == source.crc())
-            {
-                _logger->info(
-                    "Code object load with CRC = " + std::to_string(*target_crc) + ": swapping for " + swap.replacement_path);
-                return do_swap(swap, source, debug_buffer, agent);
-            }
-        }
+            return *target_call_count == call_no;
+        if (auto target_crc = std::get_if<crc32_t>(&swap.condition))
+            return *target_crc == crc;
+        return false;
+    };
+    auto swap = std::find_if(_swaps.begin(), _swaps.end(), swap_eq);
+    if (swap == _swaps.end())
+        return {};
+
+    _logger.info(
+        "Swapping code object with CRC " + std::to_string(source.crc()) +
+        " (load #" + std::to_string(source.load_call_no()) + ") for " + swap->replacement_path);
+
+    if (!swap->external_command.empty())
+        if (!run_external_command(swap->external_command, debug_buffer))
+            return {};
+
+    auto new_co = CodeObject::try_read_from_file(swap->replacement_path.c_str());
+    if (!new_co)
+    {
+        _logger.error("Unable to load the replacement code object from " + swap->replacement_path);
+        return {};
+    }
+
+    if (swap->symbol_swaps.empty())
+        return new_co;
+
+    const char* error_callsite;
+    hsa_executable_t executable;
+    hsa_status_t status = _co_loader.create_executable(*new_co, agent, &executable, &error_callsite);
+    if (status == HSA_STATUS_SUCCESS)
+    {
+        auto mapper_data = std::make_tuple<CodeObjectSwapper*, const RecordedCodeObject*, const CodeObjectSwap*>(this, &source, &*swap);
+        status = hsa_executable_iterate_symbols(executable, map_swapped_symbols, &mapper_data);
+        error_callsite = "hsa_executable_iterate_symbols";
+    }
+    if (status != HSA_STATUS_SUCCESS)
+        _logger.hsa_error("Unable to load the replacement code object from " + swap->replacement_path, status, error_callsite);
 
     return {};
 }
 
-std::optional<CodeObject> CodeObjectSwapper::do_swap(
-    const CodeObjectSwap& swap,
-    const RecordedCodeObject& source,
-    const std::unique_ptr<Buffer>& debug_buffer,
-    hsa_agent_t agent)
+bool CodeObjectSwapper::run_external_command(const std::string& cmd, const std::unique_ptr<Buffer>& debug_buffer)
 {
-    if (!swap.external_command.empty())
+    _logger.info("Executing `" + cmd + "`");
+
+    ExternalCommand runner(cmd);
+    std::map<std::string, std::string> environment;
+
+    if (debug_buffer)
     {
-        _logger->info("Executing `" + swap.external_command + "`");
-        ExternalCommand cmd(swap.external_command);
-        std::map<std::string, std::string> environment;
-
-        if (debug_buffer)
-        {
-            environment["ASM_DBG_BUF_SIZE"] = std::to_string(debug_buffer->Size());
-            environment["ASM_DBG_BUF_ADDR"] = std::to_string(reinterpret_cast<size_t>(debug_buffer->LocalPtr()));
-        }
-        else
-        {
-            _logger->info("ASM_DBG_BUF_SIZE and ASM_DBG_BUF_ADDR are not set because the debug buffer has not been allocated yet.");
-        }
-
-        int retcode = cmd.execute(environment);
-        if (retcode != 0)
-        {
-            std::ostringstream error_log;
-            error_log << "The command `" << swap.external_command << "` has exited with code " << retcode;
-            auto stdout = cmd.read_stdout();
-            if (!stdout.empty())
-                error_log << "\n=== Stdout:\n"
-                          << stdout;
-            auto stderr = cmd.read_stderr();
-            if (!stderr.empty())
-                error_log << "\n=== Stderr:\n"
-                          << stderr;
-            _logger->error(error_log.str());
-            return {};
-        }
-        _logger->info("The command has finished successfully");
+        environment["ASM_DBG_BUF_SIZE"] = std::to_string(debug_buffer->Size());
+        environment["ASM_DBG_BUF_ADDR"] = std::to_string(reinterpret_cast<size_t>(debug_buffer->LocalPtr()));
+    }
+    else
+    {
+        _logger.warning("ASM_DBG_BUF_SIZE and ASM_DBG_BUF_ADDR are not set: debug buffer has not been allocated yet.");
     }
 
-    auto new_co = CodeObject::try_read_from_file(swap.replacement_path.c_str());
-    if (!new_co)
-        _logger->error("Unable to load the replacement code object from " + swap.replacement_path);
-
-    if (!swap.symbol_swaps.empty())
+    int retcode = runner.execute(environment);
+    if (retcode == 0)
     {
-        const char* error_callsite;
-        hsa_executable_t executable;
-        hsa_status_t status = _co_loader.create_executable(*new_co, agent, &executable, &error_callsite);
-        if (status == HSA_STATUS_SUCCESS)
-        {
-            auto mapper_data = std::make_tuple<CodeObjectSwapper*, const RecordedCodeObject*, const CodeObjectSwap*>(this, &source, &swap);
-            status = hsa_executable_iterate_symbols(executable, map_swapped_symbols, &mapper_data);
-            error_callsite = "hsa_executable_iterate_symbols";
-        }
-        if (status != HSA_STATUS_SUCCESS)
-        {
-            _logger->hsa_error("Unable to prepare replacement code object for CRC = " + std::to_string(source.crc()), status, error_callsite);
-        }
-        return {};
+        _logger.info("The command has finished successfully");
+        return true;
     }
 
-    return new_co;
+    std::string error_log;
+    error_log.append("The command `").append(cmd).append("` has exited with code ").append(std::to_string(retcode));
+    if (auto stdout{runner.read_stdout()}; !stdout.empty())
+        error_log.append("\n=== Stdout:\n").append(stdout);
+    if (auto stderr{runner.read_stderr()}; !stderr.empty())
+        error_log.append("\n=== Stderr:\n").append(stderr);
+    _logger.error(error_log);
+    return false;
 }
 
 hsa_status_t CodeObjectSwapper::map_swapped_symbols(hsa_executable_t exec, hsa_executable_symbol_t sym, void* data)
@@ -121,7 +110,7 @@ hsa_status_t CodeObjectSwapper::map_swapped_symbols(hsa_executable_t exec, hsa_e
         if (auto src_sym{src_symbols.find(src_sym_name)}; src_sym != src_symbols.end())
             this_->_swapped_symbols[src_sym->second.handle] = sym;
         else
-            this_->_logger->warning(
+            this_->_logger.warning(
                 "Symbol " + src_sym_name + " not found in code object, will not be replaced with " + repl_sym_name);
     }
 

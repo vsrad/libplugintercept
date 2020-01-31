@@ -65,10 +65,9 @@ Config::Config()
         _debug_buffer_size = config->get_qualified_as<uint64_t>("debug-buffer.size").value_or(0);
         _debug_buffer_dump_file = config->get_qualified_as<std::string>("debug-buffer.dump-file").value_or("");
 
-        _code_object_swaps = std::make_shared<std::vector<CodeObjectSwap>>();
         if (auto swap_configs = config->get_table_array("code-object-swap"))
             for (const auto& swap_config : *swap_configs)
-                _code_object_swaps->push_back(get_co_swap(config_path, *swap_config));
+                _code_object_swaps.push_back(get_co_swap(config_path, *swap_config));
     }
     else
     {

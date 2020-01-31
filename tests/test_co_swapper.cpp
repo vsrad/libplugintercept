@@ -23,9 +23,10 @@ TEST_CASE("swaps code object based on CRC match", "[co_swapper]")
     RecordedCodeObject co_other("SOME OTHER CO", sizeof("SOME OTHER CO"), 2);
     REQUIRE(co_matching.crc() != co_other.crc());
 
+    TestLogger logger;
     std::vector<CodeObjectSwap> swaps = {{.condition = {co_matching.crc()},
                                           .replacement_path = "tests/fixtures/asdf"}};
-    CodeObjectSwapper cosw(std::make_shared<std::vector<CodeObjectSwap>>(swaps), std::make_shared<TestLogger>(), *_dummy_loader);
+    CodeObjectSwapper cosw(swaps, logger, *_dummy_loader);
     auto swapped_matching = cosw.swap_code_object(co_matching, std::unique_ptr<Buffer>(), {0});
     auto swapped_other = cosw.swap_code_object(co_other, std::unique_ptr<Buffer>(), {0});
     REQUIRE(swapped_matching);
@@ -36,9 +37,11 @@ TEST_CASE("swaps code object based on CRC match", "[co_swapper]")
 
 TEST_CASE("swaps code object based on the call # match", "[co_swapper]")
 {
-    std::vector<CodeObjectSwap> swaps = {{.condition = {call_count_t(3)},
-                                          .replacement_path = "tests/fixtures/asdf"}};
-    CodeObjectSwapper cosw(std::make_shared<std::vector<CodeObjectSwap>>(swaps), std::make_shared<TestLogger>(), *_dummy_loader);
+    TestLogger logger;
+    std::vector<CodeObjectSwap> swaps =
+        {{.condition = {call_count_t(3)},
+          .replacement_path = "tests/fixtures/asdf"}};
+    CodeObjectSwapper cosw(swaps, logger, *_dummy_loader);
     REQUIRE(!cosw.swap_code_object(RecordedCodeObject("", 0, 1), std::unique_ptr<Buffer>(), {0}));
     auto matching = cosw.swap_code_object(RecordedCodeObject("", 0, 3), std::unique_ptr<Buffer>(), {0});
     REQUIRE(!cosw.swap_code_object(RecordedCodeObject("", 0, 4), std::unique_ptr<Buffer>(), {0}));
@@ -50,12 +53,12 @@ TEST_CASE("swaps code object based on the call # match", "[co_swapper]")
 TEST_CASE("runs external command before swapping the code object if specified", "[co_swapper]")
 {
     auto time = std::time(0);
-    auto logger = std::make_shared<TestLogger>();
+    TestLogger logger;
     std::vector<CodeObjectSwap> swaps =
         {{.condition = {call_count_t(1)},
           .replacement_path = "tests/tmp/co_swapper_time",
           .external_command = "echo " + std::to_string(time) + " > tests/tmp/co_swapper_time"}};
-    CodeObjectSwapper cosw(std::make_shared<std::vector<CodeObjectSwap>>(swaps), logger, *_dummy_loader);
+    CodeObjectSwapper cosw(swaps, logger, *_dummy_loader);
     auto swapped = cosw.swap_code_object(RecordedCodeObject("", 0, 1), std::unique_ptr<Buffer>(), {0});
     REQUIRE(swapped);
     std::string swapped_data(static_cast<const char*>(swapped->ptr()), swapped->size());
@@ -64,7 +67,7 @@ TEST_CASE("runs external command before swapping the code object if specified", 
 
 TEST_CASE("logs external command output on failure", "[co_swapper]")
 {
-    auto logger = std::make_shared<TestLogger>();
+    TestLogger logger;
     std::vector<CodeObjectSwap> swaps =
         {{.condition = {call_count_t(1)},
           .replacement_path = "tests/fixtures/asdf",
@@ -72,16 +75,17 @@ TEST_CASE("logs external command output on failure", "[co_swapper]")
          {.condition = {call_count_t(2)},
           .replacement_path = "t",
           .external_command = "echo h; asdfasdf"}};
-    CodeObjectSwapper cosw(std::make_shared<std::vector<CodeObjectSwap>>(swaps), logger, *_dummy_loader);
+    CodeObjectSwapper cosw(swaps,
+                           logger, *_dummy_loader);
     auto swapped = cosw.swap_code_object(RecordedCodeObject("SOME CO", sizeof("SOME CO"), 1), std::unique_ptr<Buffer>(), {0});
     REQUIRE(!swapped);
 
     std::vector<std::string> expected_error_log = {
         "The command `asdfasdf` has exited with code 32512"
         "\n=== Stderr:\nsh: 1: asdfasdf: not found\n"};
-    REQUIRE(logger->errors == expected_error_log);
+    REQUIRE(logger.errors == expected_error_log);
 
-    logger->errors.clear();
+    logger.errors.clear();
     auto swapped2 = cosw.swap_code_object(RecordedCodeObject("SOME CO", sizeof("SOME CO"), 2), std::unique_ptr<Buffer>(), {0});
     REQUIRE(!swapped2);
 
@@ -89,5 +93,5 @@ TEST_CASE("logs external command output on failure", "[co_swapper]")
         "The command `echo h; asdfasdf` has exited with code 32512"
         "\n=== Stdout:\nh\n"
         "\n=== Stderr:\nsh: 1: asdfasdf: not found\n"};
-    REQUIRE(logger->errors == expected_error_log2);
+    REQUIRE(logger.errors == expected_error_log2);
 }

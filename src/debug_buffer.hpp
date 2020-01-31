@@ -6,6 +6,7 @@
 #include "buffer.hpp"
 #include "config.hpp"
 #include "logger/logger.hpp"
+#include <memory>
 
 namespace agent
 {
