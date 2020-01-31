@@ -89,7 +89,5 @@ extern "C" bool OnLoad(void* api_table_ptr, uint64_t rt_version, uint64_t failed
 
 extern "C" void OnUnload()
 {
-    _debug_agent->write_debug_buffer_to_file();
     _debug_agent.reset();
-    _intercepted_api_table.reset();
 }

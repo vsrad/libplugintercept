@@ -36,6 +36,8 @@ public:
           _co_recorder(std::make_unique<CodeObjectRecorder>(config->code_object_dump_dir(), co_logger)),
           _co_swapper(std::make_unique<CodeObjectSwapper>(config->code_object_swaps(), logger)) {}
 
+    ~DebugAgent() noexcept { write_debug_buffer_to_file(); }
+
     hsa_region_t gpu_region() const { return _gpu_local_region; }
     hsa_region_t system_region() const { return _system_region; }
 
