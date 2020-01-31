@@ -1,6 +1,6 @@
 #pragma once
 
-#include "buffer.hpp"
+#include "debug_buffer.hpp"
 #include "code_object_loader.hpp"
 #include "code_object_swap.hpp"
 #include "logger/logger.hpp"
@@ -17,7 +17,7 @@ private:
 
     std::unordered_map<decltype(hsa_executable_symbol_t::handle), hsa_executable_symbol_t> _swapped_symbols;
 
-    bool run_external_command(const std::string& cmd, const std::unique_ptr<Buffer>& debug_buffer);
+    bool run_external_command(const std::string& cmd, const DebugBuffer& debug_buffer);
     static hsa_status_t map_swapped_symbols(hsa_executable_t exec, hsa_executable_symbol_t sym, void* data);
 
 public:
@@ -26,7 +26,7 @@ public:
 
     std::optional<CodeObject> swap_code_object(
         const RecordedCodeObject& source,
-        const std::unique_ptr<Buffer>& debug_buffer,
+        const DebugBuffer& debug_buffer,
         hsa_agent_t agent);
     std::optional<hsa_executable_symbol_t> swap_symbol(hsa_executable_symbol_t sym);
 };

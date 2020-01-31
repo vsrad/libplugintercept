@@ -2,9 +2,10 @@
 
 using namespace agent;
 
-DebugBuffer::DebugBuffer(hsa_agent_t agent, AgentLogger& logger, uint64_t buffer_size)
+DebugBuffer::DebugBuffer(hsa_agent_t agent, AgentLogger& logger, uint64_t size)
+    : _size(size), _gpu_ptr(nullptr), _host_ptr(nullptr)
 {
-    if (buffer_size == 0)
+    if (size == 0)
     {
         logger.warning("Debug buffer will not be allocated (debug buffer set is set to 0)");
         return;
@@ -22,36 +23,31 @@ DebugBuffer::DebugBuffer(hsa_agent_t agent, AgentLogger& logger, uint64_t buffer
         return;
     }
 
-    void* local_ptr;
-    status = hsa_memory_allocate(_gpu_region, buffer_size, &local_ptr);
+    status = hsa_memory_allocate(_gpu_region, size, &_gpu_ptr);
     if (status != HSA_STATUS_SUCCESS)
     {
         logger.hsa_error("Unable to allocate GPU memory for debug buffer", status, "hsa_memory_allocate");
         return;
     }
-
-    void* system_ptr;
-    status = hsa_memory_allocate(_host_region, buffer_size, &system_ptr);
+    status = hsa_memory_allocate(_host_region, size, &_host_ptr);
     if (status != HSA_STATUS_SUCCESS)
     {
         logger.hsa_error("Unable to allocate host memory for debug buffer", status, "hsa_memory_allocate");
         return;
     }
 
-    _gpu_buffer = std::make_unique<Buffer>(buffer_size, local_ptr, system_ptr);
-
     std::ostringstream msg;
-    msg << "Allocated debug buffer of size " << buffer_size << " at " << _gpu_buffer->LocalPtr();
+    msg << "Allocated debug buffer of size " << size << " at " << _gpu_ptr;
     logger.info(msg.str());
 }
 
 void DebugBuffer::write_to_file(AgentLogger& logger, const std::string& path)
 {
-    if (!_gpu_buffer)
+    if (!_gpu_ptr)
         return;
 
     hsa_status_t status;
-    status = hsa_memory_copy(_gpu_buffer->SystemPtr(), _gpu_buffer->LocalPtr(), _gpu_buffer->Size());
+    status = hsa_memory_copy(_host_ptr, _gpu_ptr, _size);
     if (status != HSA_STATUS_SUCCESS)
     {
         logger.hsa_error("Unable to copy debug buffer from GPU", status, "hsa_memory_copy");
@@ -60,7 +56,7 @@ void DebugBuffer::write_to_file(AgentLogger& logger, const std::string& path)
 
     if (std::ofstream fs{path, std::ios::out | std::ios::binary})
     {
-        fs.write(reinterpret_cast<char*>(_gpu_buffer->SystemPtr()), _gpu_buffer->Size());
+        fs.write(reinterpret_cast<char*>(_host_ptr), _size);
         logger.info("Debug buffer has been written to " + path);
     }
     else

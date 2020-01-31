@@ -6,7 +6,7 @@ using namespace agent;
 
 std::optional<CodeObject> CodeObjectSwapper::swap_code_object(
     const RecordedCodeObject& source,
-    const std::unique_ptr<Buffer>& debug_buffer,
+    const DebugBuffer& debug_buffer,
     hsa_agent_t agent)
 {
     auto swap_eq = [crc = source.crc(), call_no = source.load_call_no()](auto const& swap) {
@@ -53,21 +53,21 @@ std::optional<CodeObject> CodeObjectSwapper::swap_code_object(
     return {};
 }
 
-bool CodeObjectSwapper::run_external_command(const std::string& cmd, const std::unique_ptr<Buffer>& debug_buffer)
+bool CodeObjectSwapper::run_external_command(const std::string& cmd, const DebugBuffer& debug_buffer)
 {
     _logger.info("Executing `" + cmd + "`");
 
     ExternalCommand runner(cmd);
     std::map<std::string, std::string> environment;
 
-    if (debug_buffer)
+    if (auto buf_addr = debug_buffer.gpu_buffer_address())
     {
-        environment["ASM_DBG_BUF_SIZE"] = std::to_string(debug_buffer->Size());
-        environment["ASM_DBG_BUF_ADDR"] = std::to_string(reinterpret_cast<size_t>(debug_buffer->LocalPtr()));
+        environment["ASM_DBG_BUF_SIZE"] = std::to_string(debug_buffer.size());
+        environment["ASM_DBG_BUF_ADDR"] = std::to_string(*buf_addr);
     }
     else
     {
-        _logger.warning("ASM_DBG_BUF_SIZE and ASM_DBG_BUF_ADDR are not set: debug buffer has not been allocated yet.");
+        _logger.warning("ASM_DBG_BUF_SIZE and ASM_DBG_BUF_ADDR are not set (debug buffer is not allocated)");
     }
 
     int retcode = runner.execute(environment);

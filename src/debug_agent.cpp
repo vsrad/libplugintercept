@@ -94,7 +94,7 @@ std::optional<T> DebugAgent::load_swapped_code_object(hsa_agent_t agent, Recorde
 {
     if (!_debug_buffer)
         _debug_buffer = std::make_unique<DebugBuffer>(agent, *_logger, _config->debug_buffer_size());
-    if (auto replacement_co = _co_swapper->swap_code_object(co, _debug_buffer->gpu_buffer(), agent))
+    if (auto replacement_co = _co_swapper->swap_code_object(co, *_debug_buffer, agent))
     {
         T loaded_replacement;
         const char* error_callsite;
