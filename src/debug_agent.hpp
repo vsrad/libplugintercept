@@ -14,8 +14,6 @@ namespace agent
 class DebugAgent
 {
 private:
-    hsa_region_t _gpu_local_region;
-    hsa_region_t _system_region;
     std::shared_ptr<Config> _config;
     std::shared_ptr<AgentLogger> _logger;
     std::unique_ptr<CodeObjectLoader> _co_loader;
@@ -31,18 +29,11 @@ public:
                std::shared_ptr<AgentLogger> logger,
                std::shared_ptr<CodeObjectLogger> co_logger,
                std::unique_ptr<CodeObjectLoader> co_loader)
-        : _gpu_local_region{0}, _system_region{0}, _config(config), _logger(logger),
-          _co_loader(std::move(co_loader)),
+        : _config(config), _logger(logger), _co_loader(std::move(co_loader)),
           _co_recorder(std::make_unique<CodeObjectRecorder>(config->code_object_dump_dir(), co_logger)),
           _co_swapper(std::make_unique<CodeObjectSwapper>(config->code_object_swaps(), logger)) {}
 
     ~DebugAgent() noexcept { write_debug_buffer_to_file(); }
-
-    hsa_region_t gpu_region() const { return _gpu_local_region; }
-    hsa_region_t system_region() const { return _system_region; }
-
-    void set_gpu_region(hsa_region_t region) { _gpu_local_region = region; }
-    void set_system_region(hsa_region_t region) { _system_region = region; }
 
     void write_debug_buffer_to_file();
 
