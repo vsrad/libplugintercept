@@ -1,3 +1,4 @@
+#include "../src/code_object.hpp"
 #include "kernel_runner.hpp"
 #include <catch2/catch.hpp>
 
@@ -11,16 +12,19 @@ TEST_CASE("kernel runs to completion", "[integration]")
         runner.await_kernel_completion();
     }
 
+    agent::CodeObject co{*agent::CodeObject::try_read_from_file("build/tests/kernels/dbg_kernel.co")};
+    auto crc = std::to_string(co.crc());
+
     auto co_dump_log = std::ifstream("tests/tmp/co_dump.log");
     REQUIRE(co_dump_log);
 
     std::string line;
     REQUIRE(std::getline(co_dump_log, line));
-    REQUIRE(line == "[CO INFO] crc: 326705597 intercepted code object");
+    REQUIRE(line == "[CO INFO] crc: " + crc + " intercepted code object");
     REQUIRE(std::getline(co_dump_log, line));
-    REQUIRE(line == "[CO INFO] crc: 326705597 code object is written to tests/tmp//326705597.co");
+    REQUIRE(line == "[CO INFO] crc: " + crc + " code object is written to tests/tmp//" + crc + ".co");
     REQUIRE(std::getline(co_dump_log, line));
-    REQUIRE(line == "[CO INFO] crc: 326705597 code object symbols: dbg_kernel");
+    REQUIRE(line == "[CO INFO] crc: " + crc + " code object symbols: dbg_kernel");
 
     auto debug_buffer = std::ifstream("tests/tmp/debug_buffer", std::ios::binary | std::ios::ate);
     REQUIRE(debug_buffer);

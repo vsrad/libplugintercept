@@ -31,7 +31,6 @@ private:
     hsa_kernel_dispatch_packet_t* _dispatch_packet;
     uint64_t _dispatch_packet_index;
     uint64_t _code_object_handle;
-    hsa_code_object_t _code_object;
     uint32_t _group_static_size;
 
 public:
