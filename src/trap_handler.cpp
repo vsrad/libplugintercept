@@ -4,7 +4,7 @@
 
 using namespace agent;
 
-void TrapHandler::load_handler(CodeObject&& handler_co, hsa_agent_t agent)
+void TrapHandler::load_handler(CodeObject handler_co, hsa_agent_t agent)
 {
     uint64_t kernel_sym;
     const char *err_callsite, *err;
@@ -23,17 +23,20 @@ void TrapHandler::load_handler(CodeObject&& handler_co, hsa_agent_t agent)
         return;
     }
     if (_loaded_handler)
-        _logger.warning("Trap handler has already been loaded, will be overriden now. To prevent this, do not specfiy trap handlers for multiple swaps.");
+        _logger.warning("Overriding existing trap handler with CRC = " + std::to_string(_loaded_handler->crc()) +
+                        ". To prevent this, do not specify trap handlers for multiple swaps.");
 
     void* handler_entry = (void*)(kernel_sym + 256 /* sizeof(amd_kernel_code_t) */);
     HSAKMT_STATUS kmt_status = hsaKmtSetTrapHandler(_agent_node_id, handler_entry, 0, nullptr, 0);
-    if (kmt_status != HSAKMT_STATUS_SUCCESS)
+    if (kmt_status == HSAKMT_STATUS_SUCCESS)
+    {
+        _logger.info("Successfully set up trap handler with CRC = " + std::to_string(handler_co.crc()));
+        _loaded_handler.emplace(std::move(handler_co));
+    }
+    else
     {
         _logger.error("Unable to register trap handler: HSAKMT_STATUS = " + std::to_string(kmt_status));
-        return;
     }
-
-    _loaded_handler.emplace(std::move(handler_co));
 }
 
 TrapHandler::~TrapHandler()

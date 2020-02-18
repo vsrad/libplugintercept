@@ -17,6 +17,6 @@ public:
     TrapHandler(AgentLogger& logger, CodeObjectLoader& co_loader)
         : _logger(logger), _co_loader(co_loader) {}
     ~TrapHandler();
-    void load_handler(CodeObject&& handler_co, hsa_agent_t agent);
+    void load_handler(CodeObject handler_co, hsa_agent_t agent);
 };
 } // namespace agent
