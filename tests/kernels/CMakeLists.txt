@@ -4,6 +4,10 @@ execute_process(
     OUTPUT_STRIP_TRAILING_WHITESPACE)
 set(ASM_CLANG_FLAGS -x assembler -target amdgcn--amdhsa -mcpu=${GFX_VERSION} -mno-code-object-v3)
 set(ASM_CLANG_CMD ${CLANG} ${ASM_CLANG_FLAGS} -I${CMAKE_CURRENT_SOURCE_DIR}/include)
+
 add_custom_target(dbg_kernel
     COMMAND ${ASM_CLANG_CMD} ${CMAKE_CURRENT_SOURCE_DIR}/dbg_kernel.s -o dbg_kernel.co
     DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/dbg_kernel.s)
+add_custom_target(trap_handler
+    COMMAND ${ASM_CLANG_CMD} ${CMAKE_CURRENT_SOURCE_DIR}/trap_handler.s -o trap_handler.co
+    DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/trap_handler.s)

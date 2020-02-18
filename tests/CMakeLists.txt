@@ -10,7 +10,7 @@ add_executable(tests
 target_include_directories(tests PUBLIC ${HSA_HEADER_DIR})
 target_link_libraries(tests Catch2::Catch2 ${HSA_LIBRARY} plugintercept)
 
-add_dependencies(tests plugintercept dbg_kernel)
+add_dependencies(tests plugintercept dbg_kernel trap_handler)
 add_subdirectory(kernels)
 
 get_property(CMAKE_MODULE_PATH GLOBAL PROPERTY CATCH2_MODULE_PATH)
