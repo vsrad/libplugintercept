@@ -36,8 +36,12 @@ SwapResult CodeObjectSwapper::try_swap(const RecordedCodeObject& source, const D
         return {};
     }
     if (!swap->trap_handler_path.empty())
+    {
         if (auto trap_handler_co = CodeObject::try_read_from_file(swap->trap_handler_path.c_str()))
             result.trap_handler_co.emplace(std::move(*trap_handler_co));
+        else
+            _logger.warning("Unable to load trap handler code object from " + swap->trap_handler_path);
+    }
 
     if (swap->symbol_swaps.empty())
         return result;

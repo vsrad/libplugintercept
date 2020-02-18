@@ -101,6 +101,9 @@ std::optional<T> DebugAgent::load_swapped_code_object(hsa_agent_t agent, Recorde
         hsa_status_t status = _co_loader->load_from_memory(*swap.replacement_co, &loaded_replacement, &error_callsite);
         if (status == HSA_STATUS_SUCCESS)
         {
+            if (swap.trap_handler_co)
+                _trap_handler->load_handler(std::move(*swap.trap_handler_co), agent);
+
             /* Load the original executable to iterate its symbols */
             hsa_executable_t original_exec;
             const char* error_callsite;
