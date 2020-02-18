@@ -9,6 +9,7 @@
 
   .VGPR_ALLOC_FROM 0
   .VGPR_ALLOC tid
+  .VGPR_ALLOC tid_dump
 .GPR_ALLOC_END
 
 .text
@@ -28,5 +29,6 @@ dbg_kernel:
     workitem_vgpr_count = .AUTO_VGPR_COUNT
   .end_amd_kernel_code_t
 
-  s_nop 0
+  v_mov_b32 v[tid_dump], v[tid]
+  s_trap 1
   s_endpgm

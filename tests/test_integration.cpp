@@ -21,7 +21,7 @@ TEST_CASE("kernel runs to completion", "[integration]")
     {
         KernelRunner runner;
         runner.load_code_object("build/tests/kernels/dbg_kernel.co", "dbg_kernel");
-        runner.init_dispatch_packet(1, 1);
+        runner.init_dispatch_packet(64, 64);
         runner.dispatch_kernel();
         runner.await_kernel_completion();
     }
@@ -41,11 +41,10 @@ TEST_CASE("kernel runs to completion", "[integration]")
     REQUIRE(line == "[CO INFO] crc: " + crc + " code object symbols: dbg_kernel");
 
     auto dwords = load_debug_buffer();
-    std::vector<uint32_t> v_tid_values;
-    for (uint32_t dword_idx = 1 /* skip system */; dword_idx < dwords.size(); dword_idx += 2 /* skip system */)
-        v_tid_values.push_back(dwords[dword_idx]);
-    REQUIRE(!v_tid_values.empty());
-    REQUIRE(v_tid_values[0] == 0);
+    REQUIRE(dwords[0] == 0x7777777);
+    uint32_t tid = 0;
+    for (uint32_t dword_idx = 1 /* skip system */; dword_idx < dwords.size() && tid < 64; dword_idx += 2 /* skip system */)
+        REQUIRE(dwords[dword_idx] == tid++);
 }
 
 TEST_CASE("trap handler is properly set up", "[integration]")
@@ -54,15 +53,14 @@ TEST_CASE("trap handler is properly set up", "[integration]")
     {
         KernelRunner runner;
         runner.load_code_object("build/tests/kernels/dbg_kernel.co", "dbg_kernel");
-        runner.init_dispatch_packet(1, 1);
+        runner.init_dispatch_packet(64, 64);
         runner.dispatch_kernel();
         runner.await_kernel_completion();
     }
 
     auto dwords = load_debug_buffer();
-    std::vector<uint32_t> v_tid_values;
-    for (uint32_t dword_idx = 1 /* skip system */; dword_idx < dwords.size(); dword_idx += 2 /* skip system */)
-        v_tid_values.push_back(dwords[dword_idx]);
-    REQUIRE(!v_tid_values.empty());
-    REQUIRE(v_tid_values[0] == 7);
+    REQUIRE(dwords[0] == 0x7777777);
+    uint32_t tid = 0;
+    for (uint32_t dword_idx = 1 /* skip system */; dword_idx < dwords.size() && tid < 64; dword_idx += 2 /* skip system */)
+        REQUIRE(dwords[dword_idx] == 7 + tid++);
 }
