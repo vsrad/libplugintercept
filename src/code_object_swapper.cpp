@@ -4,10 +4,7 @@
 
 using namespace agent;
 
-std::optional<CodeObject> CodeObjectSwapper::swap_code_object(
-    const RecordedCodeObject& source,
-    const DebugBuffer& debug_buffer,
-    hsa_agent_t agent)
+SwapResult CodeObjectSwapper::try_swap(const RecordedCodeObject& source, const DebugBuffer& debug_buffer, hsa_agent_t agent)
 {
     auto swap_eq = [crc = source.crc(), call_no = source.load_call_no()](auto const& swap) {
         if (auto target_call_count = std::get_if<call_count_t>(&swap.condition))
@@ -28,19 +25,26 @@ std::optional<CodeObject> CodeObjectSwapper::swap_code_object(
         if (!run_external_command(swap->external_command, debug_buffer))
             return {};
 
-    auto new_co = CodeObject::try_read_from_file(swap->replacement_path.c_str());
-    if (!new_co)
+    SwapResult result = {};
+    if (auto replacement_co = CodeObject::try_read_from_file(swap->replacement_path.c_str()))
+    {
+        result.replacement_co.emplace(std::move(*replacement_co));
+    }
+    else
     {
         _logger.error("Unable to load the replacement code object from " + swap->replacement_path);
         return {};
     }
+    if (!swap->trap_handler_path.empty())
+        if (auto trap_handler_co = CodeObject::try_read_from_file(swap->trap_handler_path.c_str()))
+            result.trap_handler_co.emplace(std::move(*trap_handler_co));
 
     if (swap->symbol_swaps.empty())
-        return new_co;
+        return result;
 
     const char* error_callsite;
     hsa_executable_t executable;
-    hsa_status_t status = _co_loader.create_executable(*new_co, agent, &executable, &error_callsite);
+    hsa_status_t status = _co_loader.create_executable(*result.replacement_co, agent, &executable, &error_callsite);
     if (status == HSA_STATUS_SUCCESS)
     {
         auto mapper_data = std::make_tuple<CodeObjectSwapper*, const RecordedCodeObject*, const CodeObjectSwap*>(this, &source, &*swap);
