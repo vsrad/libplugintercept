@@ -27,12 +27,13 @@ CodeObjectSwap get_co_swap(const std::string& config_path, const cpptoml::table&
     else if (call_count)
         swap.condition = {*call_count};
 
-    swap.external_command = swap_config.get_as<std::string>("exec-before-load").value_or("");
-
     if (auto path = swap_config.get_as<std::string>("load-file"))
         swap.replacement_path = *path;
     else
         throw std::runtime_error("Error when parsing configuration file " + config_path + ": missing code-object-swap.load-file");
+
+    swap.trap_handler_path = swap_config.get_as<std::string>("load-trap-handler-file").value_or("");
+    swap.external_command = swap_config.get_as<std::string>("exec-before-load").value_or("");
 
     if (auto symbols = swap_config.get_table_array("symbol"))
         for (const auto& symbol : *symbols)

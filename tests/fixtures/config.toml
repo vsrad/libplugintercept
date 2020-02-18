@@ -12,6 +12,7 @@ directory = "tests/tmp/"
 [[code-object-swap]]
 when-call-count = 1
 load-file = "tests/tmp/replacement.co"
+load-trap-handler-file = "tests/tmp/trap_handler.co"
 exec-before-load = """bash -o pipefail -c '\
   perl tests/fixtures/breakpoint.pl -ba $ASM_DBG_BUF_ADDR -bs $ASM_DBG_BUF_SIZE \
     -l 31 -w v[tid] -s 96 -r s0 -t 0 tests/kernels/dbg_kernel.s \

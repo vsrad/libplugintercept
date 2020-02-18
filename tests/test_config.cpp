@@ -17,6 +17,7 @@ TEST_CASE("reads a valid configuration file", "[config]")
     std::vector<agent::CodeObjectSwap> expected_swaps = {
         {.condition = {call_count_t(1)},
          .replacement_path = "tests/tmp/replacement.co",
+         .trap_handler_path = "tests/tmp/trap_handler.co",
          .external_command = "bash -o pipefail -c '"
                              "perl tests/fixtures/breakpoint.pl -ba $ASM_DBG_BUF_ADDR -bs $ASM_DBG_BUF_SIZE "
                              "-l 31 -w v[tid] -s 96 -r s0 -t 0 tests/kernels/dbg_kernel.s | "
