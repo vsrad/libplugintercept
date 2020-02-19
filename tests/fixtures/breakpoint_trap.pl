@@ -129,11 +129,11 @@ trap_handler:
   // sgprDbgStmp2 = ttmp3
   // sgprDbgSrd   = [ttmp4, ttmp5, ttmp6, ttmp7]
   // sgprDbgSoff  = ttmp8
-  // sgprGidx     = ttmp9
 
 trap_entry:
   s_bfe_u32            ttmp2, ttmp1, SQ_WAVE_PC_HI_TRAP_ID_BFE
 
+  // if not trap 1 or trap 2 then continue execution
   s_cmp_ge_u32         ttmp2, 0x3
   s_cbranch_scc1       exit_trap
 
@@ -154,8 +154,8 @@ trap_1:
 //n_var    = $n_var
 //vars     = $dump_vars
 trap_2:
-  s_load_dword        ttmp8, [ttmp4, ttmp5]
-  s_load_dword        ttmp3, [ttmp4, ttmp5], 0x4
+  s_load_dword        ttmp8, [ttmp4, ttmp5]       // load gid_x value
+  s_load_dword        ttmp3, [ttmp4, ttmp5], 0x4  // load tid_x[0] value  
   s_waitcnt           lgkmcnt(1)
   s_mul_i32           ttmp8, ttmp8, 8 //waves_in_group
   s_waitcnt           lgkmcnt(0)
