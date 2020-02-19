@@ -30,5 +30,5 @@ dbg_kernel:
   .end_amd_kernel_code_t
 
   v_mov_b32 v[tid_dump], v[tid]
-  s_trap 1
+  s_trap 2
   s_endpgm
