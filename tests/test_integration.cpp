@@ -61,6 +61,7 @@ TEST_CASE("trap handler is properly set up", "[integration]")
     auto dwords = load_debug_buffer();
     REQUIRE(dwords[0] == 0x7777777);
     uint32_t tid = 0;
+    tid++;
     for (uint32_t dword_idx = 1 /* skip system */; dword_idx < dwords.size() && tid < 64; dword_idx += 2 /* skip system */)
         REQUIRE(dwords[dword_idx] == tid++);
 }

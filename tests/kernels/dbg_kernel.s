@@ -30,5 +30,10 @@ dbg_kernel:
   .end_amd_kernel_code_t
 
   v_mov_b32 v[tid_dump], v[tid]
-  s_trap 2
+  
+loop:
+  s_trap    2
+  v_add_i32 v[tid_dump], v[tid_dump], 0x1
+  s_branch  loop
+
   s_endpgm
