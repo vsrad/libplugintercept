@@ -20,7 +20,7 @@ TEST_CASE("reads a valid configuration file", "[config]")
          .trap_handler_path = "tests/tmp/replacement.co",
          .external_command = "bash -o pipefail -c '"
                              "perl tests/fixtures/breakpoint_trap.pl -ba $ASM_DBG_BUF_ADDR -bs $ASM_DBG_BUF_SIZE "
-                             "-w v[tid_dump] -t 2 tests/kernels/dbg_kernel.s | "
+                             "-w v[tid_dump] -l 35 -t 2 tests/kernels/dbg_kernel.s | "
                              "/opt/rocm/bin/hcc -x assembler -target amdgcn--amdhsa "
                              "-mcpu=`/opt/rocm/bin/rocminfo | grep -om1 gfx9..` -mno-code-object-v3 "
                              "-Itests/kernels/include -o tests/tmp/replacement.co -'"},

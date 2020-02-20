@@ -6,6 +6,7 @@ Usage: $0 [<options>] <gcnasm_source>
     options
         -bs <size>      debug buffer size (mandatory)
         -ba <address>   debug buffer address (mandatory)
+        -l <line>       line number to break (mandatory)
         -o <file>       output to the <file> rather than STDOUT
         -w <watches>    extra watches supplied colon separated in quotes;
                         watch type can be present
@@ -21,6 +22,7 @@ use POSIX;
 
 my $fo      = *STDOUT;
 my @watches;
+my $line    = 0;
 my $endpgm  = "s_endpgm";
 my $output  = 0;
 my $bufsize;
@@ -32,6 +34,7 @@ while (scalar @ARGV) {
   my $str = shift @ARGV;
   if ($str eq "-bs")  {  $bufsize =            shift @ARGV;  next;   }
   if ($str eq "-ba")  {  $bufaddr =            shift @ARGV;  next;   }
+  if ($str eq "-l")   {  $line    =            shift @ARGV;  next;   }
   if ($str eq "-o")   {  $_ = shift @ARGV;
                           open $fo, '>', $_ || die "$usage\nCould not open '$_': $!\n";
                                                               next;   }
@@ -43,7 +46,7 @@ while (scalar @ARGV) {
   open $input, '<', $str || die "$usage\nCould not open '$str: $!";
 }
 
-die $usage unless $input;
+die $usage unless $line && $input;
 
 my $n_var   = scalar @watches;
 my $to_dump = join ', ', @watches;
@@ -194,9 +197,14 @@ while (<$input>) {
   elsif (/\.end_amd_kernel_code_t/) {
     print $fo "$_ s_trap 1\n";
   }
+  elsif ($current_line == $line) {
+    print $fo "s_trap   2\n$_";
+  }
   else {
     print $fo $_;
   }
   $current_line++;
 }
 print $fo "\n$plug_macro\n";
+
+die "Break line out of range" if $current_line < $line;

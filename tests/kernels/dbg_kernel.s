@@ -32,7 +32,7 @@ dbg_kernel:
   v_mov_b32 v[tid_dump], v[tid]
   
 loop:
-  s_trap    2
+
   v_add_i32 v[tid_dump], v[tid_dump], 0x1
   s_branch  loop
 
