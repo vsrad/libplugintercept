@@ -65,3 +65,25 @@ TEST_CASE("trap handler is properly set up", "[integration]")
     for (uint32_t dword_idx = 1 /* skip system */; dword_idx < dwords.size() && tid < 64; dword_idx += 2 /* skip system */)
         REQUIRE(dwords[dword_idx] == tid++);
 }
+
+TEST_CASE("trap handler is properly set up with more then one group", "[integration]")
+{
+    system("rm -r tests/tmp; mkdir tests/tmp; cp build/tests/kernels/trap_handler.co tests/tmp");
+    {
+        KernelRunner runner;
+        runner.load_code_object("build/tests/kernels/dbg_kernel.co", "dbg_kernel");
+        runner.init_dispatch_packet(64, 128);
+        runner.dispatch_kernel();
+        runner.await_kernel_completion();
+    }
+
+    auto dwords = load_debug_buffer();
+    REQUIRE(dwords[0] == 0x7777777);
+    uint32_t tid = 0;
+    tid++;
+    for (uint32_t dword_idx = 1 /* skip system */; dword_idx < dwords.size() && tid < 64; dword_idx += 2 /* skip system */)
+    {
+        REQUIRE(dwords[dword_idx] == tid);          /* tid from gid = 0 */
+        REQUIRE(dwords[1024 + dword_idx] == tid++); /* tid from gid = 1 */
+    }
+}

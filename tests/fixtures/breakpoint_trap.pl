@@ -49,75 +49,30 @@ while (scalar @ARGV) {
 die $usage unless $line && $input;
 
 my $n_var   = scalar @watches;
-my $to_dump = join ', ', @watches;
-
-my $loopcounter = << "LOOPCOUNTER";
-  // sgprDbgCounter = ttmp3
-  // load counter from the buffer
-  s_load_dword        ttmp3, [ttmp4, ttmp5], 0x8
-  s_waitcnt           lgkmcnt(0)
-
-  // inc counter and check it
-  s_cbranch_scc1      debug_dumping_loop_counter_lab1_\\\@
-  s_add_u32           ttmp3, ttmp3, 1
-  s_cmp_eq_u32        ttmp3, $target
-  s_cbranch_scc0      debug_dumping_loop_counter_lab_\\\@
-debug_dumping_loop_counter_lab1_\\\@\:
-  s_add_u32           ttmp3, ttmp3, 1
-  s_cmp_lt_u32        ttmp3, $target
-  s_cbranch_scc1      debug_dumping_loop_counter_lab_\\\@
-LOOPCOUNTER
-$loopcounter = "" unless $target;
 
 my $dump_vars = "$watches[0]";
 for (my $i = 1; $i < scalar @watches; $i += 1) {
   $dump_vars = "$dump_vars, $watches[$i]";
 }
 
-my $plug_macro = << "PLUGMACRO";
-.macro m_debug_plug vars:vararg
-$loopcounter
-  // construct sgprDbgSrd
-  s_mov_b32       ttmp7, 0x804fac
-  // TODO: change n_var to buffer size
-  s_add_u32           ttmp5, ttmp5, (($n_var + 1) << 18)
-  s_mov_b32           ttmp2, exec_lo
-  s_mov_b32           ttmp3, exec_hi
-  v_mov_b32           v[vgprDbg], 0x7777777
-  v_writelane_b32     v[vgprDbg], ttmp4, 1
-  v_writelane_b32     v[vgprDbg], ttmp5, 2
-  v_writelane_b32     v[vgprDbg], ttmp6, 3
-  v_writelane_b32     v[vgprDbg], ttmp7, 4
-  s_getreg_b32        ttmp2     , hwreg(4, 0, 32)   //  fun stuff
-  v_writelane_b32     v[vgprDbg], ttmp2, 5
-  s_getreg_b32        ttmp2     , hwreg(5, 0, 32)
-  v_writelane_b32     v[vgprDbg], ttmp2, 6
-  s_getreg_b32        ttmp2     , hwreg(6, 0, 32)
-  v_writelane_b32     v[vgprDbg], ttmp2, 7
-  v_writelane_b32     v[vgprDbg], exec_lo, 8
-  v_writelane_b32     v[vgprDbg], exec_hi, 9
-  s_mov_b64 exec,     -1
-  buffer_store_dword  v[vgprDbg], off, [ttmp4, ttmp5, ttmp6, ttmp7], ttmp8 offset:0
+$target = 1 unless $target;
+my $loopcounter = << "LOOPCOUNTER";
+  // inc counter and check it
+  s_add_u32       ttmp4, ttmp4, 1
+  s_cbranch_scc1  debug_dumping_loop_counter_lab1
+debug_dumping_loop_counter_lab0:
+  s_cmp_eq_u32    ttmp4, $target
+  s_cbranch_scc0  goto_skip_dump_instruction
+  s_branch        debug_dumping_loop_counter_continue
+debug_dumping_loop_counter_lab1:
+  s_cmp_lt_u32    ttmp4, $target
+  s_cbranch_scc1  goto_skip_dump_instruction
+  s_cmp_gt_u32    ttmp4, $target
+  s_cbranch_scc1  goto_skip_dump_instruction
+debug_dumping_loop_counter_continue:
+LOOPCOUNTER
 
-  //var to_dump = [$to_dump]
-  .if $n_var > 0
-    buf_offset\\\@ = 0
-    .irp var, \\vars
-      buf_offset\\\@ = buf_offset\\\@ + 4
-      v_mov_b32           v[vgprDbg], \\var
-      buffer_store_dword  v[vgprDbg], off, [ttmp4, ttmp5, ttmp6, ttmp7], ttmp8 offset:0+buf_offset\\\@
-    .endr
-  .endif
-  s_mov_b32           exec_lo, ttmp2
-  s_mov_b32           exec_hi, ttmp3
-
-  $endpgm
-debug_dumping_loop_counter_lab_\\\@\:
-  // save counter to the buffer
-  s_store_dword       ttmp3, [ttmp4, ttmp5], 0x8 glc
-  s_waitcnt           lgkmcnt(0)
-.endm
-
+my $trap_handler = << "TRAPHANDLER";
 .amdgpu_hsa_kernel trap_handler
 
 trap_handler:
@@ -129,6 +84,22 @@ trap_handler:
     user_sgpr_count = 2
   .end_amd_kernel_code_t
 
+.macro m_return_pc offset=0
+  s_add_u32           ttmp0, ttmp0, \\offset
+  s_addc_u32          ttmp1, ttmp1, 0x0
+
+  // Return to shader at unmodified PC.
+  s_rfe_b64           [ttmp0, ttmp1]
+.endm
+
+.macro m_init_debug_srd
+  s_mov_b32           ttmp8, 0xFFFFFFFF & $bufaddr
+  s_mov_b32           ttmp9, ($bufaddr >> 32)
+  s_mov_b32           ttmp11, 0x804fac
+  // TODO: change n_var to buffer size
+  s_add_u32           ttmp9, ttmp9, (($n_var + 1) << 18)
+.endm
+
   .set SQ_WAVE_PC_HI_TRAP_ID_SHIFT           , 16
   .set SQ_WAVE_PC_HI_TRAP_ID_SIZE            , 8
   .set SQ_WAVE_PC_HI_TRAP_ID_BFE             , (SQ_WAVE_PC_HI_TRAP_ID_SHIFT | (SQ_WAVE_PC_HI_TRAP_ID_SIZE << 16))
@@ -137,74 +108,99 @@ trap_handler:
   .set SQ_WAVE_IB_STS_RCNT_FIRST_REPLAY_MASK , 0x1F8000
 
   // vgprDbg
-  // sgprDbgStmp    = ttmp2
-  // sgprDbgCounter = ttmp3
-  // sgprDbgSrd     = [ttmp4, ttmp5, ttmp6, ttmp7]
-  // sgprDbgSoff    = ttmp8
-
+  // sgprDbgStmp      = ttmp2
+  // sgprDbgCounter   = ttmp4
+  // sgprDbgSoff      = ttmp5
+  // sgprDbgSrd       = [ttmp8, ttmp9, ttmp10, ttmp11]
+  //  n_var           = $n_var
+  //  vars            = $dump_vars
 trap_entry:
   s_bfe_u32           ttmp2, ttmp1, SQ_WAVE_PC_HI_TRAP_ID_BFE
 
   // if not trap 1 or trap 2 then continue execution
-  s_cmp_ge_u32        ttmp2, 0x3
-  s_cbranch_scc1      exit_trap
-
-trap_1:
-  s_mov_b32           ttmp4, 0xFFFFFFFF & $bufaddr
-  s_mov_b32           ttmp5, ($bufaddr >> 32)
+  s_cmp_ge_u32        ttmp2, 0x4
+  s_cbranch_scc1      trap_exit
 
   s_cmp_eq_u32        ttmp2, 0x2       // goto debug start if trapId = 2
   s_cbranch_scc1      trap_2
+  s_cmp_eq_u32        ttmp2, 0x3       // goto  dump watch if trapId = 3
+  s_cbranch_scc1      trap_3
 
-  s_store_dword       s2, [ttmp4, ttmp5], 0x0 glc     // save group id to the buffer
-  v_readfirstlane_b32 ttmp2, v0
-  s_store_dword       ttmp2, [ttmp4, ttmp5], 0x4 glc  // save thread id to the buffer
-  s_mov_b32           ttmp2, 0x0
-  s_store_dword       ttmp2, [ttmp4, ttmp5], 0x8 glc  // init counter (zero value)
-  s_waitcnt           lgkmcnt(0)
-  s_branch            exit_trap
+trap_1:
+  // init buffer offset
+  s_mul_i32           ttmp5,  s[2] , 8 //gid_x * waves_in_group
+  v_readfirstlane_b32 ttmp4,  v0
+  s_lshr_b32          ttmp4,  ttmp4, 6 //wave_size_log2
+  s_add_u32           ttmp5,  ttmp5, ttmp4
+  s_mul_i32           ttmp5,  ttmp5, 64 * (1 + $n_var) * 4
+  s_mov_b32           ttmp4,  0
 
-// debug plug resource allocation
-//n_var    = $n_var
-//vars     = $dump_vars
+  s_branch            goto_skip_dump_instruction
+
 trap_2:
-  s_load_dword        ttmp8, [ttmp4, ttmp5]       // load gid_x value
-  s_load_dword        ttmp3, [ttmp4, ttmp5], 0x4  // load tid_x[0] value  
-  s_waitcnt           lgkmcnt(1)
-  s_mul_i32           ttmp8, ttmp8, 8 //waves_in_group
-  s_waitcnt           lgkmcnt(0)
-  s_lshr_b32          ttmp3, ttmp3, 6 //wave_size_log2
-  s_add_u32           ttmp8, ttmp8, ttmp3
-  s_mul_i32           ttmp8, ttmp8, 64 * (1 + $n_var) * 4
-  s_mov_b32           ttmp3, 0
+$loopcounter
 
-dump_watches:
-  m_debug_plug $dump_vars
+  m_init_debug_srd
+  s_mov_b32           ttmp12    , exec_lo
+  s_mov_b32           ttmp13    , exec_hi
+  s_mov_b64 exec,     -1
+  v_mov_b32           v[vgprDbg], 0x7777777
+  v_writelane_b32     v[vgprDbg], ttmp8 , 1
+  v_writelane_b32     v[vgprDbg], ttmp9 , 2
+  v_writelane_b32     v[vgprDbg], ttmp10, 3
+  v_writelane_b32     v[vgprDbg], ttmp11, 4
+  s_getreg_b32        ttmp2     , hwreg(4, 0, 32)   //  fun stuff
+  v_writelane_b32     v[vgprDbg], ttmp2, 5
+  s_getreg_b32        ttmp2     , hwreg(5, 0, 32)
+  v_writelane_b32     v[vgprDbg], ttmp2, 6
+  s_getreg_b32        ttmp2     , hwreg(6, 0, 32)
+  v_writelane_b32     v[vgprDbg], ttmp2, 7
+  v_writelane_b32     v[vgprDbg], ttmp12, 8
+  v_writelane_b32     v[vgprDbg], ttmp13, 9
+  buffer_store_dword  v[vgprDbg], off, [ttmp8, ttmp9, ttmp10, ttmp11], ttmp5, offset:0
+  s_mov_b32           exec_lo   , ttmp12
+  s_mov_b32           exec_hi   , ttmp13
 
-exit_trap:
-  s_add_u32           ttmp0, ttmp0, 0x4
-  s_addc_u32          ttmp1, ttmp1, 0x0
+  // if counter == target then goto_debug_dump
+  s_branch            goto_debug_dump
 
-  // Return to shader at unmodified PC.
-  s_rfe_b64           [ttmp0, ttmp1]
-PLUGMACRO
+trap_3:
+  m_init_debug_srd
+  s_add_u32           ttmp5, ttmp5, 0x4
+  buffer_store_dword  v[vgprDbg], off, [ttmp8, ttmp9, ttmp10, ttmp11], ttmp5, offset:0
+
+trap_exit:
+goto_skip_dump_instruction:
+  m_return_pc         4
+
+goto_debug_dump:
+  m_return_pc         8
+TRAPHANDLER
 
 my $current_line = 0;
 while (<$input>) {
-  if (/\.GPR_ALLOC_END/) {
-    print $fo ".VGPR_ALLOC vgprDbg // used by trap handler\n$_";
-  }
-  elsif (/\.end_amd_kernel_code_t/) {
-    print $fo "$_ s_trap 1\n";
+  if (/\.end_amd_kernel_code_t/) {
+    print $fo $_ . ".set vgprDbg, 0\n";
+    print $fo      "s_trap 1\n";
   }
   elsif ($current_line == $line) {
-    print $fo "s_trap   2\n$_";
+    print $fo 
+"s_trap       2
+s_branch     skip_dump\n";
+
+  foreach my $watch (@watches) {
+    print $fo 
+"v_mov_b32    v[vgprDbg], $watch
+s_trap       3\n";
+  }
+  print $fo "$endpgm\n";
+  print $fo "skip_dump:\n$_";
   }
   else {
     print $fo $_;
   }
   $current_line++;
 }
-print $fo "\n$plug_macro\n";
+print $fo "\n$trap_handler\n";
 
 die "Break line out of range" if $current_line < $line;

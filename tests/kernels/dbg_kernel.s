@@ -6,6 +6,7 @@
 .GPR_ALLOC_BEGIN
   kernarg = 0
   gid_x = 2
+  counter = 3
 
   .VGPR_ALLOC_FROM 0
   .VGPR_ALLOC tid
@@ -30,10 +31,13 @@ dbg_kernel:
   .end_amd_kernel_code_t
 
   v_mov_b32 v[tid_dump], v[tid]
+  s_mov_b32 s[counter],  0x0
   
 loop:
+  v_add_i32       v[tid_dump], v[tid_dump], 0x1
+  s_add_u32       s[counter] , s[counter] , 0x1
 
-  v_add_i32 v[tid_dump], v[tid_dump], 0x1
-  s_branch  loop
+  s_cmp_eq_u32    s[counter], 0x4
+  s_cbranch_scc0  loop
 
-  s_endpgm
+s_endpgm
