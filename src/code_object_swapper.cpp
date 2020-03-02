@@ -70,8 +70,9 @@ bool CodeObjectSwapper::run_external_command(const std::string& cmd, const Debug
 
     if (auto buf_addr = debug_buffer.gpu_buffer_address())
     {
-        environment["ASM_DBG_BUF_SIZE"] = std::to_string(debug_buffer.size());
+        environment["ASM_DBG_BUF_SIZE"] = std::to_string(debug_buffer.debug_size());
         environment["ASM_DBG_BUF_ADDR"] = std::to_string(*buf_addr);
+        environment["ASM_HID_BUF_ADDR"] = std::to_string(*buf_addr + debug_buffer.debug_size());
     }
     else
     {

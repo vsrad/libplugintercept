@@ -2,10 +2,10 @@
 
 using namespace agent;
 
-DebugBuffer::DebugBuffer(hsa_agent_t agent, AgentLogger& logger, uint64_t size)
-    : _size(size), _gpu_ptr(nullptr), _host_ptr(nullptr)
+DebugBuffer::DebugBuffer(hsa_agent_t agent, AgentLogger& logger, uint64_t buffer_size, uint64_t hidden_size)
+    : _size(buffer_size + hidden_size), _hidden_size(hidden_size), _gpu_ptr(nullptr), _host_ptr(nullptr)
 {
-    if (size == 0)
+    if (_size == 0)
     {
         logger.warning("Debug buffer will not be allocated (debug buffer set is set to 0)");
         return;
@@ -23,13 +23,13 @@ DebugBuffer::DebugBuffer(hsa_agent_t agent, AgentLogger& logger, uint64_t size)
         return;
     }
 
-    status = hsa_memory_allocate(_gpu_region, size, &_gpu_ptr);
+    status = hsa_memory_allocate(_gpu_region, _size, &_gpu_ptr);
     if (status != HSA_STATUS_SUCCESS)
     {
         logger.hsa_error("Unable to allocate GPU memory for debug buffer", status, "hsa_memory_allocate");
         return;
     }
-    status = hsa_memory_allocate(_host_region, size, &_host_ptr);
+    status = hsa_memory_allocate(_host_region, _size, &_host_ptr);
     if (status != HSA_STATUS_SUCCESS)
     {
         logger.hsa_error("Unable to allocate host memory for debug buffer", status, "hsa_memory_allocate");
@@ -37,7 +37,7 @@ DebugBuffer::DebugBuffer(hsa_agent_t agent, AgentLogger& logger, uint64_t size)
     }
 
     std::ostringstream msg;
-    msg << "Allocated debug buffer of size " << size << " at " << _gpu_ptr;
+    msg << "Allocated debug buffer of size " << _size << " at " << _gpu_ptr;
     logger.info(msg.str());
 }
 

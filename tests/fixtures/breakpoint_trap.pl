@@ -6,6 +6,7 @@ Usage: $0 [<options>] <gcnasm_source>
     options
         -bs <size>      debug buffer size (mandatory)
         -ba <address>   debug buffer address (mandatory)
+        -ha <address>   debug hidden buffer address (mandatory)
         -l <line>       line number to break (mandatory)
         -o <file>       output to the <file> rather than STDOUT
         -w <watches>    extra watches supplied colon separated in quotes;
@@ -27,6 +28,7 @@ my $endpgm  = "s_endpgm";
 my $output  = 0;
 my $bufsize;
 my $bufaddr;
+my $hidaddr;
 my $target;
 my $input;
 
@@ -34,6 +36,7 @@ while (scalar @ARGV) {
   my $str = shift @ARGV;
   if ($str eq "-bs")  {  $bufsize =            shift @ARGV;  next;   }
   if ($str eq "-ba")  {  $bufaddr =            shift @ARGV;  next;   }
+  if ($str eq "-ha")  {  $hidaddr =            shift @ARGV;  next;   }
   if ($str eq "-l")   {  $line    =            shift @ARGV;  next;   }
   if ($str eq "-o")   {  $_ = shift @ARGV;
                           open $fo, '>', $_ || die "$usage\nCould not open '$_': $!\n";
@@ -63,12 +66,12 @@ my $loopcounter = << "LOOPCOUNTER";
 debug_dumping_loop_counter_lab0:
   s_cmp_eq_u32    ttmp4, $target
   s_cbranch_scc0  goto_skip_dump_instruction
+  s_cmp_lg_u32    ttmp4, $target
   s_branch        debug_dumping_loop_counter_continue
 debug_dumping_loop_counter_lab1:
-  s_cmp_lt_u32    ttmp4, $target
+  s_cmp_lg_u32    ttmp4, $target
   s_cbranch_scc1  goto_skip_dump_instruction
-  s_cmp_gt_u32    ttmp4, $target
-  s_cbranch_scc1  goto_skip_dump_instruction
+  s_cmp_eq_u32    ttmp4, $target
 debug_dumping_loop_counter_continue:
 LOOPCOUNTER
 
@@ -92,12 +95,20 @@ trap_handler:
   s_rfe_b64           [ttmp0, ttmp1]
 .endm
 
-.macro m_init_debug_srd
-  s_mov_b32           ttmp8, 0xFFFFFFFF & $bufaddr
-  s_mov_b32           ttmp9, ($bufaddr >> 32)
+.macro m_init_debug_srd addr, n_val
+  s_mov_b32           ttmp8, 0xFFFFFFFF & \\addr
+  s_mov_b32           ttmp9, (\\addr >> 32)
   s_mov_b32           ttmp11, 0x804fac
   // TODO: change n_var to buffer size
-  s_add_u32           ttmp9, ttmp9, (($n_var + 1) << 18)
+  s_add_u32           ttmp9, ttmp9, (\\n_val << 18)
+.endm
+
+.macro m_init_buffer_debug_srd
+  m_init_debug_srd $bufaddr, ($n_var + 1)
+.endm
+
+.macro m_init_hidden_debug_srd
+  m_init_debug_srd $hidaddr, 1
 .endm
 
   .set SQ_WAVE_PC_HI_TRAP_ID_SHIFT           , 16
@@ -111,6 +122,8 @@ trap_handler:
   // sgprDbgStmp      = ttmp2
   // sgprDbgCounter   = ttmp4
   // sgprDbgSoff      = ttmp5
+  // sgprDbgNvar      = ttmp6
+  // sgprDbgDumpCount = ttmp7
   // sgprDbgSrd       = [ttmp8, ttmp9, ttmp10, ttmp11]
   //  n_var           = $n_var
   //  vars            = $dump_vars
@@ -132,18 +145,24 @@ trap_1:
   v_readfirstlane_b32 ttmp4,  v0
   s_lshr_b32          ttmp4,  ttmp4, 6 //wave_size_log2
   s_add_u32           ttmp5,  ttmp5, ttmp4
+  s_mov_b32           ttmp7,  ttmp5
   s_mul_i32           ttmp5,  ttmp5, 64 * (1 + $n_var) * 4
+  s_mul_i32           ttmp7,  ttmp7, 64 * (1) * 4
   s_mov_b32           ttmp4,  0
+  s_mov_b32           ttmp6,  $n_var
 
   s_branch            goto_skip_dump_instruction
 
 trap_2:
 $loopcounter
 
-  m_init_debug_srd
+  m_init_hidden_debug_srd
   s_mov_b32           ttmp12    , exec_lo
   s_mov_b32           ttmp13    , exec_hi
-  s_mov_b64 exec,     -1
+  s_mov_b64           exec      , -1
+  buffer_store_dword  v[vgprDbg], off, [ttmp8, ttmp9, ttmp10, ttmp11], ttmp7, offset:0  // save vgprDbg
+
+  m_init_buffer_debug_srd
   v_mov_b32           v[vgprDbg], 0x7777777
   v_writelane_b32     v[vgprDbg], ttmp8 , 1
   v_writelane_b32     v[vgprDbg], ttmp9 , 2
@@ -165,9 +184,26 @@ $loopcounter
   s_branch            goto_debug_dump
 
 trap_3:
-  m_init_debug_srd
+  s_cbranch_scc1      debug_dumping_restore_vgprDbg_lab1
+debug_dumping_restore_vgprDbg_lab0:
+  s_cmp_eq_u32        ttmp6, 0
+  s_cbranch_scc0      debug_dumping_skip_restore_vgprDbg
+  s_cmp_lg_u32        ttmp6, 0
+  s_branch            debug_dumping_restore_vgprDbg
+debug_dumping_restore_vgprDbg_lab1:
+  s_cmp_lg_u32        ttmp6, 0
+  s_cbranch_scc1      debug_dumping_skip_restore_vgprDbg
+  s_cmp_eq_u32        ttmp6, 0
+debug_dumping_restore_vgprDbg:
+  m_init_hidden_debug_srd
+  buffer_load_dword   v[vgprDbg], off, [ttmp8, ttmp9, ttmp10, ttmp11], ttmp7, offset:0
+  s_waitcnt           0
+  s_branch            trap_exit
+debug_dumping_skip_restore_vgprDbg:
+  m_init_buffer_debug_srd
   s_add_u32           ttmp5, ttmp5, 0x4
   buffer_store_dword  v[vgprDbg], off, [ttmp8, ttmp9, ttmp10, ttmp11], ttmp5, offset:0
+  s_sub_u32           ttmp6, ttmp6, 1
 
 trap_exit:
 goto_skip_dump_instruction:
@@ -193,6 +229,7 @@ s_branch     skip_dump\n";
 "v_mov_b32    v[vgprDbg], $watch
 s_trap       3\n";
   }
+  print $fo "s_trap       3 // restore vgprDbg\n";
   print $fo "$endpgm\n";
   print $fo "skip_dump:\n$_";
   }

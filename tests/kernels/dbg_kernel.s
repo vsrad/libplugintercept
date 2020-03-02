@@ -31,6 +31,7 @@ dbg_kernel:
   .end_amd_kernel_code_t
 
   v_mov_b32 v[tid_dump], v[tid]
+  v_add_lshl_u32  v0, v0, 1, 1
   s_mov_b32 s[counter],  0x0
   
 loop:

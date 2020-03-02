@@ -64,6 +64,7 @@ Config::Config()
 
         // Optional
         _debug_buffer_size = config->get_qualified_as<uint64_t>("debug-buffer.size").value_or(0);
+        _debug_hidden_buffer_size = config->get_qualified_as<uint64_t>("debug-buffer.hidden-size").value_or(0);
         _debug_buffer_dump_file = config->get_qualified_as<std::string>("debug-buffer.dump-file").value_or("");
 
         if (auto swap_configs = config->get_table_array("code-object-swap"))
