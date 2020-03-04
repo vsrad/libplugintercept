@@ -122,7 +122,7 @@ trap_handler:
   // sgprDbgStmp      = ttmp2
   // sgprDbgCounter   = ttmp4
   // sgprDbgSoff      = ttmp5
-  // sgprDbgDumpCount = ttmp7
+  // sgprDbgHiddenSoff= ttmp6
   // sgprDbgSrd       = [ttmp8, ttmp9, ttmp10, ttmp11]
   //  n_var           = $n_var
   //  vars            = $dump_vars
@@ -146,9 +146,9 @@ trap_1:
   v_readfirstlane_b32 ttmp4,  v0
   s_lshr_b32          ttmp4,  ttmp4, 6 //wave_size_log2
   s_add_u32           ttmp5,  ttmp5, ttmp4
-  s_mov_b32           ttmp7,  ttmp5
+  s_mov_b32           ttmp6,  ttmp5
   s_mul_i32           ttmp5,  ttmp5, 64 * (1 + $n_var) * 4
-  s_mul_i32           ttmp7,  ttmp7, 64 * (1) * 4
+  s_mul_i32           ttmp6,  ttmp6, 64 * (1) * 4
   s_mov_b32           ttmp4,  0
 
   s_branch            goto_skip_dump_instruction
@@ -160,7 +160,7 @@ $loopcounter
   s_mov_b32           ttmp12    , exec_lo
   s_mov_b32           ttmp13    , exec_hi
   s_mov_b64           exec      , -1
-  buffer_store_dword  v[vgprDbg], off, [ttmp8, ttmp9, ttmp10, ttmp11], ttmp7, offset:0  // save vgprDbg
+  buffer_store_dword  v[vgprDbg], off, [ttmp8, ttmp9, ttmp10, ttmp11], ttmp6, offset:0  // save vgprDbg to the hidden buffer
 
   m_init_buffer_debug_srd
   v_mov_b32           v[vgprDbg], 0x7777777
@@ -191,7 +191,7 @@ trap_3:
 
 trap_4:
   m_init_hidden_debug_srd
-  buffer_load_dword   v[vgprDbg], off, [ttmp8, ttmp9, ttmp10, ttmp11], ttmp7, offset:0
+  buffer_load_dword   v[vgprDbg], off, [ttmp8, ttmp9, ttmp10, ttmp11], ttmp6, offset:0  // restore vgprDbg value
   s_waitcnt           0
 
 trap_exit:
