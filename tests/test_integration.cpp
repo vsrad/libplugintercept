@@ -15,41 +15,9 @@ std::vector<uint32_t> load_debug_buffer()
     return dwords;
 }
 
-// TEST_CASE("kernel runs to completion", "[integration]")
-// {
-//     system("rm -r tests/tmp; mkdir tests/tmp");
-//     {
-//         KernelRunner runner;
-//         runner.load_code_object("build/tests/kernels/dbg_kernel.co", "dbg_kernel");
-//         runner.init_dispatch_packet(64, 64);
-//         runner.dispatch_kernel();
-//         runner.await_kernel_completion();
-//     }
-
-//     agent::CodeObject co{*agent::CodeObject::try_read_from_file("build/tests/kernels/dbg_kernel.co")};
-//     auto crc = std::to_string(co.crc());
-
-//     auto co_dump_log = std::ifstream("tests/tmp/co_dump.log");
-//     REQUIRE(co_dump_log);
-
-//     std::string line;
-//     REQUIRE(std::getline(co_dump_log, line));
-//     REQUIRE(line == "[CO INFO] crc: " + crc + " intercepted code object");
-//     REQUIRE(std::getline(co_dump_log, line));
-//     REQUIRE(line == "[CO INFO] crc: " + crc + " code object is written to tests/tmp//" + crc + ".co");
-//     REQUIRE(std::getline(co_dump_log, line));
-//     REQUIRE(line == "[CO INFO] crc: " + crc + " code object symbols: dbg_kernel");
-
-//     auto dwords = load_debug_buffer();
-//     REQUIRE(dwords[0] == 0x7777777);
-//     uint32_t tid = 0;
-//     for (uint32_t dword_idx = 1 /* skip system */; dword_idx < dwords.size() && tid < 64; dword_idx += 2 /* skip system */)
-//         REQUIRE(dwords[dword_idx] == tid++);
-// }
-
-TEST_CASE("trap handler is properly set up", "[integration]")
+TEST_CASE("kernel runs to completion", "[integration]")
 {
-    system("rm -r tests/tmp; mkdir tests/tmp; cp build/tests/kernels/trap_handler.co tests/tmp");
+    system("rm -r tests/tmp; mkdir tests/tmp");
     {
         KernelRunner runner;
         runner.load_code_object("build/tests/kernels/dbg_kernel.co", "dbg_kernel");
@@ -58,11 +26,43 @@ TEST_CASE("trap handler is properly set up", "[integration]")
         runner.await_kernel_completion();
     }
 
+    agent::CodeObject co{*agent::CodeObject::try_read_from_file("build/tests/kernels/dbg_kernel.co")};
+    auto crc = std::to_string(co.crc());
+
+    auto co_dump_log = std::ifstream("tests/tmp/co_dump.log");
+    REQUIRE(co_dump_log);
+
+    std::string line;
+    REQUIRE(std::getline(co_dump_log, line));
+    REQUIRE(line == "[CO INFO] crc: " + crc + " intercepted code object");
+    REQUIRE(std::getline(co_dump_log, line));
+    REQUIRE(line == "[CO INFO] crc: " + crc + " code object is written to tests/tmp//" + crc + ".co");
+    REQUIRE(std::getline(co_dump_log, line));
+    REQUIRE(line == "[CO INFO] crc: " + crc + " code object symbols: dbg_kernel");
+
     auto dwords = load_debug_buffer();
     REQUIRE(dwords[0] == 0x7777777);
     uint32_t tid = 0;
-    tid++;
     for (uint32_t dword_idx = 1 /* skip system */; dword_idx < dwords.size() && tid < 64; dword_idx += 2 /* skip system */)
+        REQUIRE(dwords[dword_idx] == tid++);
+}
+
+TEST_CASE("trap handler is properly set up", "[integration]")
+{
+    system("rm -r tests/tmp; mkdir tests/tmp; cp build/tests/kernels/trap_handler.co tests/tmp");
+    {
+        KernelRunner runner;
+        runner.load_code_object("build/tests/kernels/dbg_kernel.co", "dbg_kernel"); // skip first load (without trap)
+        runner.load_code_object("build/tests/kernels/dbg_kernel.co", "dbg_kernel"); // call-count = 2  (using trap handler)
+        runner.init_dispatch_packet(64, 64);
+        runner.dispatch_kernel();
+        runner.await_kernel_completion();
+    }
+
+    auto dwords = load_debug_buffer();
+    REQUIRE(dwords[0] == 0x7777777);
+    uint32_t tid = 1; // counter = 2, the first iteration will increment tid_dump by one
+    for (uint32_t dword_idx = 1 /* skip system */; dword_idx < dwords.size() && tid <= 64; dword_idx += 2 /* skip system */)
         REQUIRE(dwords[dword_idx] == tid++);
 }
 
@@ -71,7 +71,8 @@ TEST_CASE("trap handler is properly set up with more then one group", "[integrat
     system("rm -r tests/tmp; mkdir tests/tmp; cp build/tests/kernels/trap_handler.co tests/tmp");
     {
         KernelRunner runner;
-        runner.load_code_object("build/tests/kernels/dbg_kernel.co", "dbg_kernel");
+        runner.load_code_object("build/tests/kernels/dbg_kernel.co", "dbg_kernel"); // skip first load (without trap)
+        runner.load_code_object("build/tests/kernels/dbg_kernel.co", "dbg_kernel"); // call-count = 2  (using trap handler)
         runner.init_dispatch_packet(64, 128);
         runner.dispatch_kernel();
         runner.await_kernel_completion();
@@ -79,9 +80,8 @@ TEST_CASE("trap handler is properly set up with more then one group", "[integrat
 
     auto dwords = load_debug_buffer();
     REQUIRE(dwords[0] == 0x7777777);
-    uint32_t tid = 0;
-    tid++;
-    for (uint32_t dword_idx = 1 /* skip system */; dword_idx < dwords.size() && tid < 64; dword_idx += 2 /* skip system */)
+    uint32_t tid = 1; // counter = 2, the first iteration will increment tid_dump by one
+    for (uint32_t dword_idx = 1 /* skip system */; dword_idx < dwords.size() && tid <= 64; dword_idx += 2 /* skip system */)
     {
         REQUIRE(dwords[dword_idx] == tid);          /* tid from gid = 0 */
         REQUIRE(dwords[1024 + dword_idx] == tid++); /* tid from gid = 1 */
@@ -93,7 +93,8 @@ TEST_CASE("trap handler is properly set up with hidden buffer", "[integration]")
     system("rm -r tests/tmp; mkdir tests/tmp; cp build/tests/kernels/trap_handler.co tests/tmp");
     {
         KernelRunner runner;
-        runner.load_code_object("build/tests/kernels/dbg_kernel.co", "dbg_kernel");
+        runner.load_code_object("build/tests/kernels/dbg_kernel.co", "dbg_kernel"); // skip first load (without trap)
+        runner.load_code_object("build/tests/kernels/dbg_kernel.co", "dbg_kernel"); // call-count = 2  (using trap handler)
         runner.init_dispatch_packet(64, 128);
         runner.dispatch_kernel();
         runner.await_kernel_completion();
@@ -101,18 +102,18 @@ TEST_CASE("trap handler is properly set up with hidden buffer", "[integration]")
 
     auto dwords = load_debug_buffer();
     REQUIRE(dwords[0] == 0x7777777);
-    uint32_t tid = 0;
-    tid++;
-    for (uint32_t dword_idx = 1 /* skip system */; dword_idx < dwords.size() && tid < 64; dword_idx += 2 /* skip system */)
+    uint32_t tid = 1; // counter = 2, the first iteration will increment tid_dump by one
+    uint32_t dword_idx = 1; /* skip system */
+    for (; dword_idx < dwords.size() && tid <= 64; dword_idx += 2 /* skip system */)
     {
         REQUIRE(dwords[dword_idx] == tid);          /* tid from gid = 0 */
         REQUIRE(dwords[1024 + dword_idx] == tid++); /* tid from gid = 1 */
     }
 
-    tid = 1;
-    for (uint32_t dword_idx = dwords.size() - 1024 /* skip debug buffer */; dword_idx < dwords.size() && tid < 64; dword_idx += 1)
+    // check hidden buffer is not dumped
+    dword_idx += 1024; // skip all groups
+    for (; dword_idx < dwords.size(); dword_idx += 1)
     {
-        REQUIRE(dwords[dword_idx] == 2 * tid);         /* saved value v[vgprDbg] from gid = 0 (equals tid)*/
-        REQUIRE(dwords[512 + dword_idx] == 2 * tid++); /* saved value v[vgprDbg] from gid = 1 (equals tid)*/
+        REQUIRE(dwords[dword_idx] == 0);
     }
 }
