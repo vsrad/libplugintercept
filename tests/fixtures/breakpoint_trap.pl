@@ -122,7 +122,6 @@ trap_handler:
   // sgprDbgStmp      = ttmp2
   // sgprDbgCounter   = ttmp4
   // sgprDbgSoff      = ttmp5
-  // sgprDbgNvar      = ttmp6
   // sgprDbgDumpCount = ttmp7
   // sgprDbgSrd       = [ttmp8, ttmp9, ttmp10, ttmp11]
   //  n_var           = $n_var
@@ -131,13 +130,15 @@ trap_entry:
   s_bfe_u32           ttmp2, ttmp1, SQ_WAVE_PC_HI_TRAP_ID_BFE
 
   // if not trap 1 or trap 2 then continue execution
-  s_cmp_ge_u32        ttmp2, 0x4
+  s_cmp_ge_u32        ttmp2, 0x5
   s_cbranch_scc1      trap_exit
 
   s_cmp_eq_u32        ttmp2, 0x2       // goto debug start if trapId = 2
   s_cbranch_scc1      trap_2
   s_cmp_eq_u32        ttmp2, 0x3       // goto  dump watch if trapId = 3
   s_cbranch_scc1      trap_3
+  s_cmp_eq_u32        ttmp2, 0x4       // goto  restore vgprDbg if trapId = 4
+  s_cbranch_scc1      trap_4
 
 trap_1:
   // init buffer offset
@@ -149,7 +150,6 @@ trap_1:
   s_mul_i32           ttmp5,  ttmp5, 64 * (1 + $n_var) * 4
   s_mul_i32           ttmp7,  ttmp7, 64 * (1) * 4
   s_mov_b32           ttmp4,  0
-  s_mov_b32           ttmp6,  $n_var
 
   s_branch            goto_skip_dump_instruction
 
@@ -184,26 +184,15 @@ $loopcounter
   s_branch            goto_debug_dump
 
 trap_3:
-  s_cbranch_scc1      debug_dumping_restore_vgprDbg_lab1
-debug_dumping_restore_vgprDbg_lab0:
-  s_cmp_eq_u32        ttmp6, 0
-  s_cbranch_scc0      debug_dumping_skip_restore_vgprDbg
-  s_cmp_lg_u32        ttmp6, 0
-  s_branch            debug_dumping_restore_vgprDbg
-debug_dumping_restore_vgprDbg_lab1:
-  s_cmp_lg_u32        ttmp6, 0
-  s_cbranch_scc1      debug_dumping_skip_restore_vgprDbg
-  s_cmp_eq_u32        ttmp6, 0
-debug_dumping_restore_vgprDbg:
-  m_init_hidden_debug_srd
-  buffer_load_dword   v[vgprDbg], off, [ttmp8, ttmp9, ttmp10, ttmp11], ttmp7, offset:0
-  s_waitcnt           0
-  s_branch            trap_exit
-debug_dumping_skip_restore_vgprDbg:
   m_init_buffer_debug_srd
   s_add_u32           ttmp5, ttmp5, 0x4
   buffer_store_dword  v[vgprDbg], off, [ttmp8, ttmp9, ttmp10, ttmp11], ttmp5, offset:0
-  s_sub_u32           ttmp6, ttmp6, 1
+  s_branch            trap_exit
+
+trap_4:
+  m_init_hidden_debug_srd
+  buffer_load_dword   v[vgprDbg], off, [ttmp8, ttmp9, ttmp10, ttmp11], ttmp7, offset:0
+  s_waitcnt           0
 
 trap_exit:
 goto_skip_dump_instruction:
@@ -229,7 +218,7 @@ s_branch     skip_dump\n";
 "v_mov_b32    v[vgprDbg], $watch
 s_trap       3\n";
   }
-  print $fo "s_trap       3 // restore vgprDbg\n";
+  print $fo "s_trap       4 // restore vgprDbg\n";
   print $fo "$endpgm\n";
   print $fo "skip_dump:\n$_";
   }
