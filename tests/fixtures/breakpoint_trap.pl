@@ -62,16 +62,9 @@ $target = 1 unless $target;
 my $loopcounter = << "LOOPCOUNTER";
   // inc counter and check it
   s_add_u32       ttmp4, ttmp4, 1
-  s_cbranch_scc1  debug_dumping_loop_counter_lab1
-debug_dumping_loop_counter_lab0:
   s_cmp_eq_u32    ttmp4, $target
   s_cbranch_scc0  goto_skip_dump_instruction
-  s_cmp_lg_u32    ttmp4, $target
-  s_branch        debug_dumping_loop_counter_continue
-debug_dumping_loop_counter_lab1:
-  s_cmp_lg_u32    ttmp4, $target
-  s_cbranch_scc1  goto_skip_dump_instruction
-  s_cmp_eq_u32    ttmp4, $target
+
 debug_dumping_loop_counter_continue:
 LOOPCOUNTER
 
@@ -88,6 +81,11 @@ trap_handler:
   .end_amd_kernel_code_t
 
 .macro m_return_pc offset=0
+  // Restore SQ_WAVE_STATUS.
+  s_and_b64            exec, exec, exec // Restore STATUS.EXECZ, not writable by s_setreg_b32
+  s_and_b64            vcc, vcc, vcc    // Restore STATUS.VCCZ , not writable by s_setreg_b32
+  s_setreg_b32         hwreg(HW_REG_STATUS), ttmp12
+
   s_add_u32           ttmp0, ttmp0, \\offset
   s_addc_u32          ttmp1, ttmp1, 0x0
 
@@ -127,7 +125,9 @@ trap_handler:
   //  n_var           = $n_var
   //  vars            = $dump_vars
 trap_entry:
+  // if this is not a trap then return to the shader
   s_bfe_u32           ttmp2, ttmp1, SQ_WAVE_PC_HI_TRAP_ID_BFE
+  s_cbranch_scc0      trap_exit
 
   // if not trap 1 or trap 2 then continue execution
   s_cmp_ge_u32        ttmp2, 0x5
@@ -151,14 +151,14 @@ trap_1:
   s_mul_i32           ttmp6,  ttmp6, 64 * (1) * 4
   s_mov_b32           ttmp4,  0
 
-  s_branch            goto_skip_dump_instruction
+  s_branch            trap_exit
 
 trap_2:
 $loopcounter
 
   m_init_hidden_debug_srd
-  s_mov_b32           ttmp12    , exec_lo
-  s_mov_b32           ttmp13    , exec_hi
+  s_mov_b32           ttmp13    , exec_lo
+  s_mov_b32           ttmp14    , exec_hi
   s_mov_b64           exec      , -1
   buffer_store_dword  v[vgprDbg], off, [ttmp8, ttmp9, ttmp10, ttmp11], ttmp6, offset:0  // save vgprDbg to the hidden buffer
 
@@ -174,11 +174,11 @@ $loopcounter
   v_writelane_b32     v[vgprDbg], ttmp2, 6
   s_getreg_b32        ttmp2     , hwreg(6, 0, 32)
   v_writelane_b32     v[vgprDbg], ttmp2, 7
-  v_writelane_b32     v[vgprDbg], ttmp12, 8
-  v_writelane_b32     v[vgprDbg], ttmp13, 9
+  v_writelane_b32     v[vgprDbg], ttmp13, 8
+  v_writelane_b32     v[vgprDbg], ttmp14, 9
   buffer_store_dword  v[vgprDbg], off, [ttmp8, ttmp9, ttmp10, ttmp11], ttmp5, offset:0
-  s_mov_b32           exec_lo   , ttmp12
-  s_mov_b32           exec_hi   , ttmp13
+  s_mov_b32           exec_lo   , ttmp13
+  s_mov_b32           exec_hi   , ttmp14
 
   // if counter == target then goto_debug_dump
   s_branch            goto_debug_dump
