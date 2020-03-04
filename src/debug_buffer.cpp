@@ -47,7 +47,7 @@ void DebugBuffer::write_to_file(AgentLogger& logger, const std::string& path)
         return;
 
     hsa_status_t status;
-    status = hsa_memory_copy(_host_ptr, _gpu_ptr, _size);
+    status = hsa_memory_copy(_host_ptr, _gpu_ptr, debug_size());
     if (status != HSA_STATUS_SUCCESS)
     {
         logger.hsa_error("Unable to copy debug buffer from GPU", status, "hsa_memory_copy");
@@ -56,7 +56,7 @@ void DebugBuffer::write_to_file(AgentLogger& logger, const std::string& path)
 
     if (std::ofstream fs{path, std::ios::out | std::ios::binary})
     {
-        fs.write(reinterpret_cast<char*>(_host_ptr), _size);
+        fs.write(reinterpret_cast<char*>(_host_ptr), debug_size());
         logger.info("Debug buffer has been written to " + path);
     }
     else
