@@ -93,14 +93,17 @@ template <typename T>
 std::optional<T> DebugAgent::load_swapped_code_object(hsa_agent_t agent, RecordedCodeObject& co)
 {
     if (!_debug_buffer)
-        _debug_buffer = std::make_unique<DebugBuffer>(agent, *_logger, _config->debug_buffer_size());
-    if (auto replacement_co = _co_swapper->swap_code_object(co, *_debug_buffer, agent))
+        _debug_buffer = std::make_unique<DebugBuffer>(agent, *_logger, _config->debug_buffer_size(), _config->debug_hidden_buffer_size());
+    if (auto swap = _co_swapper->try_swap(co, *_debug_buffer, agent))
     {
         T loaded_replacement;
         const char* error_callsite;
-        hsa_status_t status = _co_loader->load_from_memory(*replacement_co, &loaded_replacement, &error_callsite);
+        hsa_status_t status = _co_loader->load_from_memory(*swap.replacement_co, &loaded_replacement, &error_callsite);
         if (status == HSA_STATUS_SUCCESS)
         {
+            if (swap.trap_handler_co)
+                _trap_handler->load_handler(std::move(*swap.trap_handler_co), agent);
+
             /* Load the original executable to iterate its symbols */
             hsa_executable_t original_exec;
             const char* error_callsite;

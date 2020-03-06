@@ -32,5 +32,12 @@ public:
         hsa_agent_t agent,
         hsa_executable_t* executable,
         const char** error_callsite);
+
+    hsa_status_t create_symbol_handle(
+        hsa_agent_t agent,
+        hsa_executable_t executable,
+        const char* symbol_name,
+        uint64_t* handle,
+        const char** error_callsite);
 };
 } // namespace agent

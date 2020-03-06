@@ -6,6 +6,7 @@ TEST_CASE("reads a valid configuration file", "[config]")
     agent::Config config;
     REQUIRE(config.agent_log_file() == "-");
     REQUIRE(config.debug_buffer_size() == 1048576);
+    REQUIRE(config.debug_hidden_buffer_size() == 4096);
     REQUIRE(config.debug_buffer_dump_file() == "tests/tmp/debug_buffer");
     REQUIRE(config.code_object_log_file() == "tests/tmp/co_dump.log");
     REQUIRE(config.code_object_dump_dir() == "tests/tmp/");
@@ -19,7 +20,16 @@ TEST_CASE("reads a valid configuration file", "[config]")
          .replacement_path = "tests/tmp/replacement.co",
          .external_command = "bash -o pipefail -c '"
                              "perl tests/fixtures/breakpoint.pl -ba $ASM_DBG_BUF_ADDR -bs $ASM_DBG_BUF_SIZE "
-                             "-l 31 -w v[tid] -s 96 -r s0 -t 0 tests/kernels/dbg_kernel.s | "
+                             "-w v[tid_dump] -l 37 -t 0 tests/kernels/dbg_kernel.s | "
+                             "/opt/rocm/bin/hcc -x assembler -target amdgcn--amdhsa "
+                             "-mcpu=`/opt/rocm/bin/rocminfo | grep -om1 gfx9..` -mno-code-object-v3 "
+                             "-Itests/kernels/include -o tests/tmp/replacement.co -'"},
+        {.condition = {call_count_t(2)},
+         .replacement_path = "tests/tmp/replacement.co",
+         .trap_handler_path = "tests/tmp/replacement.co",
+         .external_command = "bash -o pipefail -c '"
+                             "perl tests/fixtures/breakpoint_trap.pl -ba $ASM_DBG_BUF_ADDR -bs $ASM_DBG_BUF_SIZE -ha $ASM_HID_BUF_ADDR "
+                             "-w v[tid_dump] -e \"s_nop 10\" -l 37 -t 2 tests/kernels/dbg_kernel.s | "
                              "/opt/rocm/bin/hcc -x assembler -target amdgcn--amdhsa "
                              "-mcpu=`/opt/rocm/bin/rocminfo | grep -om1 gfx9..` -mno-code-object-v3 "
                              "-Itests/kernels/include -o tests/tmp/replacement.co -'"},

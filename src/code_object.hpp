@@ -19,6 +19,7 @@ private:
 
 public:
     CodeObject(const void* ptr, size_t size);
+    CodeObject(CodeObject&& other) : _ptr{other._ptr}, _size(other._size), _crc{other._crc} {}
     const void* ptr() const { return _ptr; }
     size_t size() const { return _size; }
     crc32_t crc() const { return _crc; }

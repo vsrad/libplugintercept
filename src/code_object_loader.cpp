@@ -43,3 +43,31 @@ hsa_status_t CodeObjectLoader::create_executable(
 
     return status;
 }
+
+hsa_status_t CodeObjectLoader::create_symbol_handle(
+    hsa_agent_t agent,
+    hsa_executable_t executable,
+    const char* symbol_name,
+    uint64_t* handle,
+    const char** error_callsite)
+{
+    hsa_status_t status = _non_intercepted_api_table->hsa_executable_freeze_fn(executable, NULL);
+    if (status != HSA_STATUS_SUCCESS && status != HSA_STATUS_ERROR_FROZEN_EXECUTABLE /* already frozen */)
+    {
+        *error_callsite = "hsa_executable_freeze";
+        return status;
+    }
+    hsa_executable_symbol_t symbol;
+    status = _non_intercepted_api_table->hsa_executable_get_symbol_by_name_fn(
+        executable, symbol_name, &agent, &symbol);
+    if (status != HSA_STATUS_SUCCESS)
+    {
+        *error_callsite = "hsa_executable_get_symbol_by_name";
+        return status;
+    }
+    status = _non_intercepted_api_table->hsa_executable_symbol_get_info_fn(
+        symbol, HSA_EXECUTABLE_SYMBOL_INFO_KERNEL_OBJECT, handle);
+    if (status != HSA_STATUS_SUCCESS)
+        *error_callsite = "hsa_executable_symbol_get_info";
+    return status;
+}

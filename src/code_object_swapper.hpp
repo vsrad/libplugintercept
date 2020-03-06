@@ -8,6 +8,13 @@
 
 namespace agent
 {
+struct SwapResult {
+    std::optional<CodeObject> replacement_co;
+    std::optional<CodeObject> trap_handler_co;
+
+    explicit operator bool() const { return bool(replacement_co); }
+};
+
 class CodeObjectSwapper
 {
 private:
@@ -24,10 +31,7 @@ public:
     CodeObjectSwapper(const std::vector<CodeObjectSwap>& swaps, AgentLogger& logger, CodeObjectLoader& co_loader)
         : _swaps(swaps), _logger(logger), _co_loader(co_loader) {}
 
-    std::optional<CodeObject> swap_code_object(
-        const RecordedCodeObject& source,
-        const DebugBuffer& debug_buffer,
-        hsa_agent_t agent);
+    SwapResult try_swap(const RecordedCodeObject& source, const DebugBuffer& debug_buffer, hsa_agent_t agent);
     std::optional<hsa_executable_symbol_t> swap_symbol(hsa_executable_symbol_t sym);
 };
 }; // namespace agent

@@ -12,13 +12,18 @@ struct CodeObjectSwap
 {
     std::variant<call_count_t, crc32_t> condition;
     std::string replacement_path;
+    std::string trap_handler_path;
     std::string external_command;
     std::vector<std::pair<std::string, std::string>> symbol_swaps;
 
     bool operator!=(const CodeObjectSwap& rhs) const { return !operator==(rhs); }
     bool operator==(const CodeObjectSwap& rhs) const
     {
-        return condition == rhs.condition && replacement_path == rhs.replacement_path && external_command == rhs.external_command && symbol_swaps == rhs.symbol_swaps;
+        return condition == rhs.condition &&
+               replacement_path == rhs.replacement_path &&
+               trap_handler_path == rhs.trap_handler_path &&
+               external_command == rhs.external_command &&
+               symbol_swaps == rhs.symbol_swaps;
     }
     friend std::ostream& operator<<(std::ostream& os, const CodeObjectSwap& swap)
     {
@@ -28,6 +33,9 @@ struct CodeObjectSwap
             os << "{ crc = " << *crc;
 
         os << ", replacement_path = " << swap.replacement_path;
+
+        if (!swap.trap_handler_path.empty())
+            os << ", trap_handler_path = " << swap.trap_handler_path;
 
         if (!swap.external_command.empty())
             os << ", external_command = " << swap.external_command;

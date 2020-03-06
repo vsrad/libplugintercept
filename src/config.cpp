@@ -27,12 +27,13 @@ CodeObjectSwap get_co_swap(const std::string& config_path, const cpptoml::table&
     else if (call_count)
         swap.condition = {*call_count};
 
-    swap.external_command = swap_config.get_as<std::string>("exec-before-load").value_or("");
-
     if (auto path = swap_config.get_as<std::string>("load-file"))
         swap.replacement_path = *path;
     else
         throw std::runtime_error("Error when parsing configuration file " + config_path + ": missing code-object-swap.load-file");
+
+    swap.trap_handler_path = swap_config.get_as<std::string>("load-trap-handler-file").value_or("");
+    swap.external_command = swap_config.get_as<std::string>("exec-before-load").value_or("");
 
     if (auto symbols = swap_config.get_table_array("symbol"))
         for (const auto& symbol : *symbols)
@@ -63,6 +64,7 @@ Config::Config()
 
         // Optional
         _debug_buffer_size = config->get_qualified_as<uint64_t>("debug-buffer.size").value_or(0);
+        _debug_hidden_buffer_size = config->get_qualified_as<uint64_t>("debug-buffer.hidden-size").value_or(0);
         _debug_buffer_dump_file = config->get_qualified_as<std::string>("debug-buffer.dump-file").value_or("");
 
         if (auto swap_configs = config->get_table_array("code-object-swap"))
