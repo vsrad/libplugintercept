@@ -63,6 +63,7 @@ TEST_CASE("runs external command before swapping the code object if specified", 
     std::vector<CodeObjectSwap> swaps =
         {{.condition = {call_count_t(1)},
           .replacement_path = "tests/tmp/co_swapper_time",
+          .trap_handler_path = {},
           .external_command = "echo " + std::to_string(time) + " > tests/tmp/co_swapper_time"}};
     CodeObjectSwapper cosw(swaps, logger, *_dummy_loader);
     auto swapped = cosw.try_swap(RecordedCodeObject("", 0, 1), buffer, {0});
@@ -79,9 +80,11 @@ TEST_CASE("logs external command output on failure", "[co_swapper]")
     std::vector<CodeObjectSwap> swaps =
         {{.condition = {call_count_t(1)},
           .replacement_path = "tests/fixtures/asdf",
+          .trap_handler_path = {},
           .external_command = "asdfasdf"},
          {.condition = {call_count_t(2)},
           .replacement_path = "t",
+          .trap_handler_path = {},
           .external_command = "echo h; asdfasdf"}};
     CodeObjectSwapper cosw(swaps,
                            logger, *_dummy_loader);
