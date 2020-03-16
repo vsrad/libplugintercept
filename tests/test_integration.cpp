@@ -110,10 +110,10 @@ TEST_CASE("trap handler is properly set up with hidden buffer", "[integration]")
         REQUIRE(dwords[1024 + dword_idx] == tid++); /* tid from gid = 1 */
     }
 
-    // check hidden buffer is not dumped
-    dword_idx += 1024; // skip all groups
-    for (; dword_idx < dwords.size(); dword_idx += 1)
+    // check hidden buffer is dumped
+    dword_idx = dwords.size() - 1024; // go to gidden buffer adress
+    for (auto val = 1; dword_idx < dwords.size() && tid <= 64; dword_idx += 1, val++)
     {
-        REQUIRE(dwords[dword_idx] == 0);
+        REQUIRE(dwords[dword_idx] == val * 2);
     }
 }
