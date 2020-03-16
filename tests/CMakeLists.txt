@@ -7,16 +7,13 @@ add_executable(tests
   test_integration.cpp
 )
 
-target_include_directories(tests PUBLIC ${HSA_HEADER_DIR})
-target_link_libraries(tests Catch2::Catch2 ${HSA_LIBRARY} plugintercept)
-
 add_dependencies(tests plugintercept dbg_kernel)
 add_subdirectory(kernels)
 
-get_property(CMAKE_MODULE_PATH GLOBAL PROPERTY CATCH2_MODULE_PATH)
+get_property(CATCH2_INCLUDE_DIR GLOBAL PROPERTY CATCH2_INCLUDE_DIR)
 
-include(CTest)
-include(Catch)
-catch_discover_tests(tests)
+target_include_directories(tests PUBLIC ${HSA_HEADER_DIR} ${CATCH2_INCLUDE_DIR})
+target_link_libraries(tests ${HSA_LIBRARY} plugintercept)
 
-add_test(NAME tests COMMAND tests)
+# put enable_testing() in the top-level CMakeLists.txt to enable CTest integration
+# add_test(NAME tests COMMAND tests)

@@ -1,15 +1,8 @@
-cmake_minimum_required(VERSION 3.14)
+cmake_minimum_required(VERSION 3.5)
 project(debug-plug-hsa-intercept VERSION 0.1.0)
 
 set(CMAKE_CXX_STANDARD 17)
 add_compile_options("-Wall" "-g")
-
-find_program(CLANG NAMES clang REQUIRED)
-if(CLANG)
-    message(STATUS "Found clang: ${CLANG}")
-else()
-    message(FATAL_ERROR "clang not found")
-endif()
 
 set(HSA_ROOT /opt/rocm/hsa CACHE PATH "HSA runtime path")
 set(HSA_HEADER_DIR ${HSA_ROOT}/include/hsa CACHE PATH "HSA include path")
@@ -18,6 +11,13 @@ set(HSA_LIBRARY_DIR ${HSA_ROOT}/lib CACHE PATH "HSA library path")
 set(ROCM_ROOT /opt/rocm CACHE PATH "ROCm installation path")
 set(ROCM_HEADER_DIR ${ROCM_ROOT}/include CACHE PATH "ROCm include path")
 set(ROCM_LIBRARY_DIR ${ROCM_ROOT}/lib CACHE PATH "ROCm library path")
+
+find_program(HCC NAMES hcc HINTS ${ROCM_ROOT}/bin REQUIRED)
+if(HCC)
+    message(STATUS "Found HCC: ${HCC}")
+else()
+    message(FATAL_ERROR "HCC not found")
+endif()
 
 find_path(HSA_HEADER_DIR hsa.h PATHS ${HSA_HEADER_DIR} NO_DEFAULT_PATH)
 if(HSA_HEADER_DIR)
