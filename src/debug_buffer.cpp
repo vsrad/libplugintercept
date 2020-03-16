@@ -2,8 +2,8 @@
 
 using namespace agent;
 
-DebugBuffer::DebugBuffer(hsa_agent_t agent, AgentLogger& logger, uint64_t buffer_size, uint64_t hidden_size)
-    : _size(buffer_size + hidden_size), _hidden_size(hidden_size), _gpu_ptr(nullptr), _host_ptr(nullptr)
+DebugBuffer::DebugBuffer(hsa_agent_t agent, AgentLogger& logger, uint64_t buffer_size)
+    : _size(buffer_size), _gpu_ptr(nullptr), _host_ptr(nullptr)
 {
     if (_size == 0)
     {
@@ -47,7 +47,7 @@ void DebugBuffer::write_to_file(AgentLogger& logger, const std::string& path)
         return;
 
     hsa_status_t status;
-    status = hsa_memory_copy(_host_ptr, _gpu_ptr, debug_size());
+    status = hsa_memory_copy(_host_ptr, _gpu_ptr, size());
     if (status != HSA_STATUS_SUCCESS)
     {
         logger.hsa_error("Unable to copy debug buffer from GPU", status, "hsa_memory_copy");
@@ -56,7 +56,7 @@ void DebugBuffer::write_to_file(AgentLogger& logger, const std::string& path)
 
     if (std::ofstream fs{path, std::ios::out | std::ios::binary})
     {
-        fs.write(reinterpret_cast<char*>(_host_ptr), debug_size());
+        fs.write(reinterpret_cast<char*>(_host_ptr), size());
         logger.info("Debug buffer has been written to " + path);
     }
     else
