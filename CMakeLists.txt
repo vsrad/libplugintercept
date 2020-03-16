@@ -50,6 +50,5 @@ else(HSAKMT_LIBRARY)
   message(FATAL_ERROR "HSAKMT runtime library not found (searched ${ROCM_LIBRARY_DIR})")
 endif(HSAKMT_LIBRARY)
 
-add_subdirectory(extern)
 add_subdirectory(src)
 add_subdirectory(tests)
