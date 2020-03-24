@@ -6,7 +6,7 @@ Usage: $0 [<options>] <gcnasm_source>
     options
         -bs <size>      debug buffer size (mandatory)
         -ba <address>   debug buffer address (mandatory)
-        -hs <address>   debug hidden buffer size (mandatory)
+        -ha <address>   debug hidden buffer address (mandatory)
         -l <line>       line number to break (mandatory)
         -o <file>       output to the <file> rather than STDOUT
         -w <watches>    extra watches supplied colon separated in quotes;
@@ -28,7 +28,7 @@ my $endpgm  = "s_endpgm";
 my $output  = 0;
 my $bufsize;
 my $bufaddr;
-my $hidsize;
+my $hidaddr;
 my $target;
 my $input;
 
@@ -36,7 +36,7 @@ while (scalar @ARGV) {
   my $str = shift @ARGV;
   if ($str eq "-bs")  {  $bufsize =            shift @ARGV;  next;   }
   if ($str eq "-ba")  {  $bufaddr =            shift @ARGV;  next;   }
-  if ($str eq "-hs")  {  $hidsize =            shift @ARGV;  next;   }
+  if ($str eq "-ha")  {  $hidaddr =            shift @ARGV;  next;   }
   if ($str eq "-l")   {  $line    =            shift @ARGV;  next;   }
   if ($str eq "-o")   {  $_ = shift @ARGV;
                           open $fo, '>', $_ || die "$usage\nCould not open '$_': $!\n";
@@ -50,7 +50,6 @@ while (scalar @ARGV) {
 }
 
 die $usage unless $line && $input;
-my $hidaddr = $bufaddr + $bufsize - $hidsize;
 
 my $n_var   = scalar @watches;
 

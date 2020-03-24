@@ -50,6 +50,19 @@ CodeObjectSwap get_co_swap(const std::string& config_path, const cpptoml::table&
     return swap;
 }
 
+BufferAllocation get_buffer_alloc(const std::string& config_path, const cpptoml::table& alloc_config)
+{
+    BufferAllocation alloc;
+    if (auto size = alloc_config.get_as<uint64_t>("size"))
+        alloc.size = *size;
+    else
+        throw std::runtime_error("Error when parsing configuration file " + config_path + ": missing buffer-allocation.size");
+    alloc.dump_path = alloc_config.get_as<std::string>("dump-path").value_or("");
+    alloc.addr_env_name = alloc_config.get_as<std::string>("addr-env-name").value_or("");
+    alloc.size_env_name = alloc_config.get_as<std::string>("size-env-name").value_or("");
+    return alloc;
+}
+
 Config::Config()
 {
     if (auto config_path_env = getenv("ASM_DBG_CONFIG"))
@@ -63,9 +76,9 @@ Config::Config()
         _code_object_dump_dir = get_config<std::string>(config_path, *config, "code-object-dump.directory");
 
         // Optional
-        _debug_buffer_size = config->get_qualified_as<uint64_t>("debug-buffer.size").value_or(0);
-        _debug_buffer_dump_file = config->get_qualified_as<std::string>("debug-buffer.dump-file").value_or("");
-
+        if (auto alloc_configs = config->get_table_array("buffer-allocation"))
+            for (const auto& alloc_config : *alloc_configs)
+                _buffer_allocations.push_back(get_buffer_alloc(config_path, *alloc_config));
         if (auto swap_configs = config->get_table_array("code-object-swap"))
             for (const auto& swap_config : *swap_configs)
                 _code_object_swaps.push_back(get_co_swap(config_path, *swap_config));

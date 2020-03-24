@@ -4,7 +4,7 @@
 
 using namespace agent;
 
-SwapResult CodeObjectSwapper::try_swap(const RecordedCodeObject& source, const DebugBuffer& debug_buffer, hsa_agent_t agent)
+SwapResult CodeObjectSwapper::try_swap(hsa_agent_t agent, const RecordedCodeObject& source, std::map<std::string, std::string> env)
 {
     auto swap_eq = [crc = source.crc(), call_no = source.load_call_no()](auto const& swap) {
         if (auto target_call_count = std::get_if<call_count_t>(&swap.condition))
@@ -22,7 +22,7 @@ SwapResult CodeObjectSwapper::try_swap(const RecordedCodeObject& source, const D
         " (load #" + std::to_string(source.load_call_no()) + ") for " + swap->replacement_path);
 
     if (!swap->external_command.empty())
-        if (!run_external_command(swap->external_command, debug_buffer))
+        if (!run_external_command(swap->external_command, env))
             return {};
 
     SwapResult result = {};
@@ -61,24 +61,12 @@ SwapResult CodeObjectSwapper::try_swap(const RecordedCodeObject& source, const D
     return {};
 }
 
-bool CodeObjectSwapper::run_external_command(const std::string& cmd, const DebugBuffer& debug_buffer)
+bool CodeObjectSwapper::run_external_command(const std::string& cmd, std::map<std::string, std::string> env)
 {
     _logger.info("Executing `" + cmd + "`");
 
     ExternalCommand runner(cmd);
-    std::map<std::string, std::string> environment;
-
-    if (auto buf_addr = debug_buffer.gpu_buffer_address())
-    {
-        environment["ASM_DBG_BUF_SIZE"] = std::to_string(debug_buffer.size());
-        environment["ASM_DBG_BUF_ADDR"] = std::to_string(*buf_addr);
-    }
-    else
-    {
-        _logger.warning("ASM_DBG_BUF_SIZE and ASM_DBG_BUF_ADDR are not set (debug buffer is not allocated)");
-    }
-
-    int retcode = runner.execute(environment);
+    int retcode = runner.execute(env);
     if (retcode == 0)
     {
         _logger.info("The command has finished successfully");

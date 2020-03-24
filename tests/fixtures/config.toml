@@ -1,9 +1,15 @@
 [agent]
 log = "-"
 
-[debug-buffer]
+[[buffer-allocation]]
 size = 1048576
-dump-file = "tests/tmp/debug_buffer"
+dump-path = "tests/tmp/debug_buffer"
+addr-env-name = "ASM_DBG_BUF_ADDR"
+size-env-name = "ASM_DBG_BUF_SIZE"
+
+[[buffer-allocation]]
+size = 4096
+addr-env-name = "ASM_HID_BUF_ADDR"
 
 [code-object-dump]
 log = "tests/tmp/co_dump.log"
@@ -23,7 +29,7 @@ when-call-count = 2
 load-file = "tests/tmp/replacement.co"
 load-trap-handler-file = "tests/tmp/replacement.co"
 exec-before-load = """bash -o pipefail -c '\
-  perl tests/fixtures/breakpoint_trap.pl -ba $ASM_DBG_BUF_ADDR -bs $ASM_DBG_BUF_SIZE -hs 4096 \
+  perl tests/fixtures/breakpoint_trap.pl -ba $ASM_DBG_BUF_ADDR -bs $ASM_DBG_BUF_SIZE -ha $ASM_HID_BUF_ADDR \
       -w v[tid_dump] -e "s_nop 10" -l 37 -t 2 tests/kernels/dbg_kernel.s \
   | /opt/rocm/bin/hcc -x assembler -target amdgcn--amdhsa -mcpu=`/opt/rocm/bin/rocminfo | grep -om1 gfx9..` -mno-code-object-v3 \
     -Itests/kernels/include -o tests/tmp/replacement.co -'"""

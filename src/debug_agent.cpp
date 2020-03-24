@@ -92,9 +92,8 @@ hsa_status_t DebugAgent::intercept_hsa_executable_symbol_get_info(
 template <typename T>
 std::optional<T> DebugAgent::load_swapped_code_object(hsa_agent_t agent, RecordedCodeObject& co)
 {
-    if (!_debug_buffer)
-        _debug_buffer = std::make_unique<DebugBuffer>(agent, *_logger, _config->debug_buffer_size());
-    if (auto swap = _co_swapper->try_swap(co, *_debug_buffer, agent))
+    _buffer_allocator->allocate_buffers(agent);
+    if (auto swap = _co_swapper->try_swap(agent, co, _buffer_allocator->environment_variables()))
     {
         T loaded_replacement;
         const char* error_callsite;
@@ -121,19 +120,4 @@ std::optional<T> DebugAgent::load_swapped_code_object(hsa_agent_t agent, Recorde
         }
     }
     return {};
-}
-
-void DebugAgent::write_debug_buffer_to_file()
-{
-    if (_config->debug_buffer_dump_file().empty())
-    {
-        _logger->warning("Debug buffer dump file is not specified (debug-buffer.dump-file)");
-        return;
-    }
-    if (!_debug_buffer)
-    {
-        _logger->info("Debug buffer hasn't been allocated, nothing will be written to " + _config->debug_buffer_dump_file());
-        return;
-    }
-    _debug_buffer->write_to_file(*_logger, _config->debug_buffer_dump_file());
 }

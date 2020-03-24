@@ -1,6 +1,5 @@
 #pragma once
 
-#include "debug_buffer.hpp"
 #include "code_object_loader.hpp"
 #include "code_object_swap.hpp"
 #include "logger/logger.hpp"
@@ -8,7 +7,8 @@
 
 namespace agent
 {
-struct SwapResult {
+struct SwapResult
+{
     std::optional<CodeObject> replacement_co;
     std::optional<CodeObject> trap_handler_co;
 
@@ -24,14 +24,14 @@ private:
 
     std::unordered_map<decltype(hsa_executable_symbol_t::handle), hsa_executable_symbol_t> _swapped_symbols;
 
-    bool run_external_command(const std::string& cmd, const DebugBuffer& debug_buffer);
+    bool run_external_command(const std::string& cmd, std::map<std::string, std::string> env);
     static hsa_status_t map_swapped_symbols(hsa_executable_t exec, hsa_executable_symbol_t sym, void* data);
 
 public:
     CodeObjectSwapper(const std::vector<CodeObjectSwap>& swaps, AgentLogger& logger, CodeObjectLoader& co_loader)
         : _swaps(swaps), _logger(logger), _co_loader(co_loader) {}
 
-    SwapResult try_swap(const RecordedCodeObject& source, const DebugBuffer& debug_buffer, hsa_agent_t agent);
+    SwapResult try_swap(hsa_agent_t agent, const RecordedCodeObject& source, std::map<std::string, std::string> env);
     std::optional<hsa_executable_symbol_t> swap_symbol(hsa_executable_symbol_t sym);
 };
 }; // namespace agent
