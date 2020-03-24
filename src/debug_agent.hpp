@@ -1,12 +1,13 @@
 #pragma once
 
+#include "buffer_allocator.hpp"
 #include "code_object_loader.hpp"
 #include "code_object_recorder.hpp"
 #include "code_object_swapper.hpp"
 #include "config.hpp"
 #include "debug_buffer.hpp"
-#include "trap_handler.hpp"
 #include "logger/logger.hpp"
+#include "trap_handler.hpp"
 #include <memory>
 #include <string>
 
@@ -20,6 +21,7 @@ private:
     std::unique_ptr<CodeObjectLoader> _co_loader;
     std::unique_ptr<CodeObjectRecorder> _co_recorder;
     std::unique_ptr<CodeObjectSwapper> _co_swapper;
+    std::unique_ptr<BufferAllocator> _buffer_allocator;
     std::unique_ptr<DebugBuffer> _debug_buffer;
     std::unique_ptr<TrapHandler> _trap_handler;
 
@@ -34,11 +36,10 @@ public:
         : _config(config), _logger(logger), _co_loader(std::move(co_loader)),
           _co_recorder(std::make_unique<CodeObjectRecorder>(config->code_object_dump_dir(), co_logger)),
           _co_swapper(std::make_unique<CodeObjectSwapper>(config->code_object_swaps(), *logger, *co_loader)),
+          _buffer_allocator(std::make_unique<BufferAllocator>(config->buffer_allocations(), *logger)),
           _trap_handler(std::make_unique<TrapHandler>(*logger, *_co_loader)) {}
 
-    ~DebugAgent() noexcept { write_debug_buffer_to_file(); }
-
-    void write_debug_buffer_to_file();
+    ~DebugAgent() noexcept { _buffer_allocator->dump_buffers(); }
 
     hsa_status_t intercept_hsa_code_object_reader_create_from_memory(
         decltype(hsa_code_object_reader_create_from_memory)* intercepted_fn,
