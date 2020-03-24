@@ -1,9 +1,15 @@
 [agent]
 log = "-"
 
-[debug-buffer]
+[[buffer-allocation]]
 size = 1048576
-dump-file = "tests/tmp/debug_buffer"
+dump-path = "tests/tmp/debug_buffer"
+addr-env-name = "ASM_DBG_BUF_ADDR"
+size-env-name = "ASM_DBG_BUF_SIZE"
+
+[[buffer-allocation]]
+size = 4096
+addr-env-name = "ASM_HID_BUF_ADDR"
 
 [code-object-dump]
 log = "tests/tmp/co_dump.log"

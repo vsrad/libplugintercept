@@ -1,5 +1,6 @@
 #pragma once
 
+#include "buffer_allocation.hpp"
 #include "code_object_swap.hpp"
 #include <vector>
 
@@ -13,6 +14,7 @@ private:
     std::string _debug_buffer_dump_file;
     std::string _code_object_log_file;
     std::string _code_object_dump_dir;
+    std::vector<BufferAllocation> _buffer_allocations;
     std::vector<CodeObjectSwap> _code_object_swaps;
 
 public:
@@ -22,6 +24,7 @@ public:
     const std::string& debug_buffer_dump_file() const { return _debug_buffer_dump_file; }
     const std::string& code_object_log_file() const { return _code_object_log_file; }
     const std::string& code_object_dump_dir() const { return _code_object_dump_dir; }
+    const std::vector<BufferAllocation>& buffer_allocations() const { return _buffer_allocations; }
     const std::vector<CodeObjectSwap>& code_object_swaps() const { return _code_object_swaps; }
 };
 } // namespace agent
