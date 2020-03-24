@@ -5,7 +5,6 @@
 #include "code_object_recorder.hpp"
 #include "code_object_swapper.hpp"
 #include "config.hpp"
-#include "debug_buffer.hpp"
 #include "logger/logger.hpp"
 #include "trap_handler.hpp"
 #include <memory>
@@ -22,7 +21,6 @@ private:
     std::unique_ptr<CodeObjectRecorder> _co_recorder;
     std::unique_ptr<CodeObjectSwapper> _co_swapper;
     std::unique_ptr<BufferAllocator> _buffer_allocator;
-    std::unique_ptr<DebugBuffer> _debug_buffer;
     std::unique_ptr<TrapHandler> _trap_handler;
 
     template <typename T>

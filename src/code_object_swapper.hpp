@@ -2,7 +2,6 @@
 
 #include "code_object_loader.hpp"
 #include "code_object_swap.hpp"
-#include "debug_buffer.hpp"
 #include "logger/logger.hpp"
 #include <vector>
 
