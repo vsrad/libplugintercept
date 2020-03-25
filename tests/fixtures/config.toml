@@ -1,23 +1,65 @@
+# Configuration and runtime errors are reported in the agent log.
 [agent]
+# (Required) Path to agent log file ("-" to print to stdout):
 log = "-"
 
+# Auxiliary GPU buffers are allocated the first time
+# the application creates an executable from a code object.
+# Each buffer allocation begins with `[[buffer-allocation]]`.
+#
+# If you don't need to allocate any auxiliary buffers,
+# don't specify any `[[buffer-allocation]]`s.
 [[buffer-allocation]]
+# (Required) Buffer size, in bytes
 size = 1048576
+# (Optional) When the application exits, save the contents
+# of the buffer to the following file:
 dump-path = "tests/tmp/debug_buffer"
+# (Optional) Export the address of the GPU buffer as the
+# following environment variable, available in `exec-before-load`
+# commands (detailed below):
 addr-env-name = "ASM_DBG_BUF_ADDR"
+# (Optional) Export the size of the GPU buffer set above as the
+# following environment variable, available in `exec-before-load`
+# commands:
 size-env-name = "ASM_DBG_BUF_SIZE"
 
 [[buffer-allocation]]
 size = 4096
 addr-env-name = "ASM_HID_BUF_ADDR"
 
+# When the application loads a code object, the action
+# is logged and the code object is saved to disk.
 [code-object-dump]
+# (Required) Path to the code object log file
+# ("-" to print to stdout):
 log = "tests/tmp/co_dump.log"
+# (Required) Directory to save loaded code objects to:
 directory = "tests/tmp/"
 
+# When the application creates an executable from a code object,
+# it can be substituted. Since the application may use
+# multiple code objects, each substitution (swap) is declared
+# separately, beginning with `[[code-object-swap]]`.
+#
+# If you don't need to replace any code objects loaded by the
+# application, don't specify any `[[code-object-swap]]`s.
 [[code-object-swap]]
+# (Required) Condition when the substitution is performed.
+# In this case, the first code object loaded by the application
+# will be substituted:
 when-call-count = 1
+# Alternatively, the condition can be specified as a CRC-32
+# checksum that a code object should match:
+# when-crc = 0xFFFFFFFF
+
+# (Required) Path to the replacement code object:
 load-file = "tests/tmp/replacement.co"
+# (Optional) A shell command executed before loading the
+# replacement code object. In this case, the command is
+# used to generate the replacement (note that
+# `ASM_DBG_BUF_ADDR` is initialized to the address of
+# the first auxiliary buffer, as configured above):
 exec-before-load = """bash -o pipefail -c '\
   perl tests/fixtures/breakpoint.pl -ba $ASM_DBG_BUF_ADDR -bs $ASM_DBG_BUF_SIZE \
       -w v[tid_dump] -l 37 -t 0 tests/kernels/dbg_kernel.s \
@@ -27,19 +69,35 @@ exec-before-load = """bash -o pipefail -c '\
 [[code-object-swap]]
 when-call-count = 2
 load-file = "tests/tmp/replacement.co"
+# (Optional) Path to the code object that contains a
+# kernel named `trap_handler`, which will be set
+# as the trap handler:
 load-trap-handler-file = "tests/tmp/replacement.co"
+# Note that `exec-before-load` is used to generate
+# the trap handler in this case:
 exec-before-load = """bash -o pipefail -c '\
   perl tests/fixtures/breakpoint_trap.pl -ba $ASM_DBG_BUF_ADDR -bs $ASM_DBG_BUF_SIZE -ha $ASM_HID_BUF_ADDR \
       -w v[tid_dump] -e "s_nop 10" -l 37 -t 2 tests/kernels/dbg_kernel.s \
   | /opt/rocm/bin/hcc -x assembler -target amdgcn--amdhsa -mcpu=`/opt/rocm/bin/rocminfo | grep -om1 gfx9..` -mno-code-object-v3 \
     -Itests/kernels/include -o tests/tmp/replacement.co -'"""
 
+# Code objects contain a set of kernels. It is possible
+# to replace one of them without substituting the entire
+# code object:
 [[code-object-swap]]
 when-crc = 0xCAFE666
 load-file = "replacement.co"
+  # If one or several `[[code-object-swap.symbol]]`s are
+  # declared, the matching code object is not fully replaced.
+  # Instead, `hsa_executable_symbol_get_info` calls
+  # return the info from the replacement code object
+  # for symbols specified below:
   [[code-object-swap.symbol]]
+  # (Required) Name of the symbol in the source code object:
   name = "conv2d"
+  # (Required) Name of the symbol in the replacement code object:
   replacement-name = "conv2d_test_new"
+
   [[code-object-swap.symbol]]
   name = "conv2d_transpose"
   replacement-name = "conv2d_test_new_transpose"
