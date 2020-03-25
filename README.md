@@ -1,8 +1,20 @@
-# Debug Plug HSA Intercept
+# libplugintercept
 
-## Development
+`libplugintecept` is an HSA tools library for replacing GPU kernels at runtime without modifying host applications. It works by intercepting calls to specific `hsa_` functions and (optionally) substituting the values returned to an application.
 
-To build the library and the test executable, run:
+## Features
+
+* Saving each [_code object_](http://www.hsafoundation.com/html/Content/Runtime/Topics/02_Core/code_objects_and_executables.htm) loaded by an application to disk for further inspection
+* Replacing specific code objects with external binaries
+* Setting up a trap handler from an external binary
+* Allocating auxiliary GPU buffers
+* Running a custom shell command before loading a replacement code object
+
+The addresses of all auxiliary buffers can be read (as environment variables) by the shell command, which enables, for instance, a [source-level debugging workflow](#debugging-assembly-code).
+
+## Setup
+
+Build the library and the test executable:
 
 ```sh
 mkdir build
@@ -11,21 +23,59 @@ cmake ..
 make
 ```
 
-It is possible to override the code object compiler:
+Optionally run the tests:
 
 ```sh
-cmake .. -DCLANG=/opt/rocm/opencl/bin/x86_64/clang
+./build/tests/tests
 ```
+
+Before launching the host application, add `libplugintercept.so` to the `HSA_TOOLS_LIB` environment variable. To avoid specifying an absolute path to the library, create a symbolic link to it in `/opt/rocm/lib`:
+
+```sh
+ln -s `pwd`/src/libplugintercept.so /opt/rocm/lib
+export HSA_TOOLS_LIB=libplugintercept.so
+```
+
+## Configuration
+
+At launch, the library loads a configuration file from the path specified in the `ASM_DBG_CONFIG` environment variable. Supported options and their intended usage are listed in the example file located in [`tests/fixtures/config.toml`](https://github.com/vsrad/debug-plug-hsa-intercept/blob/master/tests/fixtures/config.toml).
 
 ## Examples
 
-### Debugging
+### Logging code object loads
+
+1. Create a `.toml` configuration file with the following contents:
+```toml
+[agent]
+log = "-" # log info messages to stdout
+
+[code-object-dump]
+log = "-" # log code object loads to stdout
+directory = "/tmp/co_loads" # dump code objects to /tmp/co_loads
+```
+
+2. Specify path to the configuration file in `ASM_DBG_CONFIG`:
+```sh
+export ASM_DBG_CONFIG=/path/to/config.toml
+```
+
+3. Add `libplugintercept.so` to `HSA_TOOLS_LIB`:
+```sh
+ln -s `pwd`/src/libplugintercept.so /opt/rocm/lib
+export HSA_TOOLS_LIB=libplugintercept.s
+```
+
+4. Run the target application
+
+### Debugging generated GPU kernels
+
+Refer to the [documented sample](https://github.com/vsrad/Tensile/blob/kernel-debug/debug/README.md) for debugging [Tensile](https://github.com/ROCmSoftwarePlatform/Tensile)-generated HIP and assembly kernels.
+
+### Debugging assembly code
 
 #### Remote machine
 
-1. Build [libplugintercept](#Development)
-
-2. Build the example:
+Build the example:
 ```sh
 cd example
 mkdir build && cd build
@@ -43,35 +93,4 @@ make
 to `example` on the remote machine
 6. Press *Apply* to save the changes and *OK* to close the profile editor
 
-Launch the debugger and open *Debug Visualizer* -- you should see the watches populated with the debug buffer contents.
-
-### Logging code object loads
-
-1. Build [libplugintercept](#Development)
-
-2. Create a `.toml` configuration file with the following contents:
-```toml
-[agent]
-log = "-"
-
-[code-object-dump]
-log = "-"
-directory = "/co/files/dump/dir"
-```
-
-3. Specify path to the configuration file in `$ASM_DBG_CONFIG`:
-```sh
-export ASM_DBG_CONFIG=/path/to/config.toml
-```
-
-4. Add `libplugintercept.so` to `$HSA_TOOLS_LIB`:
-```sh
-# Assuming the current working directory is the repository root
-export HSA_TOOLS_LIB=`pwd`/build/src/libplugintercept.so
-```
-
-5. Run the target application
-
-#### Gotchas
-
-Test runners may need special configuration to pass down environment variables to test applications. For example, when using `tox`, you need to specify `passenv = HSA_TOOLS_LIB ASM_DBG_CONFIG`.
+Launch the debugger and open *Debug Visualizer* — you should see the watches populated with the debug buffer contents.
