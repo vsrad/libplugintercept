@@ -47,7 +47,6 @@ struct CodeObjectSwap
     std::string replacement_path;
     std::string trap_handler_path;
     std::string external_command;
-    std::vector<std::pair<std::string, std::string>> symbol_swaps;
 
     bool operator!=(const CodeObjectSwap& rhs) const { return !operator==(rhs); }
     bool operator==(const CodeObjectSwap& rhs) const

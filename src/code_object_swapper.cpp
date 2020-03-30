@@ -23,7 +23,7 @@ SwapResult CodeObjectSwapper::try_swap(hsa_agent_t agent, const RecordedCodeObje
     }
     else
     {
-        _logger.error("Unable to load the replacement code object from " + swap->replacement_path);
+        _logger.error("Unable to load replacement code object from " + swap->replacement_path);
         return {};
     }
     if (!swap->trap_handler_path.empty())
@@ -34,22 +34,7 @@ SwapResult CodeObjectSwapper::try_swap(hsa_agent_t agent, const RecordedCodeObje
             _logger.warning("Unable to load trap handler code object from " + swap->trap_handler_path);
     }
 
-    if (swap->symbol_swaps.empty())
-        return result;
-
-    const char* error_callsite;
-    hsa_executable_t executable;
-    hsa_status_t status = _co_loader.create_executable(*result.replacement_co, agent, &executable, &error_callsite);
-    if (status == HSA_STATUS_SUCCESS)
-    {
-        auto mapper_data = std::make_tuple<CodeObjectSwapper*, const RecordedCodeObject*, const CodeObjectSwap*>(this, &source, &*swap);
-        status = hsa_executable_iterate_symbols(executable, map_swapped_symbols, &mapper_data);
-        error_callsite = "hsa_executable_iterate_symbols";
-    }
-    if (status != HSA_STATUS_SUCCESS)
-        _logger.hsa_error("Unable to load the replacement code object from " + swap->replacement_path, status, error_callsite);
-
-    return {};
+    return result;
 }
 
 bool CodeObjectSwapper::run_external_command(const std::string& cmd, std::map<std::string, std::string> env)
@@ -74,9 +59,9 @@ bool CodeObjectSwapper::run_external_command(const std::string& cmd, std::map<st
     return false;
 }
 
-hsa_status_t CodeObjectSwapper::map_swapped_symbols(hsa_executable_t exec, hsa_executable_symbol_t sym, void* data)
+hsa_status_t find_substitute_symbol(hsa_executable_t exec, hsa_executable_symbol_t sym, void* data)
 {
-    auto [this_, source, swap] = *reinterpret_cast<std::tuple<CodeObjectSwapper*, const RecordedCodeObject*, const CodeObjectSwap*>*>(data);
+    auto [target, target_name] = *reinterpret_cast<std::pair<hsa_executable_symbol_t*, const std::string*>*>(data);
 
     uint32_t name_len;
     hsa_status_t status = hsa_executable_symbol_get_info(sym, HSA_EXECUTABLE_SYMBOL_INFO_NAME_LENGTH, &name_len);
@@ -85,28 +70,56 @@ hsa_status_t CodeObjectSwapper::map_swapped_symbols(hsa_executable_t exec, hsa_e
 
     std::string current_sym_name(name_len, '\0');
     status = hsa_executable_symbol_get_info(sym, HSA_EXECUTABLE_SYMBOL_INFO_NAME, current_sym_name.data());
-    if (status != HSA_STATUS_SUCCESS)
-        return status;
+    if (status == HSA_STATUS_SUCCESS && current_sym_name == *target_name)
+        *target = sym;
 
-    auto& src_symbols = source->symbols();
-
-    for (auto& [src_sym_name, repl_sym_name] : swap->symbol_swaps)
-    {
-        if (current_sym_name != repl_sym_name)
-            continue;
-        if (auto src_sym{src_symbols.find(src_sym_name)}; src_sym != src_symbols.end())
-            this_->_swapped_symbols[src_sym->second.handle] = sym;
-        else
-            this_->_logger.warning(
-                "Symbol " + src_sym_name + " not found in code object, will not be replaced with " + repl_sym_name);
-    }
-
-    return HSA_STATUS_SUCCESS;
+    return status;
 }
 
-std::optional<hsa_executable_symbol_t> CodeObjectSwapper::swap_symbol(hsa_executable_symbol_t sym)
+void CodeObjectSwapper::prepare_symbol_substitutes(hsa_agent_t agent, const RecordedCodeObject& source, std::map<std::string, std::string> env)
 {
-    if (auto it{_swapped_symbols.find(sym.handle)}; it != _swapped_symbols.end())
+    for (const auto& sub : _symbol_subs)
+    {
+        if (!sub.condition.matches(source))
+            continue;
+        if (auto sym{source.symbols().find(sub.source_name)}; sym != source.symbols().end())
+        {
+            if (!sub.external_command.empty())
+                if (!run_external_command(sub.external_command, env))
+                    continue;
+            if (auto replacement_co = CodeObject::try_read_from_file(sub.replacement_path.c_str()))
+            {
+                const char* error_callsite;
+                hsa_executable_t replacement_exec;
+                hsa_executable_symbol_t replacement_sym{0};
+                hsa_status_t status = _co_loader.create_executable(*replacement_co, agent, &replacement_exec, &error_callsite);
+                if (status != HSA_STATUS_SUCCESS)
+                {
+                    _logger.hsa_error("Unable to load replacement code object from " + sub.replacement_path, status, error_callsite);
+                    continue;
+                }
+
+                auto lookup_data = std::make_pair<hsa_executable_symbol_t*, const std::string*>(&replacement_sym, &sub.replacement_name);
+                status = hsa_executable_iterate_symbols(replacement_exec, find_substitute_symbol, &lookup_data);
+                if (status != HSA_STATUS_SUCCESS || replacement_sym.handle == 0)
+                {
+                    _logger.hsa_error("Unable to find " + sub.replacement_name + " in the replacement code object", status, "hsa_executable_iterate_symbols");
+                    continue;
+                }
+
+                _evaluated_symbol_subs[sym->second.handle] = replacement_sym;
+            }
+            else
+            {
+                _logger.error("Unable to load replacement code object from " + sub.replacement_path);
+            }
+        }
+    }
+}
+
+std::optional<hsa_executable_symbol_t> CodeObjectSwapper::substitute_symbol(hsa_executable_symbol_t sym)
+{
+    if (auto it{_evaluated_symbol_subs.find(sym.handle)}; it != _evaluated_symbol_subs.end())
         return {it->second};
     return {};
 }

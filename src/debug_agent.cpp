@@ -83,7 +83,7 @@ hsa_status_t DebugAgent::intercept_hsa_executable_symbol_get_info(
         // The source symbol name may differ from the replacement name; return the former because host code may rely on it.
         return intercepted_fn(executable_symbol, attribute, value);
     default:
-        if (auto replacement_sym{_co_swapper->swap_symbol(executable_symbol)})
+        if (auto replacement_sym{_co_swapper->substitute_symbol(executable_symbol)})
             return intercepted_fn(*replacement_sym, attribute, value);
         return intercepted_fn(executable_symbol, attribute, value);
     }
