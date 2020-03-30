@@ -1,4 +1,4 @@
-#include <hsa.h>
+#pragma once
 
 #include "code_object_loader.hpp"
 #include "logger/logger.hpp"

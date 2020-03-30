@@ -57,6 +57,14 @@ BufferAllocation get_buffer_alloc(const cpptoml::table& alloc_config)
         .size_env_name = alloc_config.get_as<std::string>("size-env-name").value_or("")};
 }
 
+TrapHandlerConfig get_trap_handler(const cpptoml::table& config)
+{
+    return {
+        .code_object_path = get_required<std::string>(config, "load-file", "trap-handler.load-file (path to the code object containing the trap handler kernel)"),
+        .symbol_name = get_required<std::string>(config, "handler-name", "trap-handler.handler-name (name of the trap handler kernel)"),
+        .external_command = config.get_as<std::string>("exec-before-load").value_or("")};
+}
+
 Config::Config()
 {
     if (auto config_path_env = getenv("INTERCEPT_CONFIG"))
@@ -81,6 +89,8 @@ Config::Config()
             if (auto sub_configs = config->get_table_array("symbol-substitute"))
                 for (const auto& sub_config : *sub_configs)
                     _code_object_symbol_subs.push_back(get_co_symbol_sub(*sub_config));
+            if (auto trap_handler_config = config->get_table("trap-handler"))
+                _trap_handler = get_trap_handler(*trap_handler_config);
         }
         catch (const std::runtime_error& e)
         {

@@ -2,6 +2,7 @@
 
 #include "buffer_allocation.hpp"
 #include "code_object_swap.hpp"
+#include "trap_handler_config.hpp"
 #include <vector>
 
 namespace agent
@@ -15,6 +16,7 @@ private:
     std::vector<BufferAllocation> _buffer_allocations;
     std::vector<CodeObjectSwap> _code_object_swaps;
     std::vector<CodeObjectSymbolSubstitute> _code_object_symbol_subs;
+    TrapHandlerConfig _trap_handler;
 
 public:
     Config();
@@ -24,5 +26,6 @@ public:
     const std::vector<BufferAllocation>& buffer_allocations() const { return _buffer_allocations; }
     const std::vector<CodeObjectSwap>& code_object_swaps() const { return _code_object_swaps; }
     const std::vector<CodeObjectSymbolSubstitute>& code_object_symbol_subs() const { return _code_object_symbol_subs; }
+    const TrapHandlerConfig& trap_handler() const { return _trap_handler; };
 };
 } // namespace agent

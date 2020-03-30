@@ -3,6 +3,15 @@
 # (Required) Path to agent log file ("-" to print to stdout):
 log = "-"
 
+# When the application loads a code object, the action
+# is logged and the code object is saved to disk.
+[code-object-dump]
+# (Required) Path to the code object log file
+# ("-" to print to stdout):
+log = "tests/tmp/co_dump.log"
+# (Required) Directory to save loaded code objects to:
+directory = "tests/tmp/"
+
 # Auxiliary GPU buffers are allocated the first time
 # the application creates an executable from a code object.
 # Each buffer allocation begins with `[[buffer-allocation]]`.
@@ -28,14 +37,24 @@ size-env-name = "ASM_DBG_BUF_SIZE"
 size = 4096
 addr-env-name = "ASM_HID_BUF_ADDR"
 
-# When the application loads a code object, the action
-# is logged and the code object is saved to disk.
-[code-object-dump]
-# (Required) Path to the code object log file
-# ("-" to print to stdout):
-log = "tests/tmp/co_dump.log"
-# (Required) Directory to save loaded code objects to:
-directory = "tests/tmp/"
+# When a `[trap-handler]` is specified, it is set up after
+# the auxiliary buffer allocation.
+[trap-handler]
+# (Required) Path to the code object that contains the
+# kernel to be set as the trap handler:
+load-file = "tests/tmp/replacement.co"
+# (Required) Name of the trap handler kernel:
+handler-name = "trap_handler"
+# (Optional) A shell command executed before loading the
+# tcode object. In this case, the command is
+# used to generate the trap handler (note that
+# `ASM_DBG_BUF_ADDR` is initialized to the address of
+# the first auxiliary buffer, as configured above):
+exec-before-load = """bash -o pipefail -c '\
+  perl tests/fixtures/breakpoint_trap.pl -ba $ASM_DBG_BUF_ADDR -bs $ASM_DBG_BUF_SIZE -ha $ASM_HID_BUF_ADDR \
+      -w v[tid_dump] -e "s_nop 10" -l 37 -t 2 tests/kernels/dbg_kernel.s \
+  | /opt/rocm/bin/hcc -x assembler -target amdgcn--amdhsa -mcpu=`/opt/rocm/bin/rocminfo | grep -om1 gfx9..` -mno-code-object-v3 \
+    -Itests/kernels/include -o tests/tmp/replacement.co -'"""
 
 # When the application creates an executable from a code object,
 # it can be substituted. Since the application may use
@@ -69,12 +88,7 @@ exec-before-load = """bash -o pipefail -c '\
 [[code-object-swap]]
 match = { load-call-id = 2 }
 load-file = "tests/tmp/replacement.co"
-# (Optional) Path to the code object that contains a
-# kernel named `trap_handler`, which will be set
-# as the trap handler:
 load-trap-handler-file = "tests/tmp/replacement.co"
-# Note that `exec-before-load` is used to generate
-# the trap handler in this case:
 exec-before-load = """bash -o pipefail -c '\
   perl tests/fixtures/breakpoint_trap.pl -ba $ASM_DBG_BUF_ADDR -bs $ASM_DBG_BUF_SIZE -ha $ASM_HID_BUF_ADDR \
       -w v[tid_dump] -e "s_nop 10" -l 37 -t 2 tests/kernels/dbg_kernel.s \
