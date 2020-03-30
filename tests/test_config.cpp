@@ -21,7 +21,7 @@ TEST_CASE("reads a valid configuration file", "[config]")
     std::vector<agent::BufferAllocation> allocs = config.buffer_allocations();
     REQUIRE(allocs == expected_allocs);
 
-    agent::CodeObjectSwap sw1 =
+    std::vector<agent::CodeObjectSwap> expected_swaps = {
         {.condition = {.crc = {}, .load_call_id = 1},
          .replacement_path = "tests/tmp/replacement.co",
          .trap_handler_path = {},
@@ -30,8 +30,7 @@ TEST_CASE("reads a valid configuration file", "[config]")
                              "-w v[tid_dump] -l 37 -t 0 tests/kernels/dbg_kernel.s | "
                              "/opt/rocm/bin/hcc -x assembler -target amdgcn--amdhsa "
                              "-mcpu=`/opt/rocm/bin/rocminfo | grep -om1 gfx9..` -mno-code-object-v3 "
-                             "-Itests/kernels/include -o tests/tmp/replacement.co -'"};
-    agent::CodeObjectSwap sw2 =
+                             "-Itests/kernels/include -o tests/tmp/replacement.co -'"},
         {.condition = {.crc = {}, .load_call_id = 2},
          .replacement_path = "tests/tmp/replacement.co",
          .trap_handler_path = "tests/tmp/replacement.co",
@@ -40,19 +39,22 @@ TEST_CASE("reads a valid configuration file", "[config]")
                              "-w v[tid_dump] -e \"s_nop 10\" -l 37 -t 2 tests/kernels/dbg_kernel.s | "
                              "/opt/rocm/bin/hcc -x assembler -target amdgcn--amdhsa "
                              "-mcpu=`/opt/rocm/bin/rocminfo | grep -om1 gfx9..` -mno-code-object-v3 "
-                             "-Itests/kernels/include -o tests/tmp/replacement.co -'"};
-    agent::CodeObjectSwap sw3 =
-        {.condition = {.crc = 0xCAFE666},
-         .replacement_path = "replacement.co"};
-    sw3.symbol_swaps.push_back({"conv2d", "conv2d_test_new"});
-    sw3.symbol_swaps.push_back({"conv2d_transpose", "conv2d_test_new_transpose"});
-    agent::CodeObjectSwap sw4 =
-        {.condition = {.crc = 0xDEADBEEF, .load_call_id = 5},
-         .replacement_path = "replacement.co"};
-
-    std::vector<agent::CodeObjectSwap> expected_swaps = {sw1, sw2, sw3, sw4};
+                             "-Itests/kernels/include -o tests/tmp/replacement.co -'"}};
     std::vector<agent::CodeObjectSwap> swaps = config.code_object_swaps();
     REQUIRE(swaps == expected_swaps);
+
+    std::vector<agent::CodeObjectSymbolSubstitute> expected_symbol_subs = {
+        {.condition = {.crc = 0xCAFE666, .load_call_id = 5},
+         .source_name = "conv2d",
+         .replacement_name = "conv2d_test_new",
+         .replacement_path = "replacement.co",
+         .external_command = "echo done"},
+        {.condition = {},
+         .source_name = "conv2d_transpose",
+         .replacement_name = "conv2d_transpose_new",
+         .replacement_path = "replacement.co"}};
+    std::vector<agent::CodeObjectSymbolSubstitute> symbol_subs = config.code_object_symbol_subs();
+    REQUIRE(symbol_subs == expected_symbol_subs);
 }
 
 TEST_CASE("reads a minimal configuration file", "[config]")

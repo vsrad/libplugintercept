@@ -14,6 +14,7 @@ private:
     std::string _code_object_dump_dir;
     std::vector<BufferAllocation> _buffer_allocations;
     std::vector<CodeObjectSwap> _code_object_swaps;
+    std::vector<CodeObjectSymbolSubstitute> _code_object_symbol_subs;
 
 public:
     Config();
@@ -22,5 +23,6 @@ public:
     const std::string& code_object_dump_dir() const { return _code_object_dump_dir; }
     const std::vector<BufferAllocation>& buffer_allocations() const { return _buffer_allocations; }
     const std::vector<CodeObjectSwap>& code_object_swaps() const { return _code_object_swaps; }
+    const std::vector<CodeObjectSymbolSubstitute>& code_object_symbol_subs() const { return _code_object_symbol_subs; }
 };
 } // namespace agent

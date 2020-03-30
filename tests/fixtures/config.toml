@@ -51,9 +51,8 @@ directory = "tests/tmp/"
 match = { load-call-id = 1 }
 # Alternatively, the condition can be specified as a CRC-32
 # checksum that a code object should match, or a combination of both:
-# match = { crc = 0xFFFFFFFF }
-# match = { load-call-id = 1, crc = 0xFFFFFFFF }
-
+  # match = { crc = 0xFFFFFFFF }
+  # match = { load-call-id = 1, crc = 0xFFFFFFFF }
 # (Required) Path to the replacement code object:
 load-file = "tests/tmp/replacement.co"
 # (Optional) A shell command executed before loading the
@@ -84,25 +83,23 @@ exec-before-load = """bash -o pipefail -c '\
 
 # Code objects contain a set of kernels. It is possible
 # to replace one of them without substituting the entire
-# code object:
-[[code-object-swap]]
-match = { crc = 0xCAFE666 }
+# code object. This will make `hsa_executable_symbol_get_info`
+# calls return the info from a replacement code object
+# for the specified symbols:
+[[symbol-substitute]]
+# (Optional) Condition to match the code object the target
+# symbol is loaded from, similar to code-object-swap.match
+match-code-object = { crc = 0xCAFE666, load-call-id = 5 }
+# (Required) Name of the symbol to replace:
+match-name = "conv2d"
+# (Required) Name of the symbol in the replacement code object:
+replace-with = "conv2d_test_new"
+# (Required) Path to the code object with the replacement symbol:
 load-file = "replacement.co"
-  # If one or several `[[code-object-swap.symbol]]`s are
-  # declared, the matching code object is not fully replaced.
-  # Instead, `hsa_executable_symbol_get_info` calls
-  # return the info from the replacement code object
-  # for symbols specified below:
-  [[code-object-swap.symbol]]
-  # (Required) Name of the symbol in the source code object:
-  name = "conv2d"
-  # (Required) Name of the symbol in the replacement code object:
-  replacement-name = "conv2d_test_new"
+# (Optional)
+exec-before-load = "echo done"
 
-  [[code-object-swap.symbol]]
-  name = "conv2d_transpose"
-  replacement-name = "conv2d_test_new_transpose"
-
-[[code-object-swap]]
-match = { crc = 0xDEADBEEF, load-call-id = 5 }
+[[symbol-substitute]]
+match-name = "conv2d_transpose"
+replace-with = "conv2d_transpose_new"
 load-file = "replacement.co"
