@@ -22,7 +22,7 @@ TEST_CASE("reads a valid configuration file", "[config]")
     REQUIRE(allocs == expected_allocs);
 
     agent::CodeObjectSwap sw1 =
-        {.condition = {call_count_t(1)},
+        {.condition = {.crc = {}, .load_call_id = 1},
          .replacement_path = "tests/tmp/replacement.co",
          .trap_handler_path = {},
          .external_command = "bash -o pipefail -c '"
@@ -32,7 +32,7 @@ TEST_CASE("reads a valid configuration file", "[config]")
                              "-mcpu=`/opt/rocm/bin/rocminfo | grep -om1 gfx9..` -mno-code-object-v3 "
                              "-Itests/kernels/include -o tests/tmp/replacement.co -'"};
     agent::CodeObjectSwap sw2 =
-        {.condition = {call_count_t(2)},
+        {.condition = {.crc = {}, .load_call_id = 2},
          .replacement_path = "tests/tmp/replacement.co",
          .trap_handler_path = "tests/tmp/replacement.co",
          .external_command = "bash -o pipefail -c '"
@@ -42,12 +42,12 @@ TEST_CASE("reads a valid configuration file", "[config]")
                              "-mcpu=`/opt/rocm/bin/rocminfo | grep -om1 gfx9..` -mno-code-object-v3 "
                              "-Itests/kernels/include -o tests/tmp/replacement.co -'"};
     agent::CodeObjectSwap sw3 =
-        {.condition = {crc32_t(0xCAFE666)},
+        {.condition = {.crc = 0xCAFE666},
          .replacement_path = "replacement.co"};
     sw3.symbol_swaps.push_back({"conv2d", "conv2d_test_new"});
     sw3.symbol_swaps.push_back({"conv2d_transpose", "conv2d_test_new_transpose"});
     agent::CodeObjectSwap sw4 =
-        {.condition = {crc32_t(0xDEADBEEF)},
+        {.condition = {.crc = 0xDEADBEEF, .load_call_id = 5},
          .replacement_path = "replacement.co"};
 
     std::vector<agent::CodeObjectSwap> expected_swaps = {sw1, sw2, sw3, sw4};
@@ -57,10 +57,10 @@ TEST_CASE("reads a valid configuration file", "[config]")
 
 TEST_CASE("reads a minimal configuration file", "[config]")
 {
-    auto old_config = getenv("ASM_DBG_CONFIG");
-    setenv("ASM_DBG_CONFIG", "tests/fixtures/minimal.toml", 1);
+    auto old_config = getenv("INTERCEPT_CONFIG");
+    setenv("INTERCEPT_CONFIG", "tests/fixtures/minimal.toml", 1);
     agent::Config config;
-    setenv("ASM_DBG_CONFIG", old_config, 1);
+    setenv("INTERCEPT_CONFIG", old_config, 1);
 
     REQUIRE(config.agent_log_file() == "agent.log");
     REQUIRE(config.code_object_log_file() == "co.log");

@@ -50,14 +50,14 @@ void CodeObjectRecorder::handle_crc_collision(const CodeObject& code_object)
 RecordedCodeObject& CodeObjectRecorder::record_code_object(const void* ptr, size_t size)
 {
     std::scoped_lock lock(_mutex);
-    auto load_call_no = ++_load_call_counter;
+    auto load_call_id = ++_load_call_counter;
 
-    _code_objects.emplace_front(ptr, size, load_call_no);
+    _code_objects.emplace_front(ptr, size, load_call_id);
     auto& code_object = _code_objects.front();
 
     _logger->info(code_object, "intercepted code object");
 
-    auto crc_eq = [load_call_no, crc = code_object.crc()](auto const& co) { return co.load_call_no() != load_call_no && co.crc() == crc; };
+    auto crc_eq = [load_call_id, crc = code_object.crc()](auto const& co) { return co.load_call_id() != load_call_id && co.crc() == crc; };
     if (std::find_if(_code_objects.begin(), _code_objects.end(), crc_eq) != _code_objects.end())
         handle_crc_collision(code_object);
     else

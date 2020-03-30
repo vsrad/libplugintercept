@@ -3,14 +3,47 @@
 #include "code_object.hpp"
 #include <ostream>
 #include <string>
-#include <variant>
 #include <vector>
 
 namespace agent
 {
+struct CodeObjectMatchCondition
+{
+    std::optional<crc32_t> crc;
+    std::optional<load_call_id_t> load_call_id;
+
+    bool matches(const RecordedCodeObject& co) const
+    {
+        if (crc && *crc != co.crc())
+            return false;
+        if (load_call_id && *load_call_id != co.load_call_id())
+            return false;
+        return true;
+    }
+
+    bool operator!=(const CodeObjectMatchCondition& rhs) const { return !operator==(rhs); }
+    bool operator==(const CodeObjectMatchCondition& rhs) const
+    {
+        return crc == rhs.crc && load_call_id == rhs.load_call_id;
+    }
+
+    friend std::ostream& operator<<(std::ostream& os, const CodeObjectMatchCondition& cond)
+    {
+        os << "{";
+        if (cond.crc)
+            os << " crc = " << *cond.crc;
+        if (cond.crc && cond.load_call_id)
+            os << ",";
+        if (cond.load_call_id)
+            os << " load_call_id = " << *cond.load_call_id;
+        os << " }";
+        return os;
+    }
+};
+
 struct CodeObjectSwap
 {
-    std::variant<call_count_t, crc32_t> condition;
+    CodeObjectMatchCondition condition;
     std::string replacement_path;
     std::string trap_handler_path;
     std::string external_command;
@@ -27,11 +60,7 @@ struct CodeObjectSwap
     }
     friend std::ostream& operator<<(std::ostream& os, const CodeObjectSwap& swap)
     {
-        if (auto call_count = std::get_if<call_count_t>(&swap.condition))
-            os << "{ call_count = " << *call_count;
-        else if (auto crc = std::get_if<crc32_t>(&swap.condition))
-            os << "{ crc = " << *crc;
-
+        os << "{ condition = " << swap.condition;
         os << ", replacement_path = " << swap.replacement_path;
 
         if (!swap.trap_handler_path.empty())

@@ -6,20 +6,11 @@ using namespace agent;
 
 SwapResult CodeObjectSwapper::try_swap(hsa_agent_t agent, const RecordedCodeObject& source, std::map<std::string, std::string> env)
 {
-    auto swap_eq = [crc = source.crc(), call_no = source.load_call_no()](auto const& swap) {
-        if (auto target_call_count = std::get_if<call_count_t>(&swap.condition))
-            return *target_call_count == call_no;
-        if (auto target_crc = std::get_if<crc32_t>(&swap.condition))
-            return *target_crc == crc;
-        return false;
-    };
-    auto swap = std::find_if(_swaps.begin(), _swaps.end(), swap_eq);
+    auto swap = std::find_if(_swaps.begin(), _swaps.end(), [&source](auto const& s) { return s.condition.matches(source); });
     if (swap == _swaps.end())
         return {};
 
-    _logger.info(
-        "Swapping code object with CRC " + std::to_string(source.crc()) +
-        " (load #" + std::to_string(source.load_call_no()) + ") for " + swap->replacement_path);
+    _logger.info("Substituting code object " + source.info() + " with " + swap->replacement_path);
 
     if (!swap->external_command.empty())
         if (!run_external_command(swap->external_command, env))

@@ -20,7 +20,7 @@ done
 rm -rf tmp_dir/
 mkdir tmp_dir
 
-export ASM_DBG_CONFIG=tmp_dir/config.toml
+export INTERCEPT_CONFIG=tmp_dir/config.toml
 cat <<EOF > tmp_dir/config.toml
 [agent]
 log = "-"

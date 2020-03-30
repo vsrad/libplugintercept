@@ -48,10 +48,11 @@ directory = "tests/tmp/"
 # (Required) Condition when the substitution is performed.
 # In this case, the first code object loaded by the application
 # will be substituted:
-when-call-count = 1
+match = { load-call-id = 1 }
 # Alternatively, the condition can be specified as a CRC-32
-# checksum that a code object should match:
-# when-crc = 0xFFFFFFFF
+# checksum that a code object should match, or a combination of both:
+# match = { crc = 0xFFFFFFFF }
+# match = { load-call-id = 1, crc = 0xFFFFFFFF }
 
 # (Required) Path to the replacement code object:
 load-file = "tests/tmp/replacement.co"
@@ -67,7 +68,7 @@ exec-before-load = """bash -o pipefail -c '\
     -Itests/kernels/include -o tests/tmp/replacement.co -'"""
 
 [[code-object-swap]]
-when-call-count = 2
+match = { load-call-id = 2 }
 load-file = "tests/tmp/replacement.co"
 # (Optional) Path to the code object that contains a
 # kernel named `trap_handler`, which will be set
@@ -85,7 +86,7 @@ exec-before-load = """bash -o pipefail -c '\
 # to replace one of them without substituting the entire
 # code object:
 [[code-object-swap]]
-when-crc = 0xCAFE666
+match = { crc = 0xCAFE666 }
 load-file = "replacement.co"
   # If one or several `[[code-object-swap.symbol]]`s are
   # declared, the matching code object is not fully replaced.
@@ -103,5 +104,5 @@ load-file = "replacement.co"
   replacement-name = "conv2d_test_new_transpose"
 
 [[code-object-swap]]
-when-crc = 0xDEADBEEF
+match = { crc = 0xDEADBEEF, load-call-id = 5 }
 load-file = "replacement.co"

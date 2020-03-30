@@ -4,6 +4,8 @@
 #include "CRC.h"
 
 #include <fstream>
+#include <iomanip>
+#include <sstream>
 
 CRC::Table<crc32_t, 32> _crc_table(CRC::CRC_32());
 
@@ -32,6 +34,14 @@ hsa_status_t RecordedCodeObject::fill_symbols_callback(hsa_executable_t exec, hs
         reinterpret_cast<RecordedCodeObject*>(data)->_symbols.emplace(std::move(name), sym);
 
     return status;
+}
+
+std::string RecordedCodeObject::info() const
+{
+    std::stringstream info;
+    info << "0x" << std::setfill('0') << std::setw(sizeof(crc32_t) * 2) << std::hex << crc();
+    info << " (load call #" << std::setw(0) << std::dec << load_call_id() << ")";
+    return info.str();
 }
 
 std::optional<CodeObject> CodeObject::try_read_from_file(const char* path)

@@ -25,9 +25,9 @@ TEST_CASE("init different code objects", "[co_recorder]")
     auto& co_one = recorder.record_code_object("CODE OBJECT ONE", sizeof("CODE OBJECT ONE"));
     auto& co_two = recorder.record_code_object("CODE OBJECT TWO", sizeof("CODE OBJECT TWO"));
     auto& co_three = recorder.record_code_object("CODE OBJECT THREE", sizeof("CODE OBJECT THREE"));
-    REQUIRE(co_one.load_call_no() == 1);
-    REQUIRE(co_two.load_call_no() == 2);
-    REQUIRE(co_three.load_call_no() == 3);
+    REQUIRE(co_one.load_call_id() == 1);
+    REQUIRE(co_two.load_call_id() == 2);
+    REQUIRE(co_three.load_call_id() == 3);
 
     REQUIRE(co_one.crc() != co_two.crc());
     REQUIRE(co_one.crc() != co_three.crc());
@@ -128,11 +128,11 @@ TEST_CASE("find code object called with an invalid executable", "[co_recorder]")
     auto recorded_one = recorder.find_code_object(co);
     auto recorded_two = recorder.find_code_object(co_reader);
     REQUIRE(recorded_one);
-    REQUIRE(recorded_one->get().load_call_no() == co_one.load_call_no());
-    REQUIRE(recorded_one->get().load_call_no() == 1);
+    REQUIRE(recorded_one->get().load_call_id() == co_one.load_call_id());
+    REQUIRE(recorded_one->get().load_call_id() == 1);
     REQUIRE(recorded_two);
-    REQUIRE(recorded_two->get().load_call_no() == co_two.load_call_no());
-    REQUIRE(recorded_two->get().load_call_no() == 2);
+    REQUIRE(recorded_two->get().load_call_id() == co_two.load_call_id());
+    REQUIRE(recorded_two->get().load_call_id() == 2);
 
     std::vector<std::string> expected_info = {
         "crc: 2005276243 intercepted code object",

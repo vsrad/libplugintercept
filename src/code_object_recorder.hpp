@@ -11,7 +11,7 @@ namespace agent
 class CodeObjectRecorder
 {
 private:
-    call_count_t _load_call_counter;
+    load_call_id_t _load_call_counter;
     // Note: using a linked list instead of a vector because we pass references to items
     // and we don't want them to be invalidated on insertion.
     std::forward_list<RecordedCodeObject> _code_objects;
