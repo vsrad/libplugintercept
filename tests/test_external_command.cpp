@@ -1,30 +1,53 @@
 #include "../src/external_command.hpp"
+#include "log_helper.hpp"
 #include <catch2/catch.hpp>
 
 using namespace agent;
 
 TEST_CASE("captures stdout and stderr", "[external_cmd]")
 {
-    ExternalCommand cmd("echo Test test test; >&2 echo Error error error");
-    REQUIRE(cmd.execute(std::map<std::string, std::string>()) == 0);
+    ExternalCommand cmd;
+    REQUIRE(cmd.execute("echo Test test test; >&2 echo Error error error", {}) == 0);
     REQUIRE(cmd.read_stdout() == "Test test test\n");
     REQUIRE(cmd.read_stderr() == "Error error error\n");
 }
 
 TEST_CASE("handles shell errors", "[external_cmd]")
 {
-    ExternalCommand cmd("asdfasdf");
-    REQUIRE(cmd.execute(std::map<std::string, std::string>()) != 0);
+    ExternalCommand cmd;
+    REQUIRE(cmd.execute("asdfasdf", {}) != 0);
     REQUIRE(cmd.read_stdout() == "");
     REQUIRE(cmd.read_stderr() == "sh: 1: asdfasdf: not found\n");
 }
 
 TEST_CASE("sets environment variables", "[external_cmd]")
 {
-    setenv("EXT_TEST_VAR_1", "some external value (fails the test if printed)", 1);
-    ExternalCommand cmd("echo $EXT_TEST_VAR_1 $EXT_TEST_VAR_2");
-    std::map<std::string, std::string> env = {{"EXT_TEST_VAR_1", "long var"}, {"EXT_TEST_VAR_2", "42"}};
-    REQUIRE(cmd.execute(env) == 0);
+    setenv("EXT_TEST_VAR1", "some external value (fails the test if printed)", 1);
+    ExternalCommand cmd;
+    ext_environment_t env = {{"EXT_TEST_VAR1", "long var"}, {"EXT_TEST_VAR2", "42"}};
+    REQUIRE(cmd.execute("echo $EXT_TEST_VAR1 $EXT_TEST_VAR2", env) == 0);
     REQUIRE(cmd.read_stdout() == "long var 42\n");
     REQUIRE(cmd.read_stderr() == "");
+}
+
+TEST_CASE("run_logged logs stdout and stderr on failure", "[external_cmd]")
+{
+    TestLogger logger;
+
+    REQUIRE(ExternalCommand::run_logged("echo $VAR", {{"VAR", "hh"}}, logger));
+    REQUIRE(logger.errors.empty());
+
+    REQUIRE(!ExternalCommand::run_logged("asdfasdf", {}, logger));
+    std::vector<std::string> expected_error_log = {
+        "The command `asdfasdf` has exited with code 32512"
+        "\n=== Stderr:\nsh: 1: asdfasdf: not found\n"};
+    REQUIRE(logger.errors == expected_error_log);
+    logger.errors.clear();
+
+    REQUIRE(!ExternalCommand::run_logged("echo $VAR; asdfasdf", {{"VAR", "hh"}}, logger));
+    expected_error_log = {
+        "The command `echo $VAR; asdfasdf` has exited with code 32512"
+        "\n=== Stdout:\nhh\n"
+        "\n=== Stderr:\nsh: 1: asdfasdf: not found\n"};
+    REQUIRE(logger.errors == expected_error_log);
 }

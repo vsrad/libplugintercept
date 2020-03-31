@@ -1,19 +1,9 @@
 #include "../src/code_object_swapper.hpp"
+#include "log_helper.hpp"
 #include <catch2/catch.hpp>
 #include <ctime>
 
 using namespace agent;
-
-struct TestLogger : AgentLogger
-{
-    TestLogger() : AgentLogger("-") {}
-    std::vector<std::string> infos;
-    std::vector<std::string> errors;
-    std::vector<std::string> warnings;
-    virtual void info(const std::string& msg) override { infos.push_back(msg); }
-    virtual void error(const std::string& msg) override { errors.push_back(msg); }
-    virtual void warning(const std::string& msg) override { warnings.push_back(msg); }
-};
 
 auto _dummy_loader = std::make_shared<CodeObjectLoader>(std::shared_ptr<CoreApiTable>());
 
@@ -84,44 +74,10 @@ TEST_CASE("runs external command before swapping the code object if specified", 
     std::vector<CodeObjectSwap> swaps =
         {{.condition = {.crc = {}, .load_call_id = 1},
           .replacement_path = "tests/tmp/co_swapper_time",
-          .trap_handler_path = {},
           .external_command = "echo " + std::to_string(time) + " > tests/tmp/co_swapper_time"}};
     CodeObjectSwapper cosw(swaps, {}, logger, *_dummy_loader);
     auto swapped = cosw.try_swap({0}, RecordedCodeObject("", 0, 1), {});
     REQUIRE(swapped);
-    std::string swapped_data(static_cast<const char*>(swapped.replacement_co->ptr()),
-                             swapped.replacement_co->size());
+    std::string swapped_data(static_cast<const char*>(swapped->ptr()), swapped->size());
     REQUIRE(swapped_data == std::to_string(time) + "\n");
-}
-
-TEST_CASE("logs external command output on failure", "[co_swapper]")
-{
-    TestLogger logger;
-    std::vector<CodeObjectSwap> swaps =
-        {{.condition = {.crc = {}, .load_call_id = 1},
-          .replacement_path = "tests/fixtures/asdf",
-          .trap_handler_path = {},
-          .external_command = "asdfasdf"},
-         {.condition = {.crc = {}, .load_call_id = 2},
-          .replacement_path = "t",
-          .trap_handler_path = {},
-          .external_command = "echo h; asdfasdf"}};
-    CodeObjectSwapper cosw(swaps, {}, logger, *_dummy_loader);
-    auto swapped = cosw.try_swap({0}, RecordedCodeObject("SOME CO", sizeof("SOME CO"), 1), {});
-    REQUIRE(!swapped);
-
-    std::vector<std::string> expected_error_log = {
-        "The command `asdfasdf` has exited with code 32512"
-        "\n=== Stderr:\nsh: 1: asdfasdf: not found\n"};
-    REQUIRE(logger.errors == expected_error_log);
-
-    logger.errors.clear();
-    auto swapped2 = cosw.try_swap({0}, RecordedCodeObject("SOME CO", sizeof("SOME CO"), 2), {});
-    REQUIRE(!swapped2);
-
-    std::vector<std::string> expected_error_log2 = {
-        "The command `echo h; asdfasdf` has exited with code 32512"
-        "\n=== Stdout:\nh\n"
-        "\n=== Stderr:\nsh: 1: asdfasdf: not found\n"};
-    REQUIRE(logger.errors == expected_error_log2);
 }

@@ -13,7 +13,7 @@ SwapResult CodeObjectSwapper::try_swap(hsa_agent_t agent, const RecordedCodeObje
     _logger.info("Substituting code object " + source.info() + " with " + swap->replacement_path);
 
     if (!swap->external_command.empty())
-        if (!run_external_command(swap->external_command, env))
+        if (!ExternalCommand::run_logged(swap->external_command, env, _logger))
             return {};
 
     SwapResult result = {};
@@ -35,28 +35,6 @@ SwapResult CodeObjectSwapper::try_swap(hsa_agent_t agent, const RecordedCodeObje
     }
 
     return result;
-}
-
-bool CodeObjectSwapper::run_external_command(const std::string& cmd, std::map<std::string, std::string> env)
-{
-    _logger.info("Executing `" + cmd + "`");
-
-    ExternalCommand runner(cmd);
-    int retcode = runner.execute(env);
-    if (retcode == 0)
-    {
-        _logger.info("The command has finished successfully");
-        return true;
-    }
-
-    std::string error_log;
-    error_log.append("The command `").append(cmd).append("` has exited with code ").append(std::to_string(retcode));
-    if (auto stdout{runner.read_stdout()}; !stdout.empty())
-        error_log.append("\n=== Stdout:\n").append(stdout);
-    if (auto stderr{runner.read_stderr()}; !stderr.empty())
-        error_log.append("\n=== Stderr:\n").append(stderr);
-    _logger.error(error_log);
-    return false;
 }
 
 hsa_status_t find_substitute_symbol(hsa_executable_t exec, hsa_executable_symbol_t sym, void* data)
@@ -85,7 +63,7 @@ void CodeObjectSwapper::prepare_symbol_substitutes(hsa_agent_t agent, const Reco
         if (auto sym{source.symbols().find(sub.source_name)}; sym != source.symbols().end())
         {
             if (!sub.external_command.empty())
-                if (!run_external_command(sub.external_command, env))
+                if (!ExternalCommand::run_logged(sub.external_command, env, _logger))
                     continue;
             if (auto replacement_co = CodeObject::try_read_from_file(sub.replacement_path.c_str()))
             {
