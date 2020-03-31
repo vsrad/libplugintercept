@@ -29,7 +29,7 @@ TEST_CASE("reads a valid configuration file", "[config]")
                             "-Itests/kernels/include -o tests/tmp/replacement.co -'"};
     REQUIRE(config.trap_handler() == expected_trap_handler);
 
-    std::vector<agent::CodeObjectSwap> expected_swaps = {
+    std::vector<agent::CodeObjectSubstitute> expected_subs = {
         {.condition = {.crc = {}, .load_call_id = 1},
          .replacement_path = "tests/tmp/replacement.co",
          .external_command = "bash -o pipefail -c '"
@@ -46,8 +46,7 @@ TEST_CASE("reads a valid configuration file", "[config]")
                              "/opt/rocm/bin/hcc -x assembler -target amdgcn--amdhsa "
                              "-mcpu=`/opt/rocm/bin/rocminfo | grep -om1 gfx9..` -mno-code-object-v3 "
                              "-Itests/kernels/include -o tests/tmp/replacement.co -'"}};
-    std::vector<agent::CodeObjectSwap> swaps = config.code_object_swaps();
-    REQUIRE(swaps == expected_swaps);
+    REQUIRE(config.code_object_subs() == expected_subs);
 
     std::vector<agent::CodeObjectSymbolSubstitute> expected_symbol_subs = {
         {.condition = {.crc = 0xCAFE666, .load_call_id = 5},
@@ -59,8 +58,7 @@ TEST_CASE("reads a valid configuration file", "[config]")
          .source_name = "conv2d_transpose",
          .replacement_name = "conv2d_transpose_new",
          .replacement_path = "replacement.co"}};
-    std::vector<agent::CodeObjectSymbolSubstitute> symbol_subs = config.code_object_symbol_subs();
-    REQUIRE(symbol_subs == expected_symbol_subs);
+    REQUIRE(config.symbol_subs() == expected_symbol_subs);
 }
 
 TEST_CASE("reads a minimal configuration file", "[config]")
@@ -73,6 +71,6 @@ TEST_CASE("reads a minimal configuration file", "[config]")
     REQUIRE(config.agent_log_file() == "agent.log");
     REQUIRE(config.code_object_log_file() == "co.log");
     REQUIRE(config.code_object_dump_dir() == "/co/dump/dir");
-    REQUIRE(config.code_object_swaps().empty());
+    REQUIRE(config.symbol_subs().empty());
     REQUIRE(config.buffer_allocations().empty());
 }

@@ -30,7 +30,7 @@ dump-file = "$debug_buffer_path"
 [code-object-dump]
 log = "-"
 directory = "tmp_dir/"
-[[code-object-swap]]
+[[code-object-substitute]]
 when-call-count = 1
 load-file = "tmp_dir/debug.co"
 exec-before-load = """bash -o pipefail -c '\

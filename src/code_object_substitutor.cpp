@@ -1,23 +1,23 @@
-#include "code_object_swapper.hpp"
+#include "code_object_substitutor.hpp"
 #include <sstream>
 
 using namespace agent;
 
-std::optional<CodeObject> CodeObjectSwapper::try_swap(hsa_agent_t agent, const RecordedCodeObject& source, const ext_environment_t& env)
+std::optional<CodeObject> CodeObjectSubstitutor::substitute(hsa_agent_t agent, const RecordedCodeObject& source, const ext_environment_t& env)
 {
-    auto swap = std::find_if(_swaps.begin(), _swaps.end(), [&source](auto const& s) { return s.condition.matches(source); });
-    if (swap == _swaps.end())
+    auto sub = std::find_if(_subs.begin(), _subs.end(), [&source](auto const& s) { return s.condition.matches(source); });
+    if (sub == _subs.end())
         return {};
 
-    _logger.info("Substituting code object " + source.info() + " with " + swap->replacement_path);
+    _logger.info("Substituting code object " + source.info() + " with " + sub->replacement_path);
 
-    if (!swap->external_command.empty())
-        if (!ExternalCommand::run_logged(swap->external_command, env, _logger))
+    if (!sub->external_command.empty())
+        if (!ExternalCommand::run_logged(sub->external_command, env, _logger))
             return {};
 
-    auto replacement_co = CodeObject::try_read_from_file(swap->replacement_path.c_str());
+    auto replacement_co = CodeObject::try_read_from_file(sub->replacement_path.c_str());
     if (!replacement_co)
-        _logger.error("Unable to load replacement code object from " + swap->replacement_path);
+        _logger.error("Unable to load replacement code object from " + sub->replacement_path);
     return replacement_co;
 }
 
@@ -38,7 +38,7 @@ hsa_status_t find_substitute_symbol(hsa_executable_t exec, hsa_executable_symbol
     return status;
 }
 
-void CodeObjectSwapper::prepare_symbol_substitutes(hsa_agent_t agent, const RecordedCodeObject& source, const ext_environment_t& env)
+void CodeObjectSubstitutor::prepare_symbol_substitutes(hsa_agent_t agent, const RecordedCodeObject& source, const ext_environment_t& env)
 {
     for (const auto& sub : _symbol_subs)
     {
@@ -79,7 +79,7 @@ void CodeObjectSwapper::prepare_symbol_substitutes(hsa_agent_t agent, const Reco
     }
 }
 
-std::optional<hsa_executable_symbol_t> CodeObjectSwapper::substitute_symbol(hsa_executable_symbol_t sym)
+std::optional<hsa_executable_symbol_t> CodeObjectSubstitutor::substitute_symbol(hsa_executable_symbol_t sym)
 {
     if (auto it{_evaluated_symbol_subs.find(sym.handle)}; it != _evaluated_symbol_subs.end())
         return {it->second};

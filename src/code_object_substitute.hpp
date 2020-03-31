@@ -41,23 +41,23 @@ struct CodeObjectMatchCondition
     }
 };
 
-struct CodeObjectSwap
+struct CodeObjectSubstitute
 {
     CodeObjectMatchCondition condition;
     std::string replacement_path;
     std::string external_command;
 
-    bool operator!=(const CodeObjectSwap& rhs) const { return !operator==(rhs); }
-    bool operator==(const CodeObjectSwap& rhs) const
+    bool operator!=(const CodeObjectSubstitute& rhs) const { return !operator==(rhs); }
+    bool operator==(const CodeObjectSubstitute& rhs) const
     {
         return condition == rhs.condition && replacement_path == rhs.replacement_path && external_command == rhs.external_command;
     }
-    friend std::ostream& operator<<(std::ostream& os, const CodeObjectSwap& swap)
+    friend std::ostream& operator<<(std::ostream& os, const CodeObjectSubstitute& sub)
     {
-        os << "{ condition = " << swap.condition;
-        os << ", replacement_path = " << swap.replacement_path;
-        if (!swap.external_command.empty())
-            os << ", external_command = " << swap.external_command;
+        os << "{ condition = " << sub.condition;
+        os << ", replacement_path = " << sub.replacement_path;
+        if (!sub.external_command.empty())
+            os << ", external_command = " << sub.external_command;
         os << " }";
         return os;
     }

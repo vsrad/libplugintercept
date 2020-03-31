@@ -42,7 +42,7 @@ hsa_status_t DebugAgent::intercept_hsa_executable_load_agent_code_object(
     hsa_loaded_code_object_t* loaded_code_object)
 {
     auto co = _co_recorder->find_code_object(code_object_reader);
-    if (auto replacement_reader = load_swapped_code_object<hsa_code_object_reader_t>(agent, co->get()))
+    if (auto replacement_reader = load_substitute_co<hsa_code_object_reader_t>(agent, co->get()))
         return intercepted_fn(executable, agent, *replacement_reader, options, loaded_code_object);
 
     hsa_status_t status = intercepted_fn(executable, agent, code_object_reader, options, loaded_code_object);
@@ -59,7 +59,7 @@ hsa_status_t DebugAgent::intercept_hsa_executable_load_code_object(
     const char* options)
 {
     auto co = _co_recorder->find_code_object(code_object);
-    if (auto replacement_hsaco = load_swapped_code_object<hsa_code_object_t>(agent, co->get()))
+    if (auto replacement_hsaco = load_substitute_co<hsa_code_object_t>(agent, co->get()))
         return intercepted_fn(executable, agent, *replacement_hsaco, options);
 
     hsa_status_t status = intercepted_fn(executable, agent, code_object, options);
@@ -83,22 +83,22 @@ hsa_status_t DebugAgent::intercept_hsa_executable_symbol_get_info(
         // The source symbol name may differ from the replacement name; return the former because host code may rely on it.
         return intercepted_fn(executable_symbol, attribute, value);
     default:
-        if (auto replacement_sym{_co_swapper->substitute_symbol(executable_symbol)})
+        if (auto replacement_sym{_co_substitutor->substitute_symbol(executable_symbol)})
             return intercepted_fn(*replacement_sym, attribute, value);
         return intercepted_fn(executable_symbol, attribute, value);
     }
 }
 
 template <typename T>
-std::optional<T> DebugAgent::load_swapped_code_object(hsa_agent_t agent, RecordedCodeObject& co)
+std::optional<T> DebugAgent::load_substitute_co(hsa_agent_t agent, RecordedCodeObject& co)
 {
     _buffer_manager->allocate_buffers(agent);
     _trap_handler->set_up(agent, _buffer_manager->buffer_environment_variables());
-    if (auto swap = _co_swapper->try_swap(agent, co, _buffer_manager->buffer_environment_variables()))
+    if (auto sub = _co_substitutor->substitute(agent, co, _buffer_manager->buffer_environment_variables()))
     {
         T loaded_replacement;
         const char* error_callsite;
-        hsa_status_t status = _co_loader->load_from_memory(*swap, &loaded_replacement, &error_callsite);
+        hsa_status_t status = _co_loader->load_from_memory(*sub, &loaded_replacement, &error_callsite);
         if (status == HSA_STATUS_SUCCESS)
         {
             /* Load the original executable to iterate its symbols */

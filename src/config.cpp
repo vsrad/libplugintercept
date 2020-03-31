@@ -27,15 +27,15 @@ CodeObjectMatchCondition get_co_match_condition(const std::shared_ptr<cpptoml::t
     return cond;
 }
 
-CodeObjectSwap get_co_swap(const cpptoml::table& swap_config)
+CodeObjectSubstitute get_co_substitute(const cpptoml::table& sub_config)
 {
     return {
-        .condition = get_co_match_condition(swap_config.get_table("match"), "code-object-swap.match (substitution condition)"),
-        .replacement_path = get_required<std::string>(swap_config, "load-file", "code-object-swap.load-file (path to the replacement code object)"),
-        .external_command = swap_config.get_as<std::string>("exec-before-load").value_or("")};
+        .condition = get_co_match_condition(sub_config.get_table("match"), "code-object-substitute.match (substitution condition)"),
+        .replacement_path = get_required<std::string>(sub_config, "load-file", "code-object-substitute.load-file (path to the replacement code object)"),
+        .external_command = sub_config.get_as<std::string>("exec-before-load").value_or("")};
 }
 
-CodeObjectSymbolSubstitute get_co_symbol_sub(const cpptoml::table& sub_config)
+CodeObjectSymbolSubstitute get_symbol_substitute(const cpptoml::table& sub_config)
 {
     CodeObjectSymbolSubstitute sub;
     if (auto match = sub_config.get_table("match-code-object"))
@@ -82,12 +82,12 @@ Config::Config()
             if (auto buffer_configs = config->get_table_array("buffer"))
                 for (const auto& buffer_config : *buffer_configs)
                     _buffer_allocations.push_back(get_buffer_alloc(*buffer_config));
-            if (auto swap_configs = config->get_table_array("code-object-swap"))
-                for (const auto& swap_config : *swap_configs)
-                    _code_object_swaps.push_back(get_co_swap(*swap_config));
+            if (auto sub_configs = config->get_table_array("code-object-substitute"))
+                for (const auto& sub_config : *sub_configs)
+                    _code_object_subs.push_back(get_co_substitute(*sub_config));
             if (auto sub_configs = config->get_table_array("symbol-substitute"))
                 for (const auto& sub_config : *sub_configs)
-                    _code_object_symbol_subs.push_back(get_co_symbol_sub(*sub_config));
+                    _symbol_subs.push_back(get_symbol_substitute(*sub_config));
             if (auto trap_handler_config = config->get_table("trap-handler"))
                 _trap_handler = get_trap_handler(*trap_handler_config);
         }

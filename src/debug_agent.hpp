@@ -3,7 +3,7 @@
 #include "buffer_manager.hpp"
 #include "code_object_loader.hpp"
 #include "code_object_recorder.hpp"
-#include "code_object_swapper.hpp"
+#include "code_object_substitutor.hpp"
 #include "config.hpp"
 #include "logger/logger.hpp"
 #include "trap_handler.hpp"
@@ -19,12 +19,12 @@ private:
     std::shared_ptr<AgentLogger> _logger;
     std::unique_ptr<CodeObjectLoader> _co_loader;
     std::unique_ptr<CodeObjectRecorder> _co_recorder;
-    std::unique_ptr<CodeObjectSwapper> _co_swapper;
+    std::unique_ptr<CodeObjectSubstitutor> _co_substitutor;
     std::unique_ptr<BufferManager> _buffer_manager;
     std::unique_ptr<TrapHandler> _trap_handler;
 
     template <typename T>
-    std::optional<T> load_swapped_code_object(hsa_agent_t agent, RecordedCodeObject& co);
+    std::optional<T> load_substitute_co(hsa_agent_t agent, RecordedCodeObject& co);
 
 public:
     DebugAgent(std::shared_ptr<Config> config,
@@ -33,7 +33,7 @@ public:
                std::unique_ptr<CodeObjectLoader> co_loader)
         : _config(config), _logger(logger), _co_loader(std::move(co_loader)),
           _co_recorder(std::make_unique<CodeObjectRecorder>(config->code_object_dump_dir(), co_logger)),
-          _co_swapper(std::make_unique<CodeObjectSwapper>(config->code_object_swaps(), config->code_object_symbol_subs(), *_logger, *co_loader)),
+          _co_substitutor(std::make_unique<CodeObjectSubstitutor>(config->code_object_subs(), config->symbol_subs(), *_logger, *co_loader)),
           _buffer_manager(std::make_unique<BufferManager>(config->buffer_allocations(), *_logger)),
           _trap_handler(std::make_unique<TrapHandler>(*_logger, *_co_loader, config->trap_handler())) {}
 

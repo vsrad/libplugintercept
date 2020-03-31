@@ -58,12 +58,12 @@ exec-before-load = """bash -o pipefail -c '\
 
 # When the application creates an executable from a code object,
 # it can be substituted. Since the application may use
-# multiple code objects, each substitution (swap) is declared
-# separately, beginning with `[[code-object-swap]]`.
+# multiple code objects, each substitute is declared
+# separately, beginning with `[[code-object-substitute]]`.
 #
 # If you don't need to replace any code objects loaded by the
-# application, don't specify any `[[code-object-swap]]`s.
-[[code-object-swap]]
+# application, don't specify any `[[code-object-substitute]]`s.
+[[code-object-substitute]]
 # (Required) Condition when the substitution is performed.
 # In this case, the first code object loaded by the application
 # will be substituted:
@@ -85,7 +85,7 @@ exec-before-load = """bash -o pipefail -c '\
   | /opt/rocm/bin/hcc -x assembler -target amdgcn--amdhsa -mcpu=`/opt/rocm/bin/rocminfo | grep -om1 gfx9..` -mno-code-object-v3 \
     -Itests/kernels/include -o tests/tmp/replacement.co -'"""
 
-[[code-object-swap]]
+[[code-object-substitute]]
 match = { load-call-id = 2 }
 load-file = "tests/tmp/replacement.co"
 load-trap-handler-file = "tests/tmp/replacement.co"
@@ -102,7 +102,7 @@ exec-before-load = """bash -o pipefail -c '\
 # for the specified symbols:
 [[symbol-substitute]]
 # (Optional) Condition to match the code object the target
-# symbol is loaded from, similar to code-object-swap.match
+# symbol is loaded from, similar to code-object-substitute.match
 match-code-object = { crc = 0xCAFE666, load-call-id = 5 }
 # (Required) Name of the symbol to replace:
 match-name = "conv2d"
