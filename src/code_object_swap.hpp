@@ -45,23 +45,17 @@ struct CodeObjectSwap
 {
     CodeObjectMatchCondition condition;
     std::string replacement_path;
-    std::string trap_handler_path;
     std::string external_command;
 
     bool operator!=(const CodeObjectSwap& rhs) const { return !operator==(rhs); }
     bool operator==(const CodeObjectSwap& rhs) const
     {
-        return condition == rhs.condition &&
-               replacement_path == rhs.replacement_path &&
-               trap_handler_path == rhs.trap_handler_path &&
-               external_command == rhs.external_command;
+        return condition == rhs.condition && replacement_path == rhs.replacement_path && external_command == rhs.external_command;
     }
     friend std::ostream& operator<<(std::ostream& os, const CodeObjectSwap& swap)
     {
         os << "{ condition = " << swap.condition;
         os << ", replacement_path = " << swap.replacement_path;
-        if (!swap.trap_handler_path.empty())
-            os << ", trap_handler_path = " << swap.trap_handler_path;
         if (!swap.external_command.empty())
             os << ", external_command = " << swap.external_command;
         os << " }";

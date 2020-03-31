@@ -93,16 +93,15 @@ template <typename T>
 std::optional<T> DebugAgent::load_swapped_code_object(hsa_agent_t agent, RecordedCodeObject& co)
 {
     _buffer_allocator->allocate_buffers(agent);
-    if (auto swap = _co_swapper->try_swap(agent, co, _buffer_allocator->environment_variables()))
+    auto env = _buffer_allocator->environment_variables();
+    _trap_handler->set_up(agent, env);
+    if (auto swap = _co_swapper->try_swap(agent, co, env))
     {
         T loaded_replacement;
         const char* error_callsite;
-        hsa_status_t status = _co_loader->load_from_memory(*swap.replacement_co, &loaded_replacement, &error_callsite);
+        hsa_status_t status = _co_loader->load_from_memory(*swap, &loaded_replacement, &error_callsite);
         if (status == HSA_STATUS_SUCCESS)
         {
-            if (swap.trap_handler_co)
-                _trap_handler->load_handler(std::move(*swap.trap_handler_co), agent);
-
             /* Load the original executable to iterate its symbols */
             hsa_executable_t original_exec;
             const char* error_callsite;
@@ -110,13 +109,13 @@ std::optional<T> DebugAgent::load_swapped_code_object(hsa_agent_t agent, Recorde
             if (status == HSA_STATUS_SUCCESS)
                 _co_recorder->iterate_symbols(original_exec, co);
             else
-                _logger->hsa_error("Unable to load executable with CRC = " + std::to_string(co.crc()), status, error_callsite);
+                _logger->hsa_error("Failed to create an executable from code object " + co.info(), status, error_callsite);
 
             return {loaded_replacement};
         }
         else
         {
-            _logger->hsa_error("Failed to load replacement code object for CRC = " + std::to_string(co.crc()), status, error_callsite);
+            _logger->hsa_error("Failed to load replacement code object for " + co.info(), status, error_callsite);
         }
     }
     return {};

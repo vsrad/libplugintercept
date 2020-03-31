@@ -35,7 +35,7 @@ public:
           _co_recorder(std::make_unique<CodeObjectRecorder>(config->code_object_dump_dir(), co_logger)),
           _co_swapper(std::make_unique<CodeObjectSwapper>(config->code_object_swaps(), config->code_object_symbol_subs(), *logger, *co_loader)),
           _buffer_allocator(std::make_unique<BufferAllocator>(config->buffer_allocations(), *logger)),
-          _trap_handler(std::make_unique<TrapHandler>(*logger, *_co_loader)) {}
+          _trap_handler(std::make_unique<TrapHandler>(*logger, *_co_loader, config->trap_handler())) {}
 
     ~DebugAgent() noexcept { _buffer_allocator->dump_buffers(); }
 

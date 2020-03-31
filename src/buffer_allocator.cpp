@@ -80,18 +80,18 @@ void BufferAllocator::dump_buffers()
     }
 }
 
-std::map<std::string, std::string> BufferAllocator::environment_variables() const
+ext_environment_t BufferAllocator::environment_variables() const
 {
-    std::map<std::string, std::string> env;
+    ext_environment_t env;
 
     auto alloc = _requested_allocs.begin();
     auto ptr = _alloc_pointers.begin();
     for (; alloc != _requested_allocs.end() && ptr != _alloc_pointers.end(); alloc++, ptr++)
     {
         if (!alloc->addr_env_name.empty())
-            env[alloc->addr_env_name] = std::to_string(reinterpret_cast<size_t>(ptr->gpu));
+            env.emplace_back(alloc->addr_env_name, std::to_string(reinterpret_cast<size_t>(ptr->gpu)));
         if (!alloc->size_env_name.empty())
-            env[alloc->size_env_name] = std::to_string(alloc->size);
+            env.emplace_back(alloc->size_env_name, std::to_string(alloc->size));
     }
 
     return env;

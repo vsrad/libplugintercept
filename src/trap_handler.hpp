@@ -1,22 +1,28 @@
 #pragma once
 
 #include "code_object_loader.hpp"
+#include "external_command.hpp"
 #include "logger/logger.hpp"
+#include "trap_handler_config.hpp"
 
 namespace agent
 {
+enum class TrapHandlerState { None, Configured, FailedToLoad };
+
 class TrapHandler
 {
 private:
     AgentLogger& _logger;
     CodeObjectLoader& _co_loader;
-    std::optional<CodeObject> _loaded_handler;
+    const TrapHandlerConfig& _config;
+
+    TrapHandlerState _state = TrapHandlerState::None;
     uint32_t _agent_node_id = 0;
 
 public:
-    TrapHandler(AgentLogger& logger, CodeObjectLoader& co_loader)
-        : _logger(logger), _co_loader(co_loader) {}
+    TrapHandler(AgentLogger& logger, CodeObjectLoader& co_loader, const TrapHandlerConfig& config)
+        : _logger(logger), _co_loader(co_loader), _config(config) {}
     ~TrapHandler();
-    void load_handler(CodeObject handler_co, hsa_agent_t agent);
+    void set_up(hsa_agent_t agent, const ext_environment_t& env);
 };
 } // namespace agent

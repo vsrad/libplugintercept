@@ -18,13 +18,11 @@ TEST_CASE("swaps code object based on CRC match", "[co_swapper]")
         {.condition = {co_matching.crc()},
          .replacement_path = "tests/fixtures/asdf"}};
     CodeObjectSwapper cosw(swaps, {}, logger, *_dummy_loader);
-    auto swapped_matching = cosw.try_swap({0}, co_matching, {});
-    auto swapped_other = cosw.try_swap({0}, co_other, {});
-    REQUIRE(swapped_matching);
-    REQUIRE(!swapped_other);
-    std::string swapped_data(
-        static_cast<const char*>(swapped_matching.replacement_co->ptr()),
-        swapped_matching.replacement_co->size());
+    auto matching = cosw.try_swap({0}, co_matching, {});
+    auto other = cosw.try_swap({0}, co_other, {});
+    REQUIRE(matching);
+    REQUIRE(!other);
+    std::string swapped_data(static_cast<const char*>(matching->ptr()), matching->size());
     REQUIRE(swapped_data == "ASDF\n");
 }
 
@@ -39,9 +37,7 @@ TEST_CASE("swaps code object based on load call match", "[co_swapper]")
     auto matching = cosw.try_swap({0}, RecordedCodeObject("", 0, 3), {});
     REQUIRE(!cosw.try_swap({0}, RecordedCodeObject("", 0, 4), {}));
     REQUIRE(matching);
-    std::string swapped_data(
-        static_cast<const char*>(matching.replacement_co->ptr()),
-        matching.replacement_co->size());
+    std::string swapped_data(static_cast<const char*>(matching->ptr()), matching->size());
     REQUIRE(swapped_data == "ASDF\n");
 }
 
@@ -61,9 +57,7 @@ TEST_CASE("swaps code object based on load call and CRC match", "[co_swapper]")
     auto matching = cosw.try_swap({0}, co_load2, {});
     REQUIRE(!cosw.try_swap({0}, co_load3, {}));
     REQUIRE(matching);
-    std::string swapped_data(
-        static_cast<const char*>(matching.replacement_co->ptr()),
-        matching.replacement_co->size());
+    std::string swapped_data(static_cast<const char*>(matching->ptr()), matching->size());
     REQUIRE(swapped_data == "ASDF\n");
 }
 

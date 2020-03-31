@@ -1,10 +1,9 @@
 #include "code_object_swapper.hpp"
-#include "external_command.hpp"
 #include <sstream>
 
 using namespace agent;
 
-SwapResult CodeObjectSwapper::try_swap(hsa_agent_t agent, const RecordedCodeObject& source, std::map<std::string, std::string> env)
+std::optional<CodeObject> CodeObjectSwapper::try_swap(hsa_agent_t agent, const RecordedCodeObject& source, const ext_environment_t& env)
 {
     auto swap = std::find_if(_swaps.begin(), _swaps.end(), [&source](auto const& s) { return s.condition.matches(source); });
     if (swap == _swaps.end())
@@ -16,25 +15,10 @@ SwapResult CodeObjectSwapper::try_swap(hsa_agent_t agent, const RecordedCodeObje
         if (!ExternalCommand::run_logged(swap->external_command, env, _logger))
             return {};
 
-    SwapResult result = {};
-    if (auto replacement_co = CodeObject::try_read_from_file(swap->replacement_path.c_str()))
-    {
-        result.replacement_co.emplace(std::move(*replacement_co));
-    }
-    else
-    {
+    auto replacement_co = CodeObject::try_read_from_file(swap->replacement_path.c_str());
+    if (!replacement_co)
         _logger.error("Unable to load replacement code object from " + swap->replacement_path);
-        return {};
-    }
-    if (!swap->trap_handler_path.empty())
-    {
-        if (auto trap_handler_co = CodeObject::try_read_from_file(swap->trap_handler_path.c_str()))
-            result.trap_handler_co.emplace(std::move(*trap_handler_co));
-        else
-            _logger.warning("Unable to load trap handler code object from " + swap->trap_handler_path);
-    }
-
-    return result;
+    return replacement_co;
 }
 
 hsa_status_t find_substitute_symbol(hsa_executable_t exec, hsa_executable_symbol_t sym, void* data)
@@ -54,7 +38,7 @@ hsa_status_t find_substitute_symbol(hsa_executable_t exec, hsa_executable_symbol
     return status;
 }
 
-void CodeObjectSwapper::prepare_symbol_substitutes(hsa_agent_t agent, const RecordedCodeObject& source, std::map<std::string, std::string> env)
+void CodeObjectSwapper::prepare_symbol_substitutes(hsa_agent_t agent, const RecordedCodeObject& source, const ext_environment_t& env)
 {
     for (const auto& sub : _symbol_subs)
     {

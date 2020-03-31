@@ -4,46 +4,56 @@
 
 using namespace agent;
 
-void TrapHandler::load_handler(CodeObject handler_co, hsa_agent_t agent)
+void TrapHandler::set_up(hsa_agent_t agent, const ext_environment_t& env)
 {
-    uint64_t kernel_sym;
-    const char *err_callsite, *err;
-    hsa_executable_t handler_exec;
-    hsa_status_t status = hsa_agent_get_info(agent, HSA_AGENT_INFO_NODE, &_agent_node_id);
-    if (status != HSA_STATUS_SUCCESS)
-        err_callsite = "hsa_agent_get_info";
-    if (status == HSA_STATUS_SUCCESS)
-        status = _co_loader.create_executable(handler_co, agent, &handler_exec, &err_callsite);
-    if (status == HSA_STATUS_SUCCESS)
-        status = _co_loader.create_symbol_handle(agent, handler_exec, "trap_handler", &kernel_sym, &err_callsite);
-    if (status != HSA_STATUS_SUCCESS)
+    if (_state != TrapHandlerState::None || _config.code_object_path.empty())
+        return;
+    if (!_config.external_command.empty() && !ExternalCommand::run_logged(_config.external_command, env, _logger))
     {
-        hsa_status_string(status, &err);
-        _logger.error(std::string("Unable to create trap handler executable: ").append(err_callsite).append(" failed with ").append(err));
+        _state = TrapHandlerState::FailedToLoad;
         return;
     }
-    if (_loaded_handler)
-        _logger.warning("Overriding existing trap handler with CRC = " + std::to_string(_loaded_handler->crc()) +
-                        ". To prevent this, do not specify trap handlers for multiple swaps.");
+    auto handler_co = CodeObject::try_read_from_file(_config.code_object_path.c_str());
+    if (!handler_co)
+    {
+        _logger.error("Unable to read trap handler code object at " + _config.code_object_path);
+        _state = TrapHandlerState::FailedToLoad;
+        return;
+    }
+
+    uint64_t kernel_sym;
+    hsa_executable_t handler_exec;
+    hsa_status_t status = hsa_agent_get_info(agent, HSA_AGENT_INFO_NODE, &_agent_node_id);
+    const char* err_callsite = "hsa_agent_get_info";
+    if (status == HSA_STATUS_SUCCESS)
+        status = _co_loader.create_executable(*handler_co, agent, &handler_exec, &err_callsite);
+    if (status == HSA_STATUS_SUCCESS)
+        status = _co_loader.create_symbol_handle(agent, handler_exec, _config.symbol_name.c_str(), &kernel_sym, &err_callsite);
+    if (status != HSA_STATUS_SUCCESS)
+    {
+        _logger.hsa_error("Unable to get trap handler symbol handle: ", status, err_callsite);
+        _state = TrapHandlerState::FailedToLoad;
+        return;
+    }
 
     void* handler_entry = (void*)(kernel_sym + 256 /* sizeof(amd_kernel_code_t) */);
     HSAKMT_STATUS kmt_status = hsaKmtSetTrapHandler(_agent_node_id, handler_entry, 0, nullptr, 0);
     if (kmt_status == HSAKMT_STATUS_SUCCESS)
     {
-        _logger.info("Successfully set up trap handler with CRC = " + std::to_string(handler_co.crc()));
-        _loaded_handler.emplace(std::move(handler_co));
+        _logger.info("Successfully set " + _config.symbol_name + " from " + _config.code_object_path + " as the trap handler");
+        _state = TrapHandlerState::Configured;
     }
     else
     {
         _logger.error("Unable to register trap handler: HSAKMT_STATUS = " + std::to_string(kmt_status));
+        _state = TrapHandlerState::FailedToLoad;
     }
 }
 
 TrapHandler::~TrapHandler()
 {
-    if (!_loaded_handler)
+    if (_state != TrapHandlerState::Configured)
         return;
-
     HSAKMT_STATUS kmt_status = hsaKmtSetTrapHandler(_agent_node_id, nullptr, 0, nullptr, 0);
     if (kmt_status != HSAKMT_STATUS_SUCCESS)
         _logger.error("Unable to reset trap handler: HSAKMT_STATUS = " + std::to_string(kmt_status));

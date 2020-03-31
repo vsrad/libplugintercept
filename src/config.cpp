@@ -32,7 +32,6 @@ CodeObjectSwap get_co_swap(const cpptoml::table& swap_config)
     return {
         .condition = get_co_match_condition(swap_config.get_table("match"), "code-object-swap.match (substitution condition)"),
         .replacement_path = get_required<std::string>(swap_config, "load-file", "code-object-swap.load-file (path to the replacement code object)"),
-        .trap_handler_path = swap_config.get_as<std::string>("load-trap-handler-file").value_or(""),
         .external_command = swap_config.get_as<std::string>("exec-before-load").value_or("")};
 }
 

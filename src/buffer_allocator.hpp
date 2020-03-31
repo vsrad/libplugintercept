@@ -4,6 +4,7 @@
 #include <hsa_api_trace.h>
 
 #include "buffer_allocation.hpp"
+#include "external_command.hpp"
 #include "logger/logger.hpp"
 #include <vector>
 
@@ -31,6 +32,6 @@ public:
         : _gpu_region{0}, _host_region{0}, _requested_allocs(allocs), _logger(logger) {}
     void allocate_buffers(hsa_agent_t agent);
     void dump_buffers();
-    std::map<std::string, std::string> environment_variables() const;
+    ext_environment_t environment_variables() const;
 };
 } // namespace agent
