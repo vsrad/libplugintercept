@@ -92,10 +92,9 @@ hsa_status_t DebugAgent::intercept_hsa_executable_symbol_get_info(
 template <typename T>
 std::optional<T> DebugAgent::load_swapped_code_object(hsa_agent_t agent, RecordedCodeObject& co)
 {
-    _buffer_allocator->allocate_buffers(agent);
-    auto env = _buffer_allocator->environment_variables();
-    _trap_handler->set_up(agent, env);
-    if (auto swap = _co_swapper->try_swap(agent, co, env))
+    _buffer_manager->allocate_buffers(agent);
+    _trap_handler->set_up(agent, _buffer_manager->buffer_environment_variables());
+    if (auto swap = _co_swapper->try_swap(agent, co, _buffer_manager->buffer_environment_variables()))
     {
         T loaded_replacement;
         const char* error_callsite;

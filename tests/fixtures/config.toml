@@ -14,11 +14,11 @@ directory = "tests/tmp/"
 
 # Auxiliary GPU buffers are allocated the first time
 # the application creates an executable from a code object.
-# Each buffer allocation begins with `[[buffer-allocation]]`.
+# Each buffer allocation begins with `[[buffer]]`.
 #
 # If you don't need to allocate any auxiliary buffers,
-# don't specify any `[[buffer-allocation]]`s.
-[[buffer-allocation]]
+# don't specify any `[[buffer]]`s.
+[[buffer]]
 # (Required) Buffer size, in bytes
 size = 1048576
 # (Optional) When the application exits, save the contents
@@ -33,7 +33,7 @@ addr-env-name = "ASM_DBG_BUF_ADDR"
 # commands:
 size-env-name = "ASM_DBG_BUF_SIZE"
 
-[[buffer-allocation]]
+[[buffer]]
 size = 4096
 addr-env-name = "ASM_HID_BUF_ADDR"
 

@@ -47,13 +47,13 @@ CodeObjectSymbolSubstitute get_co_symbol_sub(const cpptoml::table& sub_config)
     return sub;
 }
 
-BufferAllocation get_buffer_alloc(const cpptoml::table& alloc_config)
+BufferAllocation get_buffer_alloc(const cpptoml::table& buffer_config)
 {
     return {
-        .size = get_required<uint64_t>(alloc_config, "size", "buffer-allocation.size"),
-        .dump_path = alloc_config.get_as<std::string>("dump-path").value_or(""),
-        .addr_env_name = alloc_config.get_as<std::string>("addr-env-name").value_or(""),
-        .size_env_name = alloc_config.get_as<std::string>("size-env-name").value_or("")};
+        .size = get_required<uint64_t>(buffer_config, "size", "buffer.size"),
+        .dump_path = buffer_config.get_as<std::string>("dump-path").value_or(""),
+        .addr_env_name = buffer_config.get_as<std::string>("addr-env-name").value_or(""),
+        .size_env_name = buffer_config.get_as<std::string>("size-env-name").value_or("")};
 }
 
 TrapHandlerConfig get_trap_handler(const cpptoml::table& config)
@@ -79,9 +79,9 @@ Config::Config()
             _code_object_dump_dir = get_required<std::string>(*config, "code-object-dump.directory");
 
             // Optional
-            if (auto alloc_configs = config->get_table_array("buffer-allocation"))
-                for (const auto& alloc_config : *alloc_configs)
-                    _buffer_allocations.push_back(get_buffer_alloc(*alloc_config));
+            if (auto buffer_configs = config->get_table_array("buffer"))
+                for (const auto& buffer_config : *buffer_configs)
+                    _buffer_allocations.push_back(get_buffer_alloc(*buffer_config));
             if (auto swap_configs = config->get_table_array("code-object-swap"))
                 for (const auto& swap_config : *swap_configs)
                     _code_object_swaps.push_back(get_co_swap(*swap_config));

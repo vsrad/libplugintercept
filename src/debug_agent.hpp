@@ -1,6 +1,6 @@
 #pragma once
 
-#include "buffer_allocator.hpp"
+#include "buffer_manager.hpp"
 #include "code_object_loader.hpp"
 #include "code_object_recorder.hpp"
 #include "code_object_swapper.hpp"
@@ -20,7 +20,7 @@ private:
     std::unique_ptr<CodeObjectLoader> _co_loader;
     std::unique_ptr<CodeObjectRecorder> _co_recorder;
     std::unique_ptr<CodeObjectSwapper> _co_swapper;
-    std::unique_ptr<BufferAllocator> _buffer_allocator;
+    std::unique_ptr<BufferManager> _buffer_manager;
     std::unique_ptr<TrapHandler> _trap_handler;
 
     template <typename T>
@@ -33,11 +33,9 @@ public:
                std::unique_ptr<CodeObjectLoader> co_loader)
         : _config(config), _logger(logger), _co_loader(std::move(co_loader)),
           _co_recorder(std::make_unique<CodeObjectRecorder>(config->code_object_dump_dir(), co_logger)),
-          _co_swapper(std::make_unique<CodeObjectSwapper>(config->code_object_swaps(), config->code_object_symbol_subs(), *logger, *co_loader)),
-          _buffer_allocator(std::make_unique<BufferAllocator>(config->buffer_allocations(), *logger)),
-          _trap_handler(std::make_unique<TrapHandler>(*logger, *_co_loader, config->trap_handler())) {}
-
-    ~DebugAgent() noexcept { _buffer_allocator->dump_buffers(); }
+          _co_swapper(std::make_unique<CodeObjectSwapper>(config->code_object_swaps(), config->code_object_symbol_subs(), *_logger, *co_loader)),
+          _buffer_manager(std::make_unique<BufferManager>(config->buffer_allocations(), *_logger)),
+          _trap_handler(std::make_unique<TrapHandler>(*_logger, *_co_loader, config->trap_handler())) {}
 
     hsa_status_t intercept_hsa_code_object_reader_create_from_memory(
         decltype(hsa_code_object_reader_create_from_memory)* intercepted_fn,
