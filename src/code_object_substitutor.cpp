@@ -5,15 +5,18 @@ using namespace agent;
 
 std::optional<CodeObject> CodeObjectSubstitutor::substitute(hsa_agent_t agent, const RecordedCodeObject& source, const ext_environment_t& env)
 {
-    auto sub = std::find_if(_subs.begin(), _subs.end(), [&source](const auto& s) { return s.condition.matches(source); });
+    // TODO: rewrite match condition logic
+    return {};
+    auto sub = std::find_if(_subs.begin(), _subs.end(), [&source](const auto& s) { return false; });
     if (sub == _subs.end())
         return {};
 
     _logger.info("Substituting code object " + source.info() + " with " + sub->replacement_path);
 
-    if (!sub->external_command.empty())
-        if (!ExternalCommand::run_logged(sub->external_command, env, _logger))
-            return {};
+    // TODO: transition from per-substitute command to a single init command
+    // if (!sub->external_command.empty())
+    //     if (!ExternalCommand::run_logged(sub->external_command, env, _logger))
+    //         return {};
 
     auto replacement_co = CodeObject::try_read_from_file(sub->replacement_path.c_str());
     if (!replacement_co)
@@ -42,13 +45,14 @@ void CodeObjectSubstitutor::prepare_symbol_substitutes(hsa_agent_t agent, const 
 {
     for (const auto& sub : _symbol_subs)
     {
-        if (!sub.condition.matches(source))
+        // TODO: rewrite match condition logic
+        if (true) //!sub.condition.matches(source))
             continue;
-        if (auto sym{source.symbols().find(sub.source_name)}; sym != source.symbols().end())
+        if (auto sym{source.symbols().find({})}; sym != source.symbols().end())
         {
-            if (!sub.external_command.empty())
-                if (!ExternalCommand::run_logged(sub.external_command, env, _logger))
-                    continue;
+            // if (!sub.external_command.empty())
+            //     if (!ExternalCommand::run_logged(sub.external_command, env, _logger))
+            //         continue;
             if (auto replacement_co = CodeObject::try_read_from_file(sub.replacement_path.c_str()))
             {
                 const char* error_callsite;

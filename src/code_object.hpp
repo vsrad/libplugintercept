@@ -7,6 +7,7 @@
 
 typedef uint32_t crc32_t;
 typedef uint32_t load_call_id_t;
+typedef uint32_t get_info_call_id_t;
 
 namespace agent
 {

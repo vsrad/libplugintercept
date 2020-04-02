@@ -64,7 +64,7 @@ extern "C" bool OnLoad(void* api_table_ptr, uint64_t rt_version, uint64_t failed
     {
         // Parse the configuration file first so that if it throws an exception
         // we don't end up with an invalid function pointer table
-        auto config = std::make_shared<agent::Config>();
+        auto config = std::make_shared<agent::config::Config>();
 
         auto api_table = reinterpret_cast<HsaApiTable*>(api_table_ptr);
         _intercepted_api_table = std::make_shared<CoreApiTable>();

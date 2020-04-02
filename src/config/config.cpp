@@ -3,7 +3,7 @@
 #include <cpptoml.h>
 #include <sstream>
 
-using namespace agent;
+using namespace agent::config;
 
 template <typename T>
 T get_required(const cpptoml::table& table, const std::string& key, const std::string& description = {})
@@ -13,41 +13,28 @@ T get_required(const cpptoml::table& table, const std::string& key, const std::s
     throw std::runtime_error("unable to read " + (description.empty() ? key : description));
 }
 
-CodeObjectMatchCondition get_co_match_condition(const std::shared_ptr<cpptoml::table>& match_config, const std::string& description)
-{
-    CodeObjectMatchCondition cond;
-    if (!match_config)
-        throw std::runtime_error("missing " + description);
-    if (auto crc = match_config->get_as<crc32_t>("crc"))
-        cond.crc = {*crc};
-    if (auto load_call_id = match_config->get_as<load_call_id_t>("load-call-id"))
-        cond.load_call_id = {*load_call_id};
-    if (!cond.crc && !cond.load_call_id)
-        throw std::runtime_error("invalid " + description + " (specify crc or load-call-id or both)");
-    return cond;
-}
-
 CodeObjectSubstitute get_co_substitute(const cpptoml::table& sub_config)
 {
-    return {
-        .condition = get_co_match_condition(sub_config.get_table("match"), "code-object-substitute.match (substitution condition)"),
-        .replacement_path = get_required<std::string>(sub_config, "load-file", "code-object-substitute.load-file (path to the replacement code object)"),
-        .external_command = sub_config.get_as<std::string>("exec-before-load").value_or("")};
+    return {};
+    // return {
+    //     .replacement_path = get_required<std::string>(sub_config, "load-file", "code-object-substitute.load-file (path to the replacement code object)"),
+    //     .external_command = sub_config.get_as<std::string>("exec-before-load").value_or("")};
 }
 
 CodeObjectSymbolSubstitute get_symbol_substitute(const cpptoml::table& sub_config)
 {
-    CodeObjectSymbolSubstitute sub;
-    if (auto match = sub_config.get_table("match-code-object"))
-        sub.condition = get_co_match_condition(match, "symbol-substitution.match-code-object");
-    sub.source_name = get_required<std::string>(sub_config, "match-name", "symbol-substitution.match-name (symbol name to replace)");
-    sub.replacement_name = get_required<std::string>(sub_config, "replace-with", "symbol-substitution.replace-with (symbol name in the replacement code object)");
-    sub.replacement_path = get_required<std::string>(sub_config, "load-file", "symbol-substitution.load-file (path to the replacement code object)");
-    sub.external_command = sub_config.get_as<std::string>("exec-before-load").value_or("");
-    return sub;
+    return {};
+    // CodeObjectSymbolSubstitute sub;
+    // if (auto match = sub_config.get_table("match-code-object"))
+    //     sub.condition = get_co_match_condition(match, "symbol-substitution.match-code-object");
+    // sub.source_name = get_required<std::string>(sub_config, "match-name", "symbol-substitution.match-name (symbol name to replace)");
+    // sub.replacement_name = get_required<std::string>(sub_config, "replace-with", "symbol-substitution.replace-with (symbol name in the replacement code object)");
+    // sub.replacement_path = get_required<std::string>(sub_config, "load-file", "symbol-substitution.load-file (path to the replacement code object)");
+    // sub.external_command = sub_config.get_as<std::string>("exec-before-load").value_or("");
+    // return sub;
 }
 
-BufferAllocation get_buffer_alloc(const cpptoml::table& buffer_config)
+Buffer get_buffer(const cpptoml::table& buffer_config)
 {
     return {
         .size = get_required<uint64_t>(buffer_config, "size", "buffer.size"),
@@ -56,7 +43,7 @@ BufferAllocation get_buffer_alloc(const cpptoml::table& buffer_config)
         .size_env_name = buffer_config.get_as<std::string>("size-env-name").value_or("")};
 }
 
-TrapHandlerConfig get_trap_handler(const cpptoml::table& config)
+TrapHandler get_trap_handler(const cpptoml::table& config)
 {
     return {
         .code_object_path = get_required<std::string>(config, "load-file", "trap-handler.load-file (path to the code object containing the trap handler kernel)"),
@@ -82,7 +69,7 @@ Config::Config()
 
             if (auto buffer_configs = config->get_table_array("buffer"))
                 for (const auto& buffer_config : *buffer_configs)
-                    _buffer_allocations.push_back(get_buffer_alloc(*buffer_config));
+                    _buffers.push_back(get_buffer(*buffer_config));
             if (auto sub_configs = config->get_table_array("code-object-substitute"))
                 for (const auto& sub_config : *sub_configs)
                     _code_object_subs.push_back(get_co_substitute(*sub_config));

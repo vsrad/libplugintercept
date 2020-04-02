@@ -3,7 +3,7 @@
 #define AMD_INTERNAL_BUILD
 #include <hsa_api_trace.h>
 
-#include "buffer_allocation.hpp"
+#include "config/buffer.hpp"
 #include "external_command.hpp"
 #include "logger/logger.hpp"
 #include <vector>
@@ -19,7 +19,7 @@ struct BufferPointer
 class BufferManager
 {
 private:
-    const std::vector<BufferAllocation>& _requested_allocs;
+    const std::vector<config::Buffer>& _requested_allocs;
     AgentLogger& _logger;
 
     hsa_region_t _gpu_region{0};
@@ -30,7 +30,7 @@ private:
     static hsa_status_t iterate_memory_regions(hsa_region_t region, void* data);
 
 public:
-    BufferManager(const std::vector<BufferAllocation>& allocs, AgentLogger& logger)
+    BufferManager(const std::vector<config::Buffer>& allocs, AgentLogger& logger)
         : _requested_allocs(allocs), _logger(logger) {}
     ~BufferManager();
 

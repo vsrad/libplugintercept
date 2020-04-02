@@ -4,7 +4,7 @@
 #include "code_object_loader.hpp"
 #include "code_object_recorder.hpp"
 #include "code_object_substitutor.hpp"
-#include "config.hpp"
+#include "config/config.hpp"
 #include "logger/logger.hpp"
 #include "trap_handler.hpp"
 #include <memory>
@@ -15,7 +15,7 @@ namespace agent
 class DebugAgent
 {
 private:
-    std::shared_ptr<Config> _config;
+    std::shared_ptr<config::Config> _config;
     std::shared_ptr<AgentLogger> _logger;
     std::unique_ptr<CodeObjectLoader> _co_loader;
     std::unique_ptr<CodeObjectRecorder> _co_recorder;
@@ -27,14 +27,14 @@ private:
     std::optional<T> load_substitute_co(hsa_agent_t agent, RecordedCodeObject& co);
 
 public:
-    DebugAgent(std::shared_ptr<Config> config,
+    DebugAgent(std::shared_ptr<config::Config> config,
                std::shared_ptr<AgentLogger> logger,
                std::shared_ptr<CodeObjectLogger> co_logger,
                std::unique_ptr<CodeObjectLoader> co_loader)
         : _config(config), _logger(logger), _co_loader(std::move(co_loader)),
           _co_recorder(std::make_unique<CodeObjectRecorder>(config->code_object_dump_dir(), co_logger)),
           _co_substitutor(std::make_unique<CodeObjectSubstitutor>(config->code_object_subs(), config->symbol_subs(), *_logger, *co_loader)),
-          _buffer_manager(std::make_unique<BufferManager>(config->buffer_allocations(), *_logger)),
+          _buffer_manager(std::make_unique<BufferManager>(config->buffers(), *_logger)),
           _trap_handler(std::make_unique<TrapHandler>(*_logger, *_co_loader, config->trap_handler())) {}
 
     hsa_status_t intercept_hsa_code_object_reader_create_from_memory(
