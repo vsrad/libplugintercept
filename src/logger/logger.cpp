@@ -15,7 +15,7 @@ void AgentLogger::hsa_error(std::string msg, hsa_status_t status, const char* er
     error(msg.append(": ").append(error_callsite).append(" failed with ").append(err));
 }
 
-std::string CodeObjectLogger::co_msg(const agent::CodeObject& co, const std::string& msg)
+std::string CodeObjectLogger::co_msg(const RecordedCodeObject& co, const std::string& msg)
 {
-    return std::string("crc: ").append(std::to_string(co.crc())).append(" ").append(msg);
+    return "CO " + co.info() + ": " + msg;
 }

@@ -62,15 +62,15 @@ extern const char co_info[], co_error[], co_warning[];
 class CodeObjectLogger : public Logger<co_info, co_error, co_warning>
 {
 private:
-    std::string co_msg(const agent::CodeObject& co, const std::string& msg);
+    std::string co_msg(const RecordedCodeObject& co, const std::string& msg);
 
 public:
     CodeObjectLogger(const std::string& path) : Logger(path) {}
 
     using Logger::info, Logger::error, Logger::warning;
 
-    void info(const agent::CodeObject& co, const std::string& msg) { info(co_msg(co, msg)); }
-    void error(const agent::CodeObject& co, const std::string& msg) { error(co_msg(co, msg)); }
-    void warning(const agent::CodeObject& co, const std::string& msg) { warning(co_msg(co, msg)); }
+    void info(const RecordedCodeObject& co, const std::string& msg) { info(co_msg(co, msg)); }
+    void error(const RecordedCodeObject& co, const std::string& msg) { error(co_msg(co, msg)); }
+    void warning(const RecordedCodeObject& co, const std::string& msg) { warning(co_msg(co, msg)); }
 };
 } // namespace agent

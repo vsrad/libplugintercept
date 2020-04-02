@@ -68,9 +68,9 @@ TEST_CASE("reads a minimal configuration file", "[config]")
     agent::Config config;
     setenv("INTERCEPT_CONFIG", old_config, 1);
 
-    REQUIRE(config.agent_log_file() == "agent.log");
-    REQUIRE(config.code_object_log_file() == "co.log");
-    REQUIRE(config.code_object_dump_dir() == "/co/dump/dir");
+    REQUIRE(config.agent_log_file() == "tests/tmp/agent.log");
+    REQUIRE(config.code_object_log_file() == "tests/tmp/co.log");
+    REQUIRE(config.code_object_dump_dir().empty());
     REQUIRE(config.symbol_subs().empty());
     REQUIRE(config.buffer_allocations().empty());
 }

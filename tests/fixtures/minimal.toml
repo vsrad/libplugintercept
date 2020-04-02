@@ -1,6 +1,5 @@
 [agent]
-log = "agent.log"
+log = "tests/tmp/agent.log"
 
 [code-object-dump]
-log = "co.log"
-directory = "/co/dump/dir"
+log = "tests/tmp/co.log"

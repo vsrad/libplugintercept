@@ -45,6 +45,7 @@ public:
     RecordedCodeObject(const RecordedCodeObject&) = delete;
 
     std::string info() const;
+    std::string dump_path(const std::string& dump_dir) const;
 
     load_call_id_t load_call_id() const { return _load_call_id; }
 

@@ -76,9 +76,10 @@ Config::Config()
             // Required
             _agent_log_file = get_required<std::string>(*config, "agent.log");
             _code_object_log_file = get_required<std::string>(*config, "code-object-dump.log");
-            _code_object_dump_dir = get_required<std::string>(*config, "code-object-dump.directory");
 
             // Optional
+            _code_object_dump_dir = config->get_qualified_as<std::string>("code-object-dump.directory").value_or("");
+
             if (auto buffer_configs = config->get_table_array("buffer"))
                 for (const auto& buffer_config : *buffer_configs)
                     _buffer_allocations.push_back(get_buffer_alloc(*buffer_config));

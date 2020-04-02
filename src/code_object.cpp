@@ -40,8 +40,16 @@ std::string RecordedCodeObject::info() const
 {
     std::stringstream info;
     info << "0x" << std::setfill('0') << std::setw(sizeof(crc32_t) * 2) << std::hex << crc();
-    info << " (load call #" << std::setw(0) << std::dec << load_call_id() << ")";
+    info << " (load #" << std::setw(0) << std::dec << load_call_id() << ")";
     return info.str();
+}
+
+std::string RecordedCodeObject::dump_path(const std::string& dump_dir) const {
+    std::stringstream path;
+    path << dump_dir << "/";
+    path << std::setfill('0') << std::setw(sizeof(crc32_t) * 2) << std::hex << crc();
+    path << ".co";
+    return path.str();
 }
 
 std::optional<CodeObject> CodeObject::try_read_from_file(const char* path)

@@ -32,15 +32,15 @@ TEST_CASE("init different code objects", "[co_recorder]")
     REQUIRE(co_one.crc() != co_two.crc());
     REQUIRE(co_one.crc() != co_three.crc());
     std::vector<std::string> expected_info = {
-        "crc: 2005276243 intercepted code object",
-        "crc: 2005276243 code object is written to tests/tmp/2005276243.co",
-        "crc: 428259000 intercepted code object",
-        "crc: 428259000 code object is written to tests/tmp/428259000.co",
-        "crc: 4099621386 intercepted code object",
-        "crc: 4099621386 code object is written to tests/tmp/4099621386.co"};
+        "CO 0x77861653 (load #1): loaded",
+        "CO 0x77861653 (load #1): written to tests/tmp/77861653.co",
+        "CO 0x1986b6b8 (load #2): loaded",
+        "CO 0x1986b6b8 (load #2): written to tests/tmp/1986b6b8.co",
+        "CO 0xf45b420a (load #3): loaded",
+        "CO 0xf45b420a (load #3): written to tests/tmp/f45b420a.co"};
     REQUIRE(logger->infos == expected_info);
-    REQUIRE(logger->warnings.size() == 0);
-    REQUIRE(logger->errors.size() == 0);
+    REQUIRE(logger->warnings.empty());
+    REQUIRE(logger->errors.empty());
 }
 
 TEST_CASE("dump code object to an invalid path", "[co_recorder]")
@@ -52,12 +52,12 @@ TEST_CASE("dump code object to an invalid path", "[co_recorder]")
     recorder.record_code_object(CODE_OBJECT_DATA, sizeof(CODE_OBJECT_DATA));
 
     std::vector<std::string> expected_info = {
-        "crc: 4212875390 intercepted code object"};
+        "CO 0xfb1b607e (load #1): loaded"};
     std::vector<std::string> expected_error = {
-        "crc: 4212875390 cannot write code object to invalid-path/4212875390.co"};
+        "CO 0xfb1b607e (load #1): cannot write code object to invalid-path/fb1b607e.co"};
     REQUIRE(logger->infos == expected_info);
     REQUIRE(logger->errors == expected_error);
-    REQUIRE(logger->warnings.size() == 0);
+    REQUIRE(logger->warnings.empty());
 }
 
 TEST_CASE("redundant load code objects", "[co_recorder]")
@@ -72,14 +72,14 @@ TEST_CASE("redundant load code objects", "[co_recorder]")
 
     REQUIRE(co_one.crc() == co_two.crc());
     std::vector<std::string> expected_info = {
-        "crc: 4212875390 intercepted code object",
-        "crc: 4212875390 code object is written to tests/tmp/4212875390.co",
-        "crc: 4212875390 intercepted code object"};
+        "CO 0xfb1b607e (load #1): loaded",
+        "CO 0xfb1b607e (load #1): written to tests/tmp/fb1b607e.co",
+        "CO 0xfb1b607e (load #2): loaded"};
     std::vector<std::string> expected_warning = {
-        "crc: 4212875390 redundant load: tests/tmp/4212875390.co"};
+        "CO 0xfb1b607e (load #2): redundant load, same contents as CO 0xfb1b607e (load #1)"};
     REQUIRE(logger->infos == expected_info);
     REQUIRE(logger->warnings == expected_warning);
-    REQUIRE(logger->errors.size() == 0);
+    REQUIRE(logger->errors.empty());
 }
 
 TEST_CASE("find code object called on a nonexistent code object", "[co_recorder]")
@@ -96,8 +96,8 @@ TEST_CASE("find code object called on a nonexistent code object", "[co_recorder]
         "cannot find code object by hsa_code_object_reader_t: 123",
         "cannot find code object by hsa_code_object_t: 456"};
     REQUIRE(logger->errors == expected_error);
-    REQUIRE(logger->infos.size() == 0);
-    REQUIRE(logger->warnings.size() == 0);
+    REQUIRE(logger->infos.empty());
+    REQUIRE(logger->warnings.empty());
 }
 
 TEST_CASE("find code object called with an invalid executable", "[co_recorder]")
@@ -135,10 +135,10 @@ TEST_CASE("find code object called with an invalid executable", "[co_recorder]")
     REQUIRE(recorded_two->get().load_call_id() == 2);
 
     std::vector<std::string> expected_info = {
-        "crc: 2005276243 intercepted code object",
-        "crc: 2005276243 code object is written to tests/tmp/2005276243.co",
-        "crc: 428259000 intercepted code object",
-        "crc: 428259000 code object is written to tests/tmp/428259000.co"};
+        "CO 0x77861653 (load #1): loaded",
+        "CO 0x77861653 (load #1): written to tests/tmp/77861653.co",
+        "CO 0x1986b6b8 (load #2): loaded",
+        "CO 0x1986b6b8 (load #2): written to tests/tmp/1986b6b8.co"};
     REQUIRE(logger->infos == expected_info);
-    REQUIRE(logger->warnings.size() == 0);
+    REQUIRE(logger->warnings.empty());
 }

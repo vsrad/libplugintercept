@@ -19,9 +19,8 @@ private:
     std::shared_ptr<CodeObjectLogger> _logger;
     std::shared_mutex _mutex;
 
-    std::string co_dump_path(crc32_t co_crc) const;
-    void handle_crc_collision(const CodeObject& code_object);
-    void dump_code_object(const CodeObject& code_object);
+    void dump_code_object(const RecordedCodeObject& co);
+    void handle_crc_collision(const RecordedCodeObject& new_co, const RecordedCodeObject& existing_co);
 
 public:
     CodeObjectRecorder(std::string dump_dir, std::shared_ptr<CodeObjectLogger> logger)

@@ -5,7 +5,7 @@ using namespace agent;
 
 std::optional<CodeObject> CodeObjectSubstitutor::substitute(hsa_agent_t agent, const RecordedCodeObject& source, const ext_environment_t& env)
 {
-    auto sub = std::find_if(_subs.begin(), _subs.end(), [&source](auto const& s) { return s.condition.matches(source); });
+    auto sub = std::find_if(_subs.begin(), _subs.end(), [&source](const auto& s) { return s.condition.matches(source); });
     if (sub == _subs.end())
         return {};
 
