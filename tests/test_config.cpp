@@ -18,6 +18,16 @@ TEST_CASE("reads a valid configuration file", "[config]")
          .addr_env_name = "ASM_HID_BUF_ADDR"}};
     REQUIRE(config.buffers() == expected_buffers);
 
+    agent::config::InitCommand expected_init_command = {
+        .command = "bash -o pipefail -c '"
+                   "perl tests/fixtures/breakpoint_trap.pl -ba $ASM_DBG_BUF_ADDR -bs $ASM_DBG_BUF_SIZE -ha $ASM_HID_BUF_ADDR "
+                   "-w v[tid_dump] -e \"s_nop 10\" -l 37 -t 2 tests/kernels/dbg_kernel.s | "
+                   "/opt/rocm/bin/hcc -x assembler -target amdgcn--amdhsa "
+                   "-mcpu=`/opt/rocm/bin/rocminfo | grep -om1 gfx9..` -mno-code-object-v3 "
+                   "-Itests/kernels/include -o tests/tmp/replacement.co -'",
+        .expect_retcode = 0};
+    REQUIRE(config.init_command() == expected_init_command);
+
     agent::config::TrapHandler expected_trap_handler = {
         .code_object_path = "tests/tmp/replacement.co",
         .symbol_name = "trap_handler",

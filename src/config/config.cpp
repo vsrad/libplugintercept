@@ -43,6 +43,15 @@ Buffer get_buffer(const cpptoml::table& buffer_config)
         .size_env_name = buffer_config.get_as<std::string>("size-env-name").value_or("")};
 }
 
+InitCommand get_init_command(const cpptoml::table& config)
+{
+    InitCommand c;
+    c.command = get_required<std::string>(config, "exec", "init-command.exec (shell command)");
+    if (auto retcode = config.get_as<int32_t>("required-return-code"))
+        c.expect_retcode = *retcode;
+    return c;
+}
+
 TrapHandler get_trap_handler(const cpptoml::table& config)
 {
     return {
@@ -70,14 +79,16 @@ Config::Config()
             if (auto buffer_configs = config->get_table_array("buffer"))
                 for (const auto& buffer_config : *buffer_configs)
                     _buffers.push_back(get_buffer(*buffer_config));
+            if (auto init_command_config = config->get_table("init-command"))
+                _init_command = get_init_command(*init_command_config);
+            if (auto trap_handler_config = config->get_table("trap-handler"))
+                _trap_handler = get_trap_handler(*trap_handler_config);
             if (auto sub_configs = config->get_table_array("code-object-substitute"))
                 for (const auto& sub_config : *sub_configs)
                     _code_object_subs.push_back(get_co_substitute(*sub_config));
             if (auto sub_configs = config->get_table_array("symbol-substitute"))
                 for (const auto& sub_config : *sub_configs)
                     _symbol_subs.push_back(get_symbol_substitute(*sub_config));
-            if (auto trap_handler_config = config->get_table("trap-handler"))
-                _trap_handler = get_trap_handler(*trap_handler_config);
         }
         catch (const std::runtime_error& e)
         {

@@ -37,6 +37,24 @@ size-env-name = "ASM_DBG_BUF_SIZE"
 size = 4096
 addr-env-name = "ASM_HID_BUF_ADDR"
 
+# An optional shell command can be executed after all
+# auxiliary buffers are allocated.
+# It can be used to generate replacement kernels,
+# including the optional trap handler (see below).
+[init-command]
+# (Required) A shell command executed after buffer allocation
+# and before kernel substitution
+# Note that the `ASM_*` env variables are initialized
+# with the buffer addresses and sizes as configured above:
+exec = """bash -o pipefail -c '\
+  perl tests/fixtures/breakpoint_trap.pl -ba $ASM_DBG_BUF_ADDR -bs $ASM_DBG_BUF_SIZE -ha $ASM_HID_BUF_ADDR \
+      -w v[tid_dump] -e "s_nop 10" -l 37 -t 2 tests/kernels/dbg_kernel.s \
+  | /opt/rocm/bin/hcc -x assembler -target amdgcn--amdhsa -mcpu=`/opt/rocm/bin/rocminfo | grep -om1 gfx9..` -mno-code-object-v3 \
+    -Itests/kernels/include -o tests/tmp/replacement.co -'"""
+# (Optional) Abort the application if the return code
+# does not match the one specified:
+required-return-code = 0
+
 # When a `[trap-handler]` is specified, it is set up after
 # the auxiliary buffer allocation.
 [trap-handler]
