@@ -4,15 +4,10 @@
 
 using namespace agent;
 
-void TrapHandler::set_up(hsa_agent_t agent, const ext_environment_t& env)
+void TrapHandler::set_up(hsa_agent_t agent)
 {
     if (_state != TrapHandlerState::None || _config.code_object_path.empty())
         return;
-    if (!_config.external_command.empty() && !ExternalCommand::run_logged(_config.external_command, env, _logger))
-    {
-        _state = TrapHandlerState::FailedToLoad;
-        return;
-    }
     auto handler_co = CodeObject::try_read_from_file(_config.code_object_path.c_str());
     if (!handler_co)
     {

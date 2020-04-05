@@ -60,78 +60,48 @@ required-return-code = 0
 [trap-handler]
 # (Required) Path to the code object that contains the
 # kernel to be set as the trap handler:
-load-file = "tests/tmp/replacement.co"
+co-path = "tests/tmp/replacement.co"
 # (Required) Name of the trap handler kernel:
 handler-name = "trap_handler"
-# (Optional) A shell command executed before loading the
-# tcode object. In this case, the command is
-# used to generate the trap handler (note that
-# `ASM_DBG_BUF_ADDR` is initialized to the address of
-# the first auxiliary buffer, as configured above):
-exec-before-load = """bash -o pipefail -c '\
-  perl tests/fixtures/breakpoint_trap.pl -ba $ASM_DBG_BUF_ADDR -bs $ASM_DBG_BUF_SIZE -ha $ASM_HID_BUF_ADDR \
-      -w v[tid_dump] -e "s_nop 10" -l 37 -t 2 tests/kernels/dbg_kernel.s \
-  | /opt/rocm/bin/hcc -x assembler -target amdgcn--amdhsa -mcpu=`/opt/rocm/bin/rocminfo | grep -om1 gfx9..` -mno-code-object-v3 \
-    -Itests/kernels/include -o tests/tmp/replacement.co -'"""
 
 # When the application creates an executable from a code object,
-# it can be substituted. Since the application may use
-# multiple code objects, each substitute is declared
-# separately, beginning with `[[code-object-substitute]]`.
+# it can be replaced. Since the application may use
+# multiple code objects, each replacement is declared
+# separately, beginning with `[[code-object-replace]]`.
 #
 # If you don't need to replace any code objects loaded by the
-# application, don't specify any `[[code-object-substitute]]`s.
-[[code-object-substitute]]
+# application, don't specify any `[[code-object-replace]]`s.
+[[code-object-replace]]
 # (Required) Condition when the substitution is performed.
 # In this case, the first code object loaded by the application
-# will be substituted:
-match = { load-call-id = 1 }
+# will be replaced:
+condition = { co-load-id = 1 }
 # Alternatively, the condition can be specified as a CRC-32
 # checksum that a code object should match, or a combination of both:
-  # match = { crc = 0xFFFFFFFF }
-  # match = { load-call-id = 1, crc = 0xFFFFFFFF }
+  # condition = { co-crc = 0xFFFFFFFF }
+  # condition = { co-load-id = 1, co-crc = 0xFFFFFFFF }
 # (Required) Path to the replacement code object:
-load-file = "tests/tmp/replacement.co"
-# (Optional) A shell command executed before loading the
-# replacement code object. In this case, the command is
-# used to generate the replacement (note that
-# `ASM_DBG_BUF_ADDR` is initialized to the address of
-# the first auxiliary buffer, as configured above):
-exec-before-load = """bash -o pipefail -c '\
-  perl tests/fixtures/breakpoint.pl -ba $ASM_DBG_BUF_ADDR -bs $ASM_DBG_BUF_SIZE \
-      -w v[tid_dump] -l 37 -t 0 tests/kernels/dbg_kernel.s \
-  | /opt/rocm/bin/hcc -x assembler -target amdgcn--amdhsa -mcpu=`/opt/rocm/bin/rocminfo | grep -om1 gfx9..` -mno-code-object-v3 \
-    -Itests/kernels/include -o tests/tmp/replacement.co -'"""
-
-[[code-object-substitute]]
-match = { load-call-id = 2 }
-load-file = "tests/tmp/replacement.co"
-load-trap-handler-file = "tests/tmp/replacement.co"
-exec-before-load = """bash -o pipefail -c '\
-  perl tests/fixtures/breakpoint_trap.pl -ba $ASM_DBG_BUF_ADDR -bs $ASM_DBG_BUF_SIZE -ha $ASM_HID_BUF_ADDR \
-      -w v[tid_dump] -e "s_nop 10" -l 37 -t 2 tests/kernels/dbg_kernel.s \
-  | /opt/rocm/bin/hcc -x assembler -target amdgcn--amdhsa -mcpu=`/opt/rocm/bin/rocminfo | grep -om1 gfx9..` -mno-code-object-v3 \
-    -Itests/kernels/include -o tests/tmp/replacement.co -'"""
+co-path = "tests/tmp/replacement.co"
 
 # Code objects contain a set of kernels. It is possible
-# to replace one of them without substituting the entire
+# to replace one of them without replacing the entire
 # code object. This will make `hsa_executable_symbol_get_info`
 # calls return the info from a replacement code object
 # for the specified symbols:
-[[symbol-substitute]]
-# (Optional) Condition to match the code object the target
-# symbol is loaded from, similar to code-object-substitute.match
-match-code-object = { crc = 0xCAFE666, load-call-id = 5 }
-# (Required) Name of the symbol to replace:
-match-name = "conv2d"
-# (Required) Name of the symbol in the replacement code object:
-replace-with = "conv2d_test_new"
-# (Required) Path to the code object with the replacement symbol:
-load-file = "replacement.co"
-# (Optional)
-exec-before-load = "echo done"
+[[kernel-replace]]
+# (Required) Condition when the substitution is performed,
+# specified as one or several of the following predicates:
+#   co-crc        - CRC-32 checksum of the code object contents
+#   co-load-id    - code object load call id
+#   kernel-name   - kernel name
+#   kernel-get-id - hsa_executable_symbol_get_info call id
+condition = { co-crc = 0xCAFE666, co-load-id = 5, kernel-name = "conv2d" }
+# (Required) Name of the kernel to be used as a replacement:
+replace-name = "conv2d_test_new"
+# (Required) Path to the code object containing the kernel:
+co-path = "replacement.co"
 
-[[symbol-substitute]]
-match-name = "conv2d_transpose"
-replace-with = "conv2d_transpose_new"
-load-file = "replacement.co"
+[[kernel-replace]]
+condition = { kernel-get-id = 1 }
+replace-name = "conv2d_transpose_new"
+co-path = "replacement.co"

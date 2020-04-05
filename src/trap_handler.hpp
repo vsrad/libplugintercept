@@ -2,7 +2,6 @@
 
 #include "code_object_loader.hpp"
 #include "config/trap_handler.hpp"
-#include "external_command.hpp"
 #include "logger/logger.hpp"
 
 namespace agent
@@ -28,6 +27,6 @@ public:
     TrapHandler(AgentLogger& logger, CodeObjectLoader& co_loader, const config::TrapHandler& config)
         : _logger(logger), _co_loader(co_loader), _config(config) {}
     ~TrapHandler();
-    void set_up(hsa_agent_t agent, const ext_environment_t& env);
+    void set_up(hsa_agent_t agent);
 };
 } // namespace agent

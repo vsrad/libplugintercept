@@ -35,7 +35,8 @@ void DebugAgent::record_co_load(hsaco_t hsaco, const void* contents, size_t size
 hsa_status_t DebugAgent::executable_load_co(hsaco_t hsaco, hsa_agent_t agent, hsa_executable_t executable, std::function<hsa_status_t(hsaco_t)> loader)
 {
     _buffer_manager->allocate_buffers(agent);
-    _trap_handler->set_up(agent, _buffer_manager->buffer_environment_variables());
+    // todo: run init command
+    _trap_handler->set_up(agent);
 
     auto co = _co_recorder->find_code_object(&hsaco);
     if (!co)
