@@ -2,22 +2,19 @@
 
 using namespace agent;
 
-hsa_status_t CodeObjectLoader::load_from_memory(
-    const CodeObject& co,
-    hsa_code_object_reader_t* reader,
-    const char** error_callsite)
+hsa_status_t CodeObjectLoader::load_from_memory(hsaco_t* hsaco, const CodeObject& co, const char** error_callsite)
 {
-    *error_callsite = "hsa_code_object_reader_create_from_memory";
-    return _non_intercepted_api_table->hsa_code_object_reader_create_from_memory_fn(co.ptr(), co.size(), reader);
-}
-
-hsa_status_t CodeObjectLoader::load_from_memory(
-    const CodeObject& co,
-    hsa_code_object_t* hsaco,
-    const char** error_callsite)
-{
-    *error_callsite = "hsa_code_object_deserialize";
-    return _non_intercepted_api_table->hsa_code_object_deserialize_fn(const_cast<void*>(co.ptr()), co.size(), NULL, hsaco);
+    if (auto reader = std::get_if<hsa_code_object_reader_t>(hsaco))
+    {
+        *error_callsite = "hsa_code_object_reader_create_from_memory";
+        return _non_intercepted_api_table->hsa_code_object_reader_create_from_memory_fn(co.ptr(), co.size(), reader);
+    }
+    if (auto cobj = std::get_if<hsa_code_object_t>(hsaco))
+    {
+        *error_callsite = "hsa_code_object_deserialize";
+        return _non_intercepted_api_table->hsa_code_object_deserialize_fn(const_cast<void*>(co.ptr()), co.size(), NULL, cobj);
+    }
+    return HSA_STATUS_ERROR;
 }
 
 hsa_status_t CodeObjectLoader::create_executable(
@@ -26,8 +23,10 @@ hsa_status_t CodeObjectLoader::create_executable(
     hsa_executable_t* executable,
     const char** error_callsite)
 {
-    hsa_code_object_reader_t co_reader;
-    hsa_status_t status = load_from_memory(co, &co_reader, error_callsite);
+    hsa_code_object_reader_t reader;
+    *error_callsite = "hsa_code_object_reader_create_from_memory";
+    hsa_status_t status = _non_intercepted_api_table->hsa_code_object_reader_create_from_memory_fn(
+        co.ptr(), co.size(), &reader);
     if (status != HSA_STATUS_SUCCESS)
         return status;
 
@@ -39,7 +38,7 @@ hsa_status_t CodeObjectLoader::create_executable(
 
     *error_callsite = "hsa_executable_load_agent_code_object";
     status = _non_intercepted_api_table->hsa_executable_load_agent_code_object_fn(
-        *executable, agent, co_reader, NULL, NULL);
+        *executable, agent, reader, NULL, NULL);
 
     return status;
 }

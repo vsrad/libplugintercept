@@ -9,9 +9,10 @@ hsa_status_t intercept_hsa_code_object_reader_create_from_memory(
     size_t size,
     hsa_code_object_reader_t* code_object_reader)
 {
-    return _debug_agent->intercept_hsa_code_object_reader_create_from_memory(
-        _intercepted_api_table->hsa_code_object_reader_create_from_memory_fn,
+    hsa_status_t status = _intercepted_api_table->hsa_code_object_reader_create_from_memory_fn(
         code_object, size, code_object_reader);
+    _debug_agent->record_co_load(*code_object_reader, code_object, size, status);
+    return status;
 }
 
 hsa_status_t intercept_hsa_code_object_deserialize(
@@ -20,9 +21,10 @@ hsa_status_t intercept_hsa_code_object_deserialize(
     const char* options,
     hsa_code_object_t* code_object)
 {
-    return _debug_agent->intercept_hsa_code_object_deserialize(
-        _intercepted_api_table->hsa_code_object_deserialize_fn,
+    hsa_status_t status = _intercepted_api_table->hsa_code_object_deserialize_fn(
         serialized_code_object, serialized_code_object_size, options, code_object);
+    _debug_agent->record_co_load(*code_object, serialized_code_object, serialized_code_object_size, status);
+    return status;
 }
 
 hsa_status_t intercept_hsa_executable_load_agent_code_object(
@@ -32,9 +34,11 @@ hsa_status_t intercept_hsa_executable_load_agent_code_object(
     const char* options,
     hsa_loaded_code_object_t* loaded_code_object)
 {
-    return _debug_agent->intercept_hsa_executable_load_agent_code_object(
-        _intercepted_api_table->hsa_executable_load_agent_code_object_fn,
-        executable, agent, code_object_reader, options, loaded_code_object);
+    auto loader = [executable, agent, options, loaded_code_object,
+                   intercepted_fn = _intercepted_api_table->hsa_executable_load_agent_code_object_fn](auto hsaco) {
+        return intercepted_fn(executable, agent, std::get<hsa_code_object_reader_t>(hsaco), options, loaded_code_object);
+    };
+    return _debug_agent->executable_load_co(code_object_reader, agent, executable, loader);
 }
 
 hsa_status_t intercept_hsa_executable_load_code_object(
@@ -43,9 +47,11 @@ hsa_status_t intercept_hsa_executable_load_code_object(
     hsa_code_object_t code_object,
     const char* options)
 {
-    return _debug_agent->intercept_hsa_executable_load_code_object(
-        _intercepted_api_table->hsa_executable_load_code_object_fn,
-        executable, agent, code_object, options);
+    auto loader = [executable, agent, options,
+                   intercepted_fn = _intercepted_api_table->hsa_executable_load_code_object_fn](auto hsaco) {
+        return intercepted_fn(executable, agent, std::get<hsa_code_object_t>(hsaco), options);
+    };
+    return _debug_agent->executable_load_co(code_object, agent, executable, loader);
 }
 
 hsa_status_t intercept_hsa_executable_symbol_get_info(

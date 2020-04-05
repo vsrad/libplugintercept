@@ -17,30 +17,62 @@ struct TestCodeObjectLogger : CodeObjectLogger
     virtual void warning(const std::string& msg) override { warnings.push_back(msg); }
 };
 
-TEST_CASE("init different code objects", "[co_recorder]")
+TEST_CASE("keeps record of code objects", "[co_recorder]")
 {
     auto logger = std::make_shared<TestCodeObjectLogger>();
     CodeObjectRecorder recorder(DUMP_PATH, logger);
 
-    auto& co_one = recorder.record_code_object("CODE OBJECT ONE", sizeof("CODE OBJECT ONE"));
-    auto& co_two = recorder.record_code_object("CODE OBJECT TWO", sizeof("CODE OBJECT TWO"));
-    auto& co_three = recorder.record_code_object("CODE OBJECT THREE", sizeof("CODE OBJECT THREE"));
-    REQUIRE(co_one.load_call_id() == 1);
-    REQUIRE(co_two.load_call_id() == 2);
-    REQUIRE(co_three.load_call_id() == 3);
+    hsaco_t r1 = hsa_code_object_reader_t{1};
+    hsaco_t r2 = hsa_code_object_reader_t{2};
+    hsaco_t o1 = hsa_code_object_t{1};
+    hsaco_t o2 = hsa_code_object_t{2};
 
-    REQUIRE(co_one.crc() != co_two.crc());
-    REQUIRE(co_one.crc() != co_three.crc());
+    recorder.record_code_object("CO R1", sizeof("CO R1"), r1, HSA_STATUS_SUCCESS);
+    recorder.record_code_object("CO R2", sizeof("CO R2"), r2, HSA_STATUS_SUCCESS);
+    recorder.record_code_object("CO ERR", sizeof("CO ERR"), o1, HSA_STATUS_ERROR);
+    recorder.record_code_object("CO O2", sizeof("CO O2"), o2, HSA_STATUS_SUCCESS);
+
+    auto cor1 = recorder.find_code_object(&r1);
+    REQUIRE(cor1);
+    REQUIRE(cor1->get().load_call_id() == 1);
+    auto cor2 = recorder.find_code_object(&r2);
+    REQUIRE(cor2);
+    REQUIRE(cor2->get().load_call_id() == 2);
+    auto coo2 = recorder.find_code_object(&o2);
+    REQUIRE(coo2);
+    REQUIRE(coo2->get().load_call_id() == 4);
+
     std::vector<std::string> expected_info = {
-        "CO 0x77861653 (load #1): loaded",
-        "CO 0x77861653 (load #1): written to tests/tmp/77861653.co",
-        "CO 0x1986b6b8 (load #2): loaded",
-        "CO 0x1986b6b8 (load #2): written to tests/tmp/1986b6b8.co",
-        "CO 0xf45b420a (load #3): loaded",
-        "CO 0xf45b420a (load #3): written to tests/tmp/f45b420a.co"};
+        "CO 0xebfa44ab (load #1): loaded",
+        "CO 0xebfa44ab (load #1): written to tests/tmp/ebfa44ab.co",
+        "CO 0xc0d71768 (load #2): loaded",
+        "CO 0xc0d71768 (load #2): written to tests/tmp/c0d71768.co",
+        "CO 0xd429274b (load #4): loaded",
+        "CO 0xd429274b (load #4): written to tests/tmp/d429274b.co"};
     REQUIRE(logger->infos == expected_info);
-    REQUIRE(logger->warnings.empty());
+    std::vector<std::string> expected_warnings = {
+        "Load #3 failed with status 4096"
+    };
+    REQUIRE(logger->warnings == expected_warnings);
     REQUIRE(logger->errors.empty());
+}
+
+TEST_CASE("warns when looking up non-existent hsacos", "[co_recorder]")
+{
+    auto logger = std::make_shared<TestCodeObjectLogger>();
+    CodeObjectRecorder recorder(DUMP_PATH, logger);
+
+    hsaco_t reader = hsa_code_object_reader_t{123};
+    hsaco_t cobj = hsa_code_object_t{456};
+    REQUIRE(!recorder.find_code_object(&reader));
+    REQUIRE(!recorder.find_code_object(&cobj));
+
+    std::vector<std::string> expected_error = {
+        "Cannot find code object by hsa_code_object_reader_t: 123",
+        "Cannot find code object by hsa_code_object_t: 456"};
+    REQUIRE(logger->errors == expected_error);
+    REQUIRE(logger->infos.empty());
+    REQUIRE(logger->warnings.empty());
 }
 
 TEST_CASE("dump code object to an invalid path", "[co_recorder]")
@@ -49,7 +81,7 @@ TEST_CASE("dump code object to an invalid path", "[co_recorder]")
 
     auto logger = std::make_shared<TestCodeObjectLogger>();
     CodeObjectRecorder recorder("invalid-path", logger);
-    recorder.record_code_object(CODE_OBJECT_DATA, sizeof(CODE_OBJECT_DATA));
+    recorder.record_code_object(CODE_OBJECT_DATA, sizeof(CODE_OBJECT_DATA), hsa_code_object_t{1}, HSA_STATUS_SUCCESS);
 
     std::vector<std::string> expected_info = {
         "CO 0xfb1b607e (load #1): loaded"};
@@ -67,10 +99,16 @@ TEST_CASE("redundant load code objects", "[co_recorder]")
     auto logger = std::make_shared<TestCodeObjectLogger>();
     CodeObjectRecorder recorder(DUMP_PATH, logger);
 
-    auto& co_one = recorder.record_code_object(CODE_OBJECT_DATA, sizeof(CODE_OBJECT_DATA));
-    auto& co_two = recorder.record_code_object(CODE_OBJECT_DATA, sizeof(CODE_OBJECT_DATA));
+    hsaco_t o1 = hsa_code_object_t{1};
+    hsaco_t o2 = hsa_code_object_t{2};
 
-    REQUIRE(co_one.crc() == co_two.crc());
+    recorder.record_code_object(CODE_OBJECT_DATA, sizeof(CODE_OBJECT_DATA), o1, HSA_STATUS_SUCCESS);
+    recorder.record_code_object(CODE_OBJECT_DATA, sizeof(CODE_OBJECT_DATA), o2, HSA_STATUS_SUCCESS);
+
+    auto coo1 = recorder.find_code_object(&o1);
+    auto coo2 = recorder.find_code_object(&o2);
+    REQUIRE(coo1->get().crc() == coo2->get().crc());
+
     std::vector<std::string> expected_info = {
         "CO 0xfb1b607e (load #1): loaded",
         "CO 0xfb1b607e (load #1): written to tests/tmp/fb1b607e.co",
@@ -80,65 +118,4 @@ TEST_CASE("redundant load code objects", "[co_recorder]")
     REQUIRE(logger->infos == expected_info);
     REQUIRE(logger->warnings == expected_warning);
     REQUIRE(logger->errors.empty());
-}
-
-TEST_CASE("find code object called on a nonexistent code object", "[co_recorder]")
-{
-    auto logger = std::make_shared<TestCodeObjectLogger>();
-    CodeObjectRecorder recorder(DUMP_PATH, logger);
-
-    hsa_code_object_reader_t co_reader = {123};
-    hsa_code_object_t co = {456};
-    REQUIRE(!recorder.find_code_object(co_reader));
-    REQUIRE(!recorder.find_code_object(co));
-
-    std::vector<std::string> expected_error = {
-        "cannot find code object by hsa_code_object_reader_t: 123",
-        "cannot find code object by hsa_code_object_t: 456"};
-    REQUIRE(logger->errors == expected_error);
-    REQUIRE(logger->infos.empty());
-    REQUIRE(logger->warnings.empty());
-}
-
-TEST_CASE("find code object called with an invalid executable", "[co_recorder]")
-{
-    auto logger = std::make_shared<TestCodeObjectLogger>();
-    CodeObjectRecorder recorder(DUMP_PATH, logger);
-
-    // Create hsa_code_object_t and hsa_code_object_reader_t in separate functions
-    // to verify that CodeObjectRecorder does not reply on pointers to them, which may be
-    // unreliable.
-    auto prepare_co_one = [&]() -> std::tuple<hsa_code_object_t, const RecordedCodeObject&> {
-        hsa_code_object_t co = {12};
-        auto& co_one = recorder.record_code_object("CODE OBJECT ONE", sizeof("CODE OBJECT ONE"));
-        co_one.set_hsa_code_object(co);
-        return {co, co_one};
-    };
-    auto prepare_co_two = [&]() -> std::tuple<hsa_code_object_reader_t, const RecordedCodeObject&> {
-        hsa_code_object_reader_t co_reader = {23};
-        auto& co_two = recorder.record_code_object("CODE OBJECT TWO", sizeof("CODE OBJECT TWO"));
-        co_two.set_hsa_code_object_reader(co_reader);
-        return {co_reader, co_two};
-    };
-
-    auto [co, co_one] = prepare_co_one();
-    auto [co_reader, co_two] = prepare_co_two();
-    REQUIRE(co_one.crc() != co_two.crc());
-
-    auto recorded_one = recorder.find_code_object(co);
-    auto recorded_two = recorder.find_code_object(co_reader);
-    REQUIRE(recorded_one);
-    REQUIRE(recorded_one->get().load_call_id() == co_one.load_call_id());
-    REQUIRE(recorded_one->get().load_call_id() == 1);
-    REQUIRE(recorded_two);
-    REQUIRE(recorded_two->get().load_call_id() == co_two.load_call_id());
-    REQUIRE(recorded_two->get().load_call_id() == 2);
-
-    std::vector<std::string> expected_info = {
-        "CO 0x77861653 (load #1): loaded",
-        "CO 0x77861653 (load #1): written to tests/tmp/77861653.co",
-        "CO 0x1986b6b8 (load #2): loaded",
-        "CO 0x1986b6b8 (load #2): written to tests/tmp/1986b6b8.co"};
-    REQUIRE(logger->infos == expected_info);
-    REQUIRE(logger->warnings.empty());
 }

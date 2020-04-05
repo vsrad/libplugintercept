@@ -36,6 +36,21 @@ hsa_status_t RecordedCodeObject::fill_symbols_callback(hsa_executable_t exec, hs
     return status;
 }
 
+bool RecordedCodeObject::hsaco_eq(const hsaco_t* other) const
+{
+    if (auto reader_lhs = std::get_if<hsa_code_object_reader_t>(&_hsaco))
+    {
+        if (auto reader_rhs = std::get_if<hsa_code_object_reader_t>(other))
+            return reader_lhs->handle == reader_rhs->handle;
+    }
+    else if (auto cobj_lhs = std::get_if<hsa_code_object_t>(&_hsaco))
+    {
+        if (auto cobj_rhs = std::get_if<hsa_code_object_t>(other))
+            return cobj_lhs->handle == cobj_rhs->handle;
+    }
+    return false;
+}
+
 std::string RecordedCodeObject::info() const
 {
     std::stringstream info;
@@ -44,7 +59,8 @@ std::string RecordedCodeObject::info() const
     return info.str();
 }
 
-std::string RecordedCodeObject::dump_path(const std::string& dump_dir) const {
+std::string RecordedCodeObject::dump_path(const std::string& dump_dir) const
+{
     std::stringstream path;
     path << dump_dir << "/";
     path << std::setfill('0') << std::setw(sizeof(crc32_t) * 2) << std::hex << crc();

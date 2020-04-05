@@ -9,6 +9,7 @@
 #include "trap_handler.hpp"
 #include <memory>
 #include <string>
+#include <variant>
 
 namespace agent
 {
@@ -23,9 +24,6 @@ private:
     std::unique_ptr<BufferManager> _buffer_manager;
     std::unique_ptr<TrapHandler> _trap_handler;
 
-    template <typename T>
-    std::optional<T> load_substitute_co(hsa_agent_t agent, RecordedCodeObject& co);
-
 public:
     DebugAgent(std::shared_ptr<config::Config> config,
                std::shared_ptr<AgentLogger> logger,
@@ -37,33 +35,17 @@ public:
           _buffer_manager(std::make_unique<BufferManager>(config->buffers(), *_logger)),
           _trap_handler(std::make_unique<TrapHandler>(*_logger, *_co_loader, config->trap_handler())) {}
 
-    hsa_status_t intercept_hsa_code_object_reader_create_from_memory(
-        decltype(hsa_code_object_reader_create_from_memory)* intercepted_fn,
-        const void* code_object,
+    void record_co_load(
+        hsaco_t hsaco,
+        const void* contents,
         size_t size,
-        hsa_code_object_reader_t* code_object_reader);
+        hsa_status_t load_status);
 
-    hsa_status_t intercept_hsa_code_object_deserialize(
-        decltype(hsa_code_object_deserialize)* intercepted_fn,
-        void* serialized_code_object,
-        size_t serialized_code_object_size,
-        const char* options,
-        hsa_code_object_t* code_object);
-
-    hsa_status_t intercept_hsa_executable_load_agent_code_object(
-        decltype(hsa_executable_load_agent_code_object)* intercepted_fn,
-        hsa_executable_t executable,
+    hsa_status_t executable_load_co(
+        hsaco_t hsaco,
         hsa_agent_t agent,
-        hsa_code_object_reader_t code_object_reader,
-        const char* options,
-        hsa_loaded_code_object_t* loaded_code_object);
-
-    hsa_status_t intercept_hsa_executable_load_code_object(
-        decltype(hsa_executable_load_code_object)* intercepted_fn,
         hsa_executable_t executable,
-        hsa_agent_t agent,
-        hsa_code_object_t code_object,
-        const char* options);
+        std::function<hsa_status_t(hsaco_t)> loader);
 
     hsa_status_t intercept_hsa_executable_symbol_get_info(
         decltype(hsa_executable_symbol_get_info)* intercepted_fn,

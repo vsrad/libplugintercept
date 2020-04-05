@@ -7,12 +7,17 @@
 
 using namespace agent;
 
-RecordedCodeObject& CodeObjectRecorder::record_code_object(const void* ptr, size_t size)
+void CodeObjectRecorder::record_code_object(const void* ptr, size_t size, hsaco_t hsaco, hsa_status_t load_status)
 {
     std::scoped_lock lock(_mutex);
     auto load_call_id = ++_load_call_counter;
-    auto& code_object = _code_objects.emplace_front(ptr, size, load_call_id);
+    if (load_status != HSA_STATUS_SUCCESS)
+    {
+        _logger->warning("Load #" + std::to_string(load_call_id) + " failed with status " + std::to_string(load_status));
+        return;
+    }
 
+    auto& code_object = _code_objects.emplace_front(ptr, size, load_call_id, hsaco);
     _logger->info(code_object, "loaded");
 
     auto crc_eq = [load_call_id, crc = code_object.crc()](const auto& co) { return co.load_call_id() != load_call_id && co.crc() == crc; };
@@ -21,8 +26,6 @@ RecordedCodeObject& CodeObjectRecorder::record_code_object(const void* ptr, size
         handle_crc_collision(code_object, *collision);
     else
         dump_code_object(code_object);
-
-    return code_object;
 }
 
 void CodeObjectRecorder::dump_code_object(const RecordedCodeObject& co)
@@ -95,24 +98,17 @@ void CodeObjectRecorder::iterate_symbols(hsa_executable_t exec, RecordedCodeObje
     }
 }
 
-std::optional<std::reference_wrapper<RecordedCodeObject>> CodeObjectRecorder::find_code_object(hsa_code_object_reader_t reader)
+std::optional<std::reference_wrapper<RecordedCodeObject>> CodeObjectRecorder::find_code_object(const hsaco_t* hsaco)
 {
     std::shared_lock lock(_mutex);
-    auto reader_eq = [hndl = reader.handle](const auto& co) { return co.hsa_code_object_reader().handle == hndl; };
-    if (auto it{std::find_if(_code_objects.begin(), _code_objects.end(), reader_eq)}; it != _code_objects.end())
-        return {std::ref(*it)};
-
-    _logger->error("cannot find code object by hsa_code_object_reader_t: " + std::to_string(reader.handle));
-    return {};
-}
-
-std::optional<std::reference_wrapper<RecordedCodeObject>> CodeObjectRecorder::find_code_object(hsa_code_object_t hsaco)
-{
-    std::shared_lock lock(_mutex);
-    auto hsaco_eq = [hndl = hsaco.handle](const auto& co) { return co.hsa_code_object().handle == hndl; };
+    auto hsaco_eq = [hsaco](const auto& co) { return co.hsaco_eq(hsaco); };
     if (auto it{std::find_if(_code_objects.begin(), _code_objects.end(), hsaco_eq)}; it != _code_objects.end())
         return {std::ref(*it)};
 
-    _logger->error("cannot find code object by hsa_code_object_t: " + std::to_string(hsaco.handle));
+    if (auto reader = std::get_if<hsa_code_object_reader_t>(hsaco))
+        _logger->error("Cannot find code object by hsa_code_object_reader_t: " + std::to_string(reader->handle));
+    if (auto cobj = std::get_if<hsa_code_object_t>(hsaco))
+        _logger->error("Cannot find code object by hsa_code_object_t: " + std::to_string(cobj->handle));
+
     return {};
 }

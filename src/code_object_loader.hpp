@@ -18,13 +18,8 @@ public:
         : _non_intercepted_api_table(non_intercepted_api_table) {}
 
     hsa_status_t load_from_memory(
+        hsaco_t* hsaco,
         const CodeObject& co,
-        hsa_code_object_reader_t* reader,
-        const char** error_callsite);
-
-    hsa_status_t load_from_memory(
-        const CodeObject& co,
-        hsa_code_object_t* hsaco,
         const char** error_callsite);
 
     hsa_status_t create_executable(

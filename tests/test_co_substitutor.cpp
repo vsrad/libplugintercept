@@ -8,8 +8,8 @@ auto _dummy_loader = std::make_shared<CodeObjectLoader>(std::shared_ptr<CoreApiT
 
 TEST_CASE("substitutes code object based on CRC match", "[co_substitutor]")
 {
-    RecordedCodeObject co_matching("CODE OBJECT", sizeof("CODE OBJECT"), 1);
-    RecordedCodeObject co_other("SOME OTHER CO", sizeof("SOME OTHER CO"), 2);
+    RecordedCodeObject co_matching("CODE OBJECT", sizeof("CODE OBJECT"), 1, {});
+    RecordedCodeObject co_other("SOME OTHER CO", sizeof("SOME OTHER CO"), 2, {});
     REQUIRE(co_matching.crc() != co_other.crc());
 
     TestLogger logger;
@@ -34,9 +34,9 @@ TEST_CASE("substitutes code object based on load call match", "[co_substitutor]"
           .condition_load_id = 3,
           .replacement_path = "tests/fixtures/asdf"}};
     CodeObjectSubstitutor cosw(subs, {}, logger, *_dummy_loader);
-    REQUIRE(!cosw.substitute({0}, RecordedCodeObject("", 0, 1), {}));
-    auto matching = cosw.substitute({0}, RecordedCodeObject("", 0, 3), {});
-    REQUIRE(!cosw.substitute({0}, RecordedCodeObject("", 0, 4), {}));
+    REQUIRE(!cosw.substitute({0}, RecordedCodeObject("", 0, 1, {}), {}));
+    auto matching = cosw.substitute({0}, RecordedCodeObject("", 0, 3, {}), {});
+    REQUIRE(!cosw.substitute({0}, RecordedCodeObject("", 0, 4, {}), {}));
     REQUIRE(matching);
     std::string subbed_data(static_cast<const char*>(matching->ptr()), matching->size());
     REQUIRE(subbed_data == "ASDF\n");
@@ -44,9 +44,9 @@ TEST_CASE("substitutes code object based on load call match", "[co_substitutor]"
 
 TEST_CASE("substitutes code object based on load call and CRC match", "[co_substitutor]")
 {
-    RecordedCodeObject co_load1("CO", sizeof("CO"), 1);
-    RecordedCodeObject co_load2("CO", sizeof("CO"), 2);
-    RecordedCodeObject co_load3("CO", sizeof("CO"), 3);
+    RecordedCodeObject co_load1("CO", sizeof("CO"), 1, {});
+    RecordedCodeObject co_load2("CO", sizeof("CO"), 2, {});
+    RecordedCodeObject co_load3("CO", sizeof("CO"), 3, {});
     REQUIRE(co_load1.crc() == co_load2.crc());
 
     TestLogger logger;
