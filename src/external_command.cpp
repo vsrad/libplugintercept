@@ -3,26 +3,28 @@
 
 using namespace agent;
 
-bool ExternalCommand::run_logged(const std::string& cmd, const ext_environment_t& env, AgentLogger& logger)
+void ExternalCommand::run_init_command(const config::InitCommand& cmd, const ext_environment_t& env, AgentLogger& logger)
 {
-    logger.info("Executing `" + cmd + "`");
+    if (cmd.command.empty())
+        return;
+
+    logger.info("Executing init command `" + cmd.command + "`");
 
     ExternalCommand runner;
-    int retcode = runner.execute(cmd, env);
-    if (retcode == 0)
+    int retcode = runner.execute(cmd.command, env);
+    if (cmd.expect_retcode && retcode != *cmd.expect_retcode)
     {
-        logger.info("The command has finished successfully");
-        return true;
-    }
+        std::string error_log;
+        error_log.append("The command `").append(cmd.command).append("` has exited with code ").append(std::to_string(retcode));
+        error_log.append(" (expected ").append(std::to_string(*cmd.expect_retcode)).append(")");
+        if (auto stdout{runner.read_stdout()}; !stdout.empty())
+            error_log.append("\n=== Stdout:\n").append(stdout);
+        if (auto stderr{runner.read_stderr()}; !stderr.empty())
+            error_log.append("\n=== Stderr:\n").append(stderr);
+        logger.error(error_log);
 
-    std::string error_log;
-    error_log.append("The command `").append(cmd).append("` has exited with code ").append(std::to_string(retcode));
-    if (auto stdout{runner.read_stdout()}; !stdout.empty())
-        error_log.append("\n=== Stdout:\n").append(stdout);
-    if (auto stderr{runner.read_stderr()}; !stderr.empty())
-        error_log.append("\n=== Stderr:\n").append(stderr);
-    logger.error(error_log);
-    return false;
+        throw std::runtime_error("libplugintercept: init command has failed with code " + std::to_string(retcode));
+    }
 }
 
 int ExternalCommand::execute(const std::string& cmd, const ext_environment_t& env)

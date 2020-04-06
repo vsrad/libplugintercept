@@ -24,7 +24,7 @@ public:
                           AgentLogger& logger, CodeObjectLoader& co_loader)
         : _subs(subs), _symbol_subs(symbol_subs), _logger(logger), _co_loader(co_loader) {}
 
-    std::optional<CodeObject> substitute(hsa_agent_t agent, const RecordedCodeObject& source, const ext_environment_t& env);
+    std::optional<CodeObject> substitute(hsa_agent_t agent, const RecordedCodeObject& co);
     void prepare_symbol_substitutes(hsa_agent_t agent, const RecordedCodeObject& source, const ext_environment_t& env);
     std::optional<hsa_executable_symbol_t> substitute_symbol(hsa_executable_symbol_t sym);
 };

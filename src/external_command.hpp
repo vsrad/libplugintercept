@@ -1,5 +1,6 @@
 #pragma once
 
+#include "config/init_command.hpp"
 #include "logger/logger.hpp"
 #include <iostream>
 #include <vector>
@@ -27,6 +28,6 @@ public:
     std::string read_stdout();
     std::string read_stderr();
 
-    static bool run_logged(const std::string& cmd, const ext_environment_t& env, AgentLogger& logger);
+    static void run_init_command(const config::InitCommand& cmd, const ext_environment_t& env, AgentLogger& logger);
 };
 } // namespace agent

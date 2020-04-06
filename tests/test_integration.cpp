@@ -65,32 +65,12 @@ TEST_CASE("kernel runs to completion", "[integration]")
         REQUIRE(dwords[dword_idx] == tid++);
 }
 
-TEST_CASE("trap handler is properly set up", "[integration]")
+TEST_CASE("using trap handler based debug plug", "[integration]")
 {
     system("rm -r tests/tmp; mkdir tests/tmp");
     {
         KernelRunner runner;
-        runner.load_code_object("build/tests/kernels/dbg_kernel.co", "dbg_kernel"); // skip first load (without trap)
-        runner.load_code_object("build/tests/kernels/dbg_kernel.co", "dbg_kernel"); // call-count = 2  (using trap handler)
-        runner.init_dispatch_packet(64, 64);
-        runner.dispatch_kernel();
-        runner.await_kernel_completion();
-    }
-
-    auto dwords = load_debug_buffer();
-    REQUIRE(dwords[0] == 0x7777777);
-    uint32_t tid = 1; // counter = 2, the first iteration will increment tid_dump by one
-    for (uint32_t dword_idx = 1 /* skip system */; dword_idx < dwords.size() && tid <= 64; dword_idx += 2 /* skip system */)
-        REQUIRE(dwords[dword_idx] == tid++);
-}
-
-TEST_CASE("trap handler is properly set up with more then one group", "[integration]")
-{
-    system("rm -r tests/tmp; mkdir tests/tmp");
-    {
-        KernelRunner runner;
-        runner.load_code_object("build/tests/kernels/dbg_kernel.co", "dbg_kernel"); // skip first load (without trap)
-        runner.load_code_object("build/tests/kernels/dbg_kernel.co", "dbg_kernel"); // call-count = 2  (using trap handler)
+        runner.load_code_object("build/tests/kernels/dbg_kernel.co", "dbg_kernel");
         runner.init_dispatch_packet(64, 128);
         runner.dispatch_kernel();
         runner.await_kernel_completion();

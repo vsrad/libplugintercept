@@ -3,25 +3,24 @@
 
 using namespace agent;
 
-std::optional<CodeObject> CodeObjectSubstitutor::substitute(hsa_agent_t agent, const RecordedCodeObject& source, const ext_environment_t& env)
+std::optional<CodeObject> CodeObjectSubstitutor::substitute(hsa_agent_t agent, const RecordedCodeObject& co)
 {
-    // TODO: rewrite match condition logic
+    auto sub = std::find_if(_subs.begin(), _subs.end(), [&co](const auto& sub) {
+        if (sub.condition_crc && co.crc() != *sub.condition_crc)
+            return false;
+        if (sub.condition_load_id && co.load_call_id() != *sub.condition_load_id)
+            return false;
+        return true;
+    });
+    if (sub != _subs.end())
+    {
+        _logger.info("Substituting code object " + co.info() + " with " + sub->replacement_path);
+        if (auto replacement_co = CodeObject::try_read_from_file(sub->replacement_path.c_str()))
+            return replacement_co;
+        else
+            _logger.error("Unable to load replacement code object from " + sub->replacement_path);
+    }
     return {};
-    auto sub = std::find_if(_subs.begin(), _subs.end(), [&source](const auto& s) { return false; });
-    if (sub == _subs.end())
-        return {};
-
-    _logger.info("Substituting code object " + source.info() + " with " + sub->replacement_path);
-
-    // TODO: transition from per-substitute command to a single init command
-    // if (!sub->external_command.empty())
-    //     if (!ExternalCommand::run_logged(sub->external_command, env, _logger))
-    //         return {};
-
-    auto replacement_co = CodeObject::try_read_from_file(sub->replacement_path.c_str());
-    if (!replacement_co)
-        _logger.error("Unable to load replacement code object from " + sub->replacement_path);
-    return replacement_co;
 }
 
 hsa_status_t find_substitute_symbol(hsa_executable_t exec, hsa_executable_symbol_t sym, void* data)

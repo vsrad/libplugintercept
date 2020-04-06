@@ -24,6 +24,9 @@ private:
     std::unique_ptr<BufferManager> _buffer_manager;
     std::unique_ptr<TrapHandler> _trap_handler;
 
+    std::mutex _executable_load_mutex;
+    bool _first_executable_load{true};
+
 public:
     DebugAgent(std::shared_ptr<config::Config> config,
                std::shared_ptr<AgentLogger> logger,

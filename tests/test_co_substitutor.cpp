@@ -18,8 +18,8 @@ TEST_CASE("substitutes code object based on CRC match", "[co_substitutor]")
          .condition_load_id = {},
          .replacement_path = "tests/fixtures/asdf"}};
     CodeObjectSubstitutor cosw(subs, {}, logger, *_dummy_loader);
-    auto matching = cosw.substitute({0}, co_matching, {});
-    auto other = cosw.substitute({0}, co_other, {});
+    auto matching = cosw.substitute({0}, co_matching);
+    auto other = cosw.substitute({0}, co_other);
     REQUIRE(matching);
     REQUIRE(!other);
     std::string subbed_data(static_cast<const char*>(matching->ptr()), matching->size());
@@ -34,9 +34,9 @@ TEST_CASE("substitutes code object based on load call match", "[co_substitutor]"
           .condition_load_id = 3,
           .replacement_path = "tests/fixtures/asdf"}};
     CodeObjectSubstitutor cosw(subs, {}, logger, *_dummy_loader);
-    REQUIRE(!cosw.substitute({0}, RecordedCodeObject("", 0, 1, {}), {}));
-    auto matching = cosw.substitute({0}, RecordedCodeObject("", 0, 3, {}), {});
-    REQUIRE(!cosw.substitute({0}, RecordedCodeObject("", 0, 4, {}), {}));
+    REQUIRE(!cosw.substitute({0}, RecordedCodeObject("", 0, 1, {})));
+    auto matching = cosw.substitute({0}, RecordedCodeObject("", 0, 3, {}));
+    REQUIRE(!cosw.substitute({0}, RecordedCodeObject("", 0, 4, {})));
     REQUIRE(matching);
     std::string subbed_data(static_cast<const char*>(matching->ptr()), matching->size());
     REQUIRE(subbed_data == "ASDF\n");
@@ -55,9 +55,9 @@ TEST_CASE("substitutes code object based on load call and CRC match", "[co_subst
          .condition_load_id = 2,
          .replacement_path = "tests/fixtures/asdf"}};
     CodeObjectSubstitutor cosw(subs, {}, logger, *_dummy_loader);
-    REQUIRE(!cosw.substitute({0}, co_load1, {}));
-    auto matching = cosw.substitute({0}, co_load2, {});
-    REQUIRE(!cosw.substitute({0}, co_load3, {}));
+    REQUIRE(!cosw.substitute({0}, co_load1));
+    auto matching = cosw.substitute({0}, co_load2);
+    REQUIRE(!cosw.substitute({0}, co_load3));
     REQUIRE(matching);
     std::string subbed_data(static_cast<const char*>(matching->ptr()), matching->size());
     REQUIRE(subbed_data == "ASDF\n");

@@ -30,23 +30,25 @@ TEST_CASE("sets environment variables", "[external_cmd]")
     REQUIRE(cmd.read_stderr() == "");
 }
 
-TEST_CASE("run_logged logs stdout and stderr on failure", "[external_cmd]")
+TEST_CASE("run_init_command throws an exception on failure", "[external_cmd]")
 {
     TestLogger logger;
 
-    REQUIRE(ExternalCommand::run_logged("echo $VAR", {{"VAR", "hh"}}, logger));
+    ExternalCommand::run_init_command(config::InitCommand{"asdfasdf", 32512}, {{"VAR", "hh"}}, logger);
     REQUIRE(logger.errors.empty());
 
-    REQUIRE(!ExternalCommand::run_logged("asdfasdf", {}, logger));
+    using Catch::Matchers::EndsWith;
+
+    REQUIRE_THROWS_WITH(ExternalCommand::run_init_command(config::InitCommand{"asdfasdf", 0}, {}, logger), EndsWith("failed with code 32512"));
     std::vector<std::string> expected_error_log = {
-        "The command `asdfasdf` has exited with code 32512"
+        "The command `asdfasdf` has exited with code 32512 (expected 0)"
         "\n=== Stderr:\nsh: 1: asdfasdf: not found\n"};
     REQUIRE(logger.errors == expected_error_log);
     logger.errors.clear();
 
-    REQUIRE(!ExternalCommand::run_logged("echo $VAR; asdfasdf", {{"VAR", "hh"}}, logger));
+    REQUIRE_THROWS_WITH(ExternalCommand::run_init_command(config::InitCommand{"echo $VAR; asdfasdf", 0}, {{"VAR", "hh"}}, logger), EndsWith("failed with code 32512"));
     expected_error_log = {
-        "The command `echo $VAR; asdfasdf` has exited with code 32512"
+        "The command `echo $VAR; asdfasdf` has exited with code 32512 (expected 0)"
         "\n=== Stdout:\nhh\n"
         "\n=== Stderr:\nsh: 1: asdfasdf: not found\n"};
     REQUIRE(logger.errors == expected_error_log);
