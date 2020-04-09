@@ -93,7 +93,7 @@ void CodeObjectRecorder::iterate_symbols(hsa_executable_t exec, RecordedCodeObje
     {
         std::string symbols;
         for (const auto& it : code_object.symbols())
-            symbols.append(symbols.empty() ? "code object symbols: " : ", ").append(it.first);
+            symbols.append(symbols.empty() ? "code object symbols: " : ", ").append(it.second);
         _logger->info(code_object, symbols);
     }
 }
@@ -109,6 +109,18 @@ std::optional<std::reference_wrapper<RecordedCodeObject>> CodeObjectRecorder::fi
         _logger->error("Cannot find code object by hsa_code_object_reader_t: " + std::to_string(reader->handle));
     if (auto cobj = std::get_if<hsa_code_object_t>(hsaco))
         _logger->error("Cannot find code object by hsa_code_object_t: " + std::to_string(cobj->handle));
+
+    return {};
+}
+
+std::optional<std::reference_wrapper<RecordedCodeObject>> CodeObjectRecorder::find_code_object(hsa_executable_symbol_t symbol)
+{
+    std::shared_lock lock(_mutex);
+    auto hsaco_eq = [s = symbol.handle](const auto& co) { return co.symbols().find(s) != co.symbols().end(); };
+    if (auto it{std::find_if(_code_objects.begin(), _code_objects.end(), hsaco_eq)}; it != _code_objects.end())
+        return {std::ref(*it)};
+
+    _logger->error("Cannot find code object by hsa_executable_symbol_t: " + std::to_string(symbol.handle));
 
     return {};
 }

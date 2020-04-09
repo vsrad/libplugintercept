@@ -28,10 +28,15 @@ public:
         hsa_executable_t* executable,
         const char** error_callsite);
 
-    hsa_status_t create_symbol_handle(
+    hsa_status_t find_symbol(
         hsa_agent_t agent,
         hsa_executable_t executable,
         const char* symbol_name,
+        hsa_executable_symbol_t* symbol,
+        const char** error_callsite);
+
+    hsa_status_t get_kernel_handle(
+        hsa_executable_symbol_t symbol,
         uint64_t* handle,
         const char** error_callsite);
 };

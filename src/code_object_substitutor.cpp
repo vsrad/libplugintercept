@@ -23,68 +23,48 @@ std::optional<CodeObject> CodeObjectSubstitutor::substitute(hsa_agent_t agent, c
     return {};
 }
 
-hsa_status_t find_substitute_symbol(hsa_executable_t exec, hsa_executable_symbol_t sym, void* data)
-{
-    auto [target, target_name] = *reinterpret_cast<std::pair<hsa_executable_symbol_t*, const std::string*>*>(data);
-
-    uint32_t name_len;
-    hsa_status_t status = hsa_executable_symbol_get_info(sym, HSA_EXECUTABLE_SYMBOL_INFO_NAME_LENGTH, &name_len);
-    if (status != HSA_STATUS_SUCCESS)
-        return status;
-
-    std::string current_sym_name(name_len, '\0');
-    status = hsa_executable_symbol_get_info(sym, HSA_EXECUTABLE_SYMBOL_INFO_NAME, current_sym_name.data());
-    if (status == HSA_STATUS_SUCCESS && current_sym_name == *target_name)
-        *target = sym;
-
-    return status;
-}
-
-void CodeObjectSubstitutor::prepare_symbol_substitutes(hsa_agent_t agent, const RecordedCodeObject& source, const ext_environment_t& env)
+void CodeObjectSubstitutor::prepare_symbol_substitutes(hsa_agent_t agent)
 {
     for (const auto& sub : _symbol_subs)
     {
-        // TODO: rewrite match condition logic
-        if (true) //!sub.condition.matches(source))
-            continue;
-        if (auto sym{source.symbols().find({})}; sym != source.symbols().end())
+        if (auto replacement_co = CodeObject::try_read_from_file(sub.replacement_path.c_str()))
         {
-            // if (!sub.external_command.empty())
-            //     if (!ExternalCommand::run_logged(sub.external_command, env, _logger))
-            //         continue;
-            if (auto replacement_co = CodeObject::try_read_from_file(sub.replacement_path.c_str()))
-            {
-                const char* error_callsite;
-                hsa_executable_t replacement_exec;
-                hsa_executable_symbol_t replacement_sym{0};
-                hsa_status_t status = _co_loader.create_executable(*replacement_co, agent, &replacement_exec, &error_callsite);
-                if (status != HSA_STATUS_SUCCESS)
-                {
-                    _logger.hsa_error("Unable to load replacement code object from " + sub.replacement_path, status, error_callsite);
-                    continue;
-                }
+            const char* error_callsite;
+            hsa_executable_t exec;
+            hsa_executable_symbol_t sym{0};
+            hsa_status_t status = _co_loader.create_executable(*replacement_co, agent, &exec, &error_callsite);
+            if (status == HSA_STATUS_SUCCESS)
+                status = _co_loader.find_symbol(agent, exec, sub.replacement_name.c_str(), &sym, &error_callsite);
 
-                auto lookup_data = std::make_pair<hsa_executable_symbol_t*, const std::string*>(&replacement_sym, &sub.replacement_name);
-                status = hsa_executable_iterate_symbols(replacement_exec, find_substitute_symbol, &lookup_data);
-                if (status != HSA_STATUS_SUCCESS || replacement_sym.handle == 0)
-                {
-                    _logger.hsa_error("Unable to find " + sub.replacement_name + " in the replacement code object", status, "hsa_executable_iterate_symbols");
-                    continue;
-                }
-
-                _evaluated_symbol_subs[sym->second.handle] = replacement_sym;
-            }
+            if (status == HSA_STATUS_SUCCESS && sym.handle != 0)
+                _evaluated_symbol_subs.emplace_back(sub, sym);
             else
-            {
-                _logger.error("Unable to load replacement code object from " + sub.replacement_path);
-            }
+                _logger.hsa_error("Unable to load " + sub.replacement_name + " from code object at " + sub.replacement_path, status, error_callsite);
+        }
+        else
+        {
+            _logger.error("Unable to load replacement code object from " + sub.replacement_path);
         }
     }
 }
 
-std::optional<hsa_executable_symbol_t> CodeObjectSubstitutor::substitute_symbol(hsa_executable_symbol_t sym)
+std::optional<hsa_executable_symbol_t> CodeObjectSubstitutor::substitute_symbol(
+    get_info_call_id_t call_id,
+    const RecordedCodeObject& co,
+    hsa_executable_symbol_t sym)
 {
-    if (auto it{_evaluated_symbol_subs.find(sym.handle)}; it != _evaluated_symbol_subs.end())
-        return {it->second};
+    for (const auto& [sub, replacement_sym] : _evaluated_symbol_subs)
+    {
+        if ((sub.condition_get_info_id && call_id != *sub.condition_get_info_id) ||
+            (sub.condition_crc && co.crc() != *sub.condition_crc) ||
+            (sub.condition_load_id && co.load_call_id() != *sub.condition_load_id))
+            continue;
+        if (auto it{co.symbols().find(sym.handle)}; it != co.symbols().end())
+        {
+            if (sub.condition_name && it->second != sub.condition_name)
+                continue;
+            return replacement_sym;
+        }
+    }
     return {};
 }

@@ -36,7 +36,7 @@ class RecordedCodeObject : public CodeObject
 private:
     const load_call_id_t _load_call_id;
     const hsaco_t _hsaco;
-    std::map<std::string, hsa_executable_symbol_t> _symbols;
+    std::map<decltype(hsa_executable_symbol_t::handle), std::string> _symbols;
 
     static hsa_status_t fill_symbols_callback(hsa_executable_t exec, hsa_executable_symbol_t sym, void* data);
 
@@ -54,6 +54,6 @@ public:
     bool hsaco_eq(const hsaco_t* other) const;
 
     hsa_status_t fill_symbols(hsa_executable_t exec);
-    const std::map<std::string, hsa_executable_symbol_t>& symbols() const { return _symbols; }
+    const std::map<decltype(hsa_executable_symbol_t::handle), std::string>& symbols() const { return _symbols; }
 };
 } // namespace agent

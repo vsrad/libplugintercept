@@ -31,7 +31,7 @@ hsa_status_t RecordedCodeObject::fill_symbols_callback(hsa_executable_t exec, hs
     std::string name(name_len, '\0');
     status = hsa_executable_symbol_get_info(sym, HSA_EXECUTABLE_SYMBOL_INFO_NAME, name.data());
     if (status == HSA_STATUS_SUCCESS)
-        reinterpret_cast<RecordedCodeObject*>(data)->_symbols.emplace(std::move(name), sym);
+        reinterpret_cast<RecordedCodeObject*>(data)->_symbols.emplace(sym.handle, std::move(name));
 
     return status;
 }

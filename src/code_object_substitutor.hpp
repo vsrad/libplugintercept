@@ -16,7 +16,7 @@ private:
     AgentLogger& _logger;
     CodeObjectLoader& _co_loader;
 
-    std::unordered_map<decltype(hsa_executable_symbol_t::handle), hsa_executable_symbol_t> _evaluated_symbol_subs;
+    std::vector<std::pair<const config::CodeObjectSymbolSubstitute&, hsa_executable_symbol_t>> _evaluated_symbol_subs;
 
 public:
     CodeObjectSubstitutor(const std::vector<config::CodeObjectSubstitute>& subs,
@@ -25,7 +25,12 @@ public:
         : _subs(subs), _symbol_subs(symbol_subs), _logger(logger), _co_loader(co_loader) {}
 
     std::optional<CodeObject> substitute(hsa_agent_t agent, const RecordedCodeObject& co);
-    void prepare_symbol_substitutes(hsa_agent_t agent, const RecordedCodeObject& source, const ext_environment_t& env);
-    std::optional<hsa_executable_symbol_t> substitute_symbol(hsa_executable_symbol_t sym);
+
+    void prepare_symbol_substitutes(hsa_agent_t agent);
+
+    std::optional<hsa_executable_symbol_t> substitute_symbol(
+        get_info_call_id_t call_id,
+        const RecordedCodeObject& co,
+        hsa_executable_symbol_t sym);
 };
 }; // namespace agent

@@ -27,6 +27,7 @@ public:
         : _load_call_counter{0}, _dump_dir{dump_dir}, _logger{logger} {}
     void record_code_object(const void* ptr, size_t size, hsaco_t hsaco, hsa_status_t load_status);
     std::optional<std::reference_wrapper<RecordedCodeObject>> find_code_object(const hsaco_t* hsaco);
+    std::optional<std::reference_wrapper<RecordedCodeObject>> find_code_object(hsa_executable_symbol_t symbol);
     void iterate_symbols(hsa_executable_t exec, RecordedCodeObject& code_object);
 };
 } // namespace agent
