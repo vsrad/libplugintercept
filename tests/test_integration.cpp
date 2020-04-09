@@ -31,9 +31,11 @@ std::vector<uint32_t> load_debug_buffer()
     return dwords;
 }
 
-TEST_CASE("kernel runs to completion", "[integration]")
+TEST_CASE("using in kernel plug with kernel-replace", "[integration]")
 {
     system("rm -r tests/tmp; mkdir tests/tmp");
+    auto old_env = getenv("INTERCEPT_CONFIG");
+    setenv("INTERCEPT_CONFIG", "tests/fixtures/plug.toml", 1);
     {
         KernelRunner runner;
         runner.load_code_object("build/tests/kernels/dbg_kernel.co", "dbg_kernel");
@@ -41,6 +43,7 @@ TEST_CASE("kernel runs to completion", "[integration]")
         runner.dispatch_kernel();
         runner.await_kernel_completion();
     }
+    setenv("INTERCEPT_CONFIG", old_env, 1);
 
     auto co = agent::CodeObject::try_read_from_file("build/tests/kernels/dbg_kernel.co");
     std::stringstream co_crc_ss;
@@ -65,7 +68,7 @@ TEST_CASE("kernel runs to completion", "[integration]")
         REQUIRE(dwords[dword_idx] == tid++);
 }
 
-TEST_CASE("using trap handler based debug plug", "[integration]")
+TEST_CASE("using trap handler based debug plug with code-object-replace", "[integration]")
 {
     system("rm -r tests/tmp; mkdir tests/tmp");
     {

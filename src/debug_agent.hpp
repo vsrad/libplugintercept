@@ -35,7 +35,7 @@ public:
                std::unique_ptr<CodeObjectLoader> co_loader)
         : _config(config), _logger(logger), _co_loader(std::move(co_loader)),
           _co_recorder(std::make_unique<CodeObjectRecorder>(config->code_object_dump_dir(), co_logger)),
-          _co_substitutor(std::make_unique<CodeObjectSubstitutor>(config->code_object_subs(), config->symbol_subs(), *_logger, *co_loader)),
+          _co_substitutor(std::make_unique<CodeObjectSubstitutor>(config->code_object_subs(), config->symbol_subs(), *_logger, *_co_loader)),
           _buffer_manager(std::make_unique<BufferManager>(config->buffers(), *_logger)),
           _trap_handler(std::make_unique<TrapHandler>(*_logger, *_co_loader, config->trap_handler())) {}
 

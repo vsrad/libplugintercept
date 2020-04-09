@@ -1,0 +1,25 @@
+[agent]
+log = "-"
+
+[code-object-dump]
+log = "tests/tmp/co_dump.log"
+directory = "tests/tmp/"
+
+[[buffer]]
+size = 1048576
+dump-path = "tests/tmp/debug_buffer"
+addr-env-name = "ASM_DBG_BUF_ADDR"
+size-env-name = "ASM_DBG_BUF_SIZE"
+
+[init-command]
+exec = """bash -o pipefail -c '\
+  perl tests/fixtures/breakpoint.pl -ba $ASM_DBG_BUF_ADDR -bs $ASM_DBG_BUF_SIZE \
+      -w v[tid_dump] -l 37 -t 0 tests/kernels/dbg_kernel.s \
+  | /opt/rocm/bin/hcc -x assembler -target amdgcn--amdhsa -mcpu=`/opt/rocm/bin/rocminfo | grep -om1 gfx9..` -mno-code-object-v3 \
+    -Itests/kernels/include -o tests/tmp/replacement_plug.co -'"""
+required-return-code = 0
+
+[[kernel-replace]]
+condition = { co-load-id = 1, kernel-name = "dbg_kernel" }
+replace-name = "dbg_kernel"
+co-path = "tests/tmp/replacement_plug.co"
