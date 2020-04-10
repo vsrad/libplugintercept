@@ -1,9 +1,4 @@
-[agent]
-log = "-"
-
-[code-object-dump]
-log = "tests/tmp/co_dump.log"
-directory = "tests/tmp/"
+# No logs!
 
 [[buffer]]
 size = 1048576

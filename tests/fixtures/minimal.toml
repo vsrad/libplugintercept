@@ -1,5 +1,3 @@
-[agent]
-log = "tests/tmp/agent.log"
-
-[code-object-dump]
-log = "tests/tmp/co.log"
+[logs]
+agent-log = "tests/tmp/agent.log"
+co-log = "tests/tmp/co.log"

@@ -57,7 +57,7 @@ void CodeObjectRecorder::handle_crc_collision(const RecordedCodeObject& new_co, 
     // but we cannot directly read it because the memory area could've been already freed.
     if (_dump_dir.empty())
     {
-        _logger->warning("has the same size as CO " + existing_co.info() + ". " +
+        _logger->warning(new_co, "same CRC and size as CO " + existing_co.info() + ". " +
                          "This is most likely a redundant load. Specify code object dump directory to compare their contents to check for a CRC collision.");
         return;
     }
@@ -67,7 +67,7 @@ void CodeObjectRecorder::handle_crc_collision(const RecordedCodeObject& new_co, 
     std::ifstream in(filepath, std::ios::binary);
     if (!in)
     {
-        _logger->error(new_co, "has the same size as CO " + existing_co.info() + ", but their contents could not be compared: could not read " + filepath);
+        _logger->error(new_co, "same CRC and size as CO " + existing_co.info() + ", but their contents could not be compared: could not read " + filepath);
         return;
     }
     char* existing_co_contents = (char*)std::malloc(existing_co.size());

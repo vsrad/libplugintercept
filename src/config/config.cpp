@@ -6,11 +6,11 @@
 using namespace agent::config;
 
 template <typename T>
-T get_required(const cpptoml::table& table, const std::string& key, const std::string& description = {})
+T get_required(const cpptoml::table& table, const std::string& key, const std::string& description)
 {
     if (auto value = table.get_qualified_as<T>(key))
         return *value;
-    throw std::runtime_error("unable to read " + (description.empty() ? key : description));
+    throw std::runtime_error("unable to read " + description);
 }
 
 CodeObjectSubstitute get_co_substitute(const cpptoml::table& config)
@@ -75,23 +75,27 @@ Config::Config()
         {
             auto config = cpptoml::parse_file(config_path);
 
-            // Required
-            _agent_log_file = get_required<std::string>(*config, "agent.log");
-            _code_object_log_file = get_required<std::string>(*config, "code-object-dump.log");
-
-            // Optional
-            _code_object_dump_dir = config->get_qualified_as<std::string>("code-object-dump.directory").value_or("");
+            if (auto logs = config->get_table("logs"))
+            {
+                _agent_log_file = logs->get_as<std::string>("agent-log").value_or("");
+                _code_object_log_file = logs->get_as<std::string>("co-log").value_or("");
+                _code_object_dump_dir = logs->get_as<std::string>("co-dump-dir").value_or("");
+            }
 
             if (auto buffer_configs = config->get_table_array("buffer"))
                 for (const auto& buffer_config : *buffer_configs)
                     _buffers.push_back(get_buffer(*buffer_config));
+
             if (auto init_command_config = config->get_table("init-command"))
                 _init_command = get_init_command(*init_command_config);
+
             if (auto trap_handler_config = config->get_table("trap-handler"))
                 _trap_handler = get_trap_handler(*trap_handler_config);
+
             if (auto sub_configs = config->get_table_array("code-object-replace"))
                 for (const auto& sub_config : *sub_configs)
                     _code_object_subs.push_back(get_co_substitute(*sub_config));
+
             if (auto sub_configs = config->get_table_array("kernel-replace"))
                 for (const auto& sub_config : *sub_configs)
                     _symbol_subs.push_back(get_symbol_substitute(*sub_config));

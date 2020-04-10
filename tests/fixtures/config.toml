@@ -1,16 +1,13 @@
-# Configuration and runtime errors are reported in the agent log.
-[agent]
-# (Required) Path to agent log file ("-" to print to stdout):
-log = "-"
-
-# When the application loads a code object, the action
-# is logged and the code object is saved to disk.
-[code-object-dump]
-# (Required) Path to the code object log file
-# ("-" to print to stdout):
-log = "tests/tmp/co_dump.log"
-# (Required) Directory to save loaded code objects to:
-directory = "tests/tmp/"
+[logs]
+# (Optional) Path to the agent log file ("-" to print to stdout),
+# where configuration and runtime errors are reported.
+agent-log = "-"
+# (Optional) Path to the code object log file ("-" to print to stdout),
+# where kernel and code objects loaded by the application are reported.
+co-log = "tests/tmp/co_dump.log"
+# (Optional) When the application loads a code object, dump it
+# into the following directory:
+co-dump-dir = "tests/tmp"
 
 # Auxiliary GPU buffers are allocated the first time
 # the application creates an executable from a code object.

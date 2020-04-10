@@ -1,4 +1,5 @@
 #include "code_object_substitutor.hpp"
+#include <functional>
 #include <sstream>
 
 using namespace agent;

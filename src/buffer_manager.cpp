@@ -1,4 +1,5 @@
 #include "buffer_manager.hpp"
+#include <sstream>
 
 using namespace agent;
 

@@ -6,7 +6,7 @@ TEST_CASE("reads a valid configuration file", "[config]")
     agent::config::Config config;
     REQUIRE(config.agent_log_file() == "-");
     REQUIRE(config.code_object_log_file() == "tests/tmp/co_dump.log");
-    REQUIRE(config.code_object_dump_dir() == "tests/tmp/");
+    REQUIRE(config.code_object_dump_dir() == "tests/tmp");
 
     std::vector<agent::config::Buffer> expected_buffers = {
         {.size = 1048576,
