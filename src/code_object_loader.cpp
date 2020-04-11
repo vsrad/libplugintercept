@@ -2,18 +2,21 @@
 
 using namespace agent;
 
+const char* CodeObjectLoader::load_function_name(const hsaco_t& hsaco)
+{
+    if (std::holds_alternative<hsa_code_object_reader_t>(hsaco))
+        return "hsa_code_object_reader_create_from_memory";
+    else
+        return "hsa_code_object_deserialize";
+}
+
 hsa_status_t CodeObjectLoader::load_from_memory(hsaco_t* hsaco, const CodeObject& co, const char** error_callsite)
 {
+    *error_callsite = load_function_name(*hsaco);
     if (auto reader = std::get_if<hsa_code_object_reader_t>(hsaco))
-    {
-        *error_callsite = "hsa_code_object_reader_create_from_memory";
         return _non_intercepted_api_table->hsa_code_object_reader_create_from_memory_fn(co.ptr(), co.size(), reader);
-    }
     if (auto cobj = std::get_if<hsa_code_object_t>(hsaco))
-    {
-        *error_callsite = "hsa_code_object_deserialize";
         return _non_intercepted_api_table->hsa_code_object_deserialize_fn(const_cast<void*>(co.ptr()), co.size(), NULL, cobj);
-    }
     return HSA_STATUS_ERROR;
 }
 

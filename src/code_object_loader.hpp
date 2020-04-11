@@ -17,6 +17,8 @@ public:
     CodeObjectLoader(std::shared_ptr<CoreApiTable> non_intercepted_api_table)
         : _non_intercepted_api_table(non_intercepted_api_table) {}
 
+    static const char* load_function_name(const hsaco_t& hsaco);
+
     hsa_status_t load_from_memory(
         hsaco_t* hsaco,
         const CodeObject& co,

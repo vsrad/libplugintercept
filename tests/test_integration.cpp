@@ -50,9 +50,11 @@ TEST_CASE("using trap handler based debug plug with code-object-replace", "[inte
     auto co_dump_log = std::ifstream("tests/tmp/co_dump.log");
     REQUIRE(co_dump_log);
 
+    using Catch::Matchers::StartsWith;
+
     std::string line;
     REQUIRE(std::getline(co_dump_log, line));
-    REQUIRE(line == "[CO INFO] CO 0x" + co_crc + " (load #1): loaded");
+    REQUIRE_THAT(line, StartsWith("[CO INFO] CO 0x" + co_crc + " (load #1): hsa_code_object_reader_create_from_memory("));
     REQUIRE(std::getline(co_dump_log, line));
     REQUIRE(line == "[CO INFO] CO 0x" + co_crc + " (load #1): written to tests/tmp/" + co_crc + ".co");
     REQUIRE(std::getline(co_dump_log, line));

@@ -1,9 +1,9 @@
 #include "code_object_recorder.hpp"
+#include "code_object_loader.hpp"
 #include <cassert>
 #include <cstring>
 #include <fstream>
-#include <iomanip>
-#include <iostream>
+#include <sstream>
 
 using namespace agent;
 
@@ -11,14 +11,18 @@ void CodeObjectRecorder::record_code_object(const void* ptr, size_t size, hsaco_
 {
     std::scoped_lock lock(_mutex);
     auto load_call_id = ++_load_call_counter;
+
+    std::ostringstream load_signature;
+    load_signature << CodeObjectLoader::load_function_name(hsaco) << "(" << ptr << ", " << size << ", ...)";
+
     if (load_status != HSA_STATUS_SUCCESS)
     {
-        _logger->warning("Load #" + std::to_string(load_call_id) + " failed with status " + std::to_string(load_status));
+        _logger->warning("Load #" + std::to_string(load_call_id) + " failed: " + load_signature.str() + " returned " + std::to_string(load_status));
         return;
     }
 
     auto& code_object = _code_objects.emplace_front(ptr, size, load_call_id, hsaco);
-    _logger->info(code_object, "loaded");
+    _logger->info(code_object, load_signature.str());
 
     auto crc_eq = [load_call_id, crc = code_object.crc()](const auto& co) { return co.load_call_id() != load_call_id && co.crc() == crc; };
     auto collision = std::find_if(_code_objects.begin(), _code_objects.end(), crc_eq);
@@ -58,7 +62,7 @@ void CodeObjectRecorder::handle_crc_collision(const RecordedCodeObject& new_co, 
     if (_dump_dir.empty())
     {
         _logger->warning(new_co, "same CRC and size as CO " + existing_co.info() + ". " +
-                         "This is most likely a redundant load. Specify code object dump directory to compare their contents to check for a CRC collision.");
+                                     "This is most likely a redundant load. Specify code object dump directory to compare their contents to check for a CRC collision.");
         return;
     }
     // If we dump code objects to disk, we can load the contents of the existing code object
