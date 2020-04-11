@@ -83,22 +83,19 @@ void CodeObjectRecorder::handle_crc_collision(const RecordedCodeObject& new_co, 
     std::free(existing_co_contents);
 }
 
-void CodeObjectRecorder::iterate_symbols(hsa_executable_t exec, RecordedCodeObject& code_object)
+void CodeObjectRecorder::record_symbols(RecordedCodeObject& co, exec_symbols_t&& symbols)
 {
-    if (code_object.fill_symbols(exec) != HSA_STATUS_SUCCESS)
+    co.set_symbols(std::move(symbols));
+    if (co.symbols().empty())
     {
-        _logger->error(code_object, "cannot iterate symbols of executable: " + std::to_string(exec.handle));
-    }
-    else if (code_object.symbols().empty())
-    {
-        _logger->info(code_object, "no symbols found");
+        _logger->info(co, "no symbols found");
     }
     else
     {
         std::string symbols;
-        for (const auto& it : code_object.symbols())
+        for (const auto& it : co.symbols())
             symbols.append(symbols.empty() ? "code object symbols: " : ", ").append(it.second);
-        _logger->info(code_object, symbols);
+        _logger->info(co, symbols);
     }
 }
 
@@ -117,14 +114,73 @@ std::optional<std::reference_wrapper<RecordedCodeObject>> CodeObjectRecorder::fi
     return {};
 }
 
-std::optional<std::reference_wrapper<RecordedCodeObject>> CodeObjectRecorder::find_code_object(hsa_executable_symbol_t symbol)
+std::optional<CodeObjectSymbolInfoCall> CodeObjectRecorder::record_get_info(hsa_executable_symbol_t symbol, hsa_executable_symbol_info_t attribute, get_info_call_id_t call_id)
 {
     std::shared_lock lock(_mutex);
-    auto hsaco_eq = [s = symbol.handle](const auto& co) { return co.symbols().find(s) != co.symbols().end(); };
-    if (auto it{std::find_if(_code_objects.begin(), _code_objects.end(), hsaco_eq)}; it != _code_objects.end())
-        return {std::ref(*it)};
+    for (const auto& co : _code_objects)
+    {
+        if (auto symbol_it{co.symbols().find(symbol.handle)}; symbol_it != co.symbols().end())
+        {
+            _logger->info(co, "kernel-get-id #" + std::to_string(call_id) + ": " + "hsa_executable_symbol_get_info(\"" + symbol_it->second + "\", " + std::string(symbol_info_attribute_name(attribute)) + ", ...)");
+            return {{.co = &co, .call_id = call_id, .symbol_name = symbol_it->second}};
+        }
+    }
 
     _logger->error("Cannot find code object by hsa_executable_symbol_t: " + std::to_string(symbol.handle));
-
     return {};
+}
+
+const char* CodeObjectRecorder::symbol_info_attribute_name(hsa_executable_symbol_info_t attribute)
+{
+    switch (attribute)
+    {
+    case HSA_EXECUTABLE_SYMBOL_INFO_TYPE:
+        return "HSA_EXECUTABLE_SYMBOL_INFO_TYPE";
+    case HSA_EXECUTABLE_SYMBOL_INFO_NAME_LENGTH:
+        return "HSA_EXECUTABLE_SYMBOL_INFO_NAME_LENGTH";
+    case HSA_EXECUTABLE_SYMBOL_INFO_NAME:
+        return "HSA_EXECUTABLE_SYMBOL_INFO_NAME";
+    case HSA_EXECUTABLE_SYMBOL_INFO_MODULE_NAME_LENGTH:
+        return "HSA_EXECUTABLE_SYMBOL_INFO_MODULE_NAME_LENGTH";
+    case HSA_EXECUTABLE_SYMBOL_INFO_MODULE_NAME:
+        return "HSA_EXECUTABLE_SYMBOL_INFO_MODULE_NAME";
+    case HSA_EXECUTABLE_SYMBOL_INFO_AGENT:
+        return "HSA_EXECUTABLE_SYMBOL_INFO_AGENT";
+    case HSA_EXECUTABLE_SYMBOL_INFO_VARIABLE_ADDRESS:
+        return "HSA_EXECUTABLE_SYMBOL_INFO_VARIABLE_ADDRESS";
+    case HSA_EXECUTABLE_SYMBOL_INFO_LINKAGE:
+        return "HSA_EXECUTABLE_SYMBOL_INFO_LINKAGE";
+    case HSA_EXECUTABLE_SYMBOL_INFO_IS_DEFINITION:
+        return "HSA_EXECUTABLE_SYMBOL_INFO_IS_DEFINITION";
+    case HSA_EXECUTABLE_SYMBOL_INFO_VARIABLE_ALLOCATION:
+        return "HSA_EXECUTABLE_SYMBOL_INFO_VARIABLE_ALLOCATION";
+    case HSA_EXECUTABLE_SYMBOL_INFO_VARIABLE_SEGMENT:
+        return "HSA_EXECUTABLE_SYMBOL_INFO_VARIABLE_SEGMENT";
+    case HSA_EXECUTABLE_SYMBOL_INFO_VARIABLE_ALIGNMENT:
+        return "HSA_EXECUTABLE_SYMBOL_INFO_VARIABLE_ALIGNMENT";
+    case HSA_EXECUTABLE_SYMBOL_INFO_VARIABLE_SIZE:
+        return "HSA_EXECUTABLE_SYMBOL_INFO_VARIABLE_SIZE";
+    case HSA_EXECUTABLE_SYMBOL_INFO_VARIABLE_IS_CONST:
+        return "HSA_EXECUTABLE_SYMBOL_INFO_VARIABLE_IS_CONST";
+    case HSA_EXECUTABLE_SYMBOL_INFO_KERNEL_OBJECT:
+        return "HSA_EXECUTABLE_SYMBOL_INFO_KERNEL_OBJECT";
+    case HSA_EXECUTABLE_SYMBOL_INFO_KERNEL_KERNARG_SEGMENT_SIZE:
+        return "HSA_EXECUTABLE_SYMBOL_INFO_KERNEL_KERNARG_SEGMENT_SIZE";
+    case HSA_EXECUTABLE_SYMBOL_INFO_KERNEL_KERNARG_SEGMENT_ALIGNMENT:
+        return "HSA_EXECUTABLE_SYMBOL_INFO_KERNEL_KERNARG_SEGMENT_ALIGNMENT";
+    case HSA_EXECUTABLE_SYMBOL_INFO_KERNEL_GROUP_SEGMENT_SIZE:
+        return "HSA_EXECUTABLE_SYMBOL_INFO_KERNEL_GROUP_SEGMENT_SIZE";
+    case HSA_EXECUTABLE_SYMBOL_INFO_KERNEL_PRIVATE_SEGMENT_SIZE:
+        return "HSA_EXECUTABLE_SYMBOL_INFO_KERNEL_PRIVATE_SEGMENT_SIZE";
+    case HSA_EXECUTABLE_SYMBOL_INFO_KERNEL_DYNAMIC_CALLSTACK:
+        return "HSA_EXECUTABLE_SYMBOL_INFO_KERNEL_DYNAMIC_CALLSTACK";
+    case HSA_EXECUTABLE_SYMBOL_INFO_KERNEL_CALL_CONVENTION:
+        return "HSA_EXECUTABLE_SYMBOL_INFO_KERNEL_CALL_CONVENTION";
+    case HSA_EXECUTABLE_SYMBOL_INFO_INDIRECT_FUNCTION_OBJECT:
+        return "HSA_EXECUTABLE_SYMBOL_INFO_INDIRECT_FUNCTION_OBJECT";
+    case HSA_EXECUTABLE_SYMBOL_INFO_INDIRECT_FUNCTION_CALL_CONVENTION:
+        return "HSA_EXECUTABLE_SYMBOL_INFO_INDIRECT_FUNCTION_CALL_CONVENTION";
+    default:
+        return "?";
+    }
 }

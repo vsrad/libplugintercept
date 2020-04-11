@@ -28,9 +28,6 @@ public:
 
     void prepare_symbol_substitutes(hsa_agent_t agent);
 
-    std::optional<hsa_executable_symbol_t> substitute_symbol(
-        get_info_call_id_t call_id,
-        const RecordedCodeObject& co,
-        hsa_executable_symbol_t sym);
+    std::optional<hsa_executable_symbol_t> substitute_symbol(CodeObjectSymbolInfoCall call);
 };
 }; // namespace agent

@@ -41,5 +41,10 @@ public:
         hsa_executable_symbol_t symbol,
         uint64_t* handle,
         const char** error_callsite);
+
+    hsa_status_t enum_executable_symbols(
+        hsa_executable_t executable,
+        exec_symbols_t& symbols,
+        const char** error_callsite);
 };
 } // namespace agent

@@ -2,8 +2,8 @@
 
 #include "code_object.hpp"
 #include "logger/logger.hpp"
-#include <shared_mutex>
 #include <forward_list>
+#include <shared_mutex>
 #include <functional>
 
 namespace agent
@@ -21,13 +21,15 @@ private:
 
     void dump_code_object(const RecordedCodeObject& co);
     void handle_crc_collision(const RecordedCodeObject& new_co, const RecordedCodeObject& existing_co);
+    static const char* symbol_info_attribute_name(hsa_executable_symbol_info_t attribute);
 
 public:
     CodeObjectRecorder(std::string dump_dir, std::shared_ptr<CodeObjectLogger> logger)
         : _load_call_counter{0}, _dump_dir{dump_dir}, _logger{logger} {}
+
     void record_code_object(const void* ptr, size_t size, hsaco_t hsaco, hsa_status_t load_status);
+    void record_symbols(RecordedCodeObject& co, exec_symbols_t&& symbols);
+    std::optional<CodeObjectSymbolInfoCall> record_get_info(hsa_executable_symbol_t symbol, hsa_executable_symbol_info_t attribute, get_info_call_id_t call_id);
     std::optional<std::reference_wrapper<RecordedCodeObject>> find_code_object(const hsaco_t* hsaco);
-    std::optional<std::reference_wrapper<RecordedCodeObject>> find_code_object(hsa_executable_symbol_t symbol);
-    void iterate_symbols(hsa_executable_t exec, RecordedCodeObject& code_object);
 };
 } // namespace agent

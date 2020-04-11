@@ -70,3 +70,30 @@ hsa_status_t CodeObjectLoader::get_kernel_handle(
     return _non_intercepted_api_table->hsa_executable_symbol_get_info_fn(
         symbol, HSA_EXECUTABLE_SYMBOL_INFO_KERNEL_OBJECT, handle);
 }
+
+hsa_status_t enum_symbols_callback(hsa_executable_t exec, hsa_executable_symbol_t sym, void* data)
+{
+    auto [api_table, symbols] = *reinterpret_cast<std::pair<CoreApiTable*, exec_symbols_t*>*>(data);
+
+    uint32_t name_len;
+    hsa_status_t status = api_table->hsa_executable_symbol_get_info_fn(sym, HSA_EXECUTABLE_SYMBOL_INFO_NAME_LENGTH, &name_len);
+    if (status != HSA_STATUS_SUCCESS)
+        return status;
+
+    std::string name(name_len, '\0');
+    status = api_table->hsa_executable_symbol_get_info_fn(sym, HSA_EXECUTABLE_SYMBOL_INFO_NAME, name.data());
+    if (status == HSA_STATUS_SUCCESS)
+        symbols->emplace(sym.handle, std::move(name));
+
+    return status;
+}
+
+hsa_status_t CodeObjectLoader::enum_executable_symbols(
+    hsa_executable_t executable,
+    exec_symbols_t& symbols,
+    const char** error_callsite)
+{
+    *error_callsite = "hsa_executable_iterate_symbols";
+    auto iterator_data = std::make_pair<CoreApiTable*, exec_symbols_t*>(&*_non_intercepted_api_table, &symbols);
+    return _non_intercepted_api_table->hsa_executable_iterate_symbols_fn(executable, enum_symbols_callback, &iterator_data);
+}

@@ -16,26 +16,6 @@ CodeObject::CodeObject(const void* ptr, size_t size)
       _size{size},
       _crc{CRC::Calculate(_ptr, size, _crc_table)} {}
 
-hsa_status_t RecordedCodeObject::fill_symbols(hsa_executable_t exec)
-{
-    return hsa_executable_iterate_symbols(exec, fill_symbols_callback, this);
-}
-
-hsa_status_t RecordedCodeObject::fill_symbols_callback(hsa_executable_t exec, hsa_executable_symbol_t sym, void* data)
-{
-    uint32_t name_len;
-    hsa_status_t status = hsa_executable_symbol_get_info(sym, HSA_EXECUTABLE_SYMBOL_INFO_NAME_LENGTH, &name_len);
-    if (status != HSA_STATUS_SUCCESS)
-        return status;
-
-    std::string name(name_len, '\0');
-    status = hsa_executable_symbol_get_info(sym, HSA_EXECUTABLE_SYMBOL_INFO_NAME, name.data());
-    if (status == HSA_STATUS_SUCCESS)
-        reinterpret_cast<RecordedCodeObject*>(data)->_symbols.emplace(sym.handle, std::move(name));
-
-    return status;
-}
-
 bool RecordedCodeObject::hsaco_eq(const hsaco_t* other) const
 {
     if (auto reader_lhs = std::get_if<hsa_code_object_reader_t>(&_hsaco))

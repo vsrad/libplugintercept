@@ -49,23 +49,16 @@ void CodeObjectSubstitutor::prepare_symbol_substitutes(hsa_agent_t agent)
     }
 }
 
-std::optional<hsa_executable_symbol_t> CodeObjectSubstitutor::substitute_symbol(
-    get_info_call_id_t call_id,
-    const RecordedCodeObject& co,
-    hsa_executable_symbol_t sym)
+std::optional<hsa_executable_symbol_t> CodeObjectSubstitutor::substitute_symbol(CodeObjectSymbolInfoCall info)
 {
     for (const auto& [sub, replacement_sym] : _evaluated_symbol_subs)
     {
-        if ((sub.condition_get_info_id && call_id != *sub.condition_get_info_id) ||
-            (sub.condition_crc && co.crc() != *sub.condition_crc) ||
-            (sub.condition_load_id && co.load_call_id() != *sub.condition_load_id))
+        if ((sub.condition_get_info_id && info.call_id != *sub.condition_get_info_id) ||
+            (sub.condition_crc && info.co->crc() != *sub.condition_crc) ||
+            (sub.condition_load_id && info.co->load_call_id() != *sub.condition_load_id) ||
+            (sub.condition_name && info.symbol_name != *sub.condition_name))
             continue;
-        if (auto it{co.symbols().find(sym.handle)}; it != co.symbols().end())
-        {
-            if (sub.condition_name && it->second != sub.condition_name)
-                continue;
-            return replacement_sym;
-        }
+        return replacement_sym;
     }
     return {};
 }
