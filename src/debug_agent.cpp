@@ -41,6 +41,8 @@ hsa_status_t DebugAgent::executable_load_co(hsaco_t hsaco, hsa_agent_t agent, hs
     }
     if (status == HSA_STATUS_SUCCESS)
         status = loader(hsaco);
+    if (status != HSA_STATUS_SUCCESS)
+        error_callsite = CodeObjectLoader::load_function_name(hsaco);
 
     // Once the executable is loaded, we can iterate its symbols
     exec_symbols_t symbols;
@@ -49,7 +51,7 @@ hsa_status_t DebugAgent::executable_load_co(hsaco_t hsaco, hsa_agent_t agent, hs
     if (status == HSA_STATUS_SUCCESS)
         _co_recorder->record_symbols(co->get(), std::move(symbols));
     else
-        _logger->hsa_error("Failed to create an executable from " + co->get().info(), status, error_callsite);
+        _logger->hsa_error("Failed to create an executable from CO " + co->get().info(), status, error_callsite);
 
     return status;
 }

@@ -17,31 +17,33 @@ done
 
 [[ -z "$line" || -z "$source_file" || -z "$debug_buffer_path" || -z "$watches" ]] && { echo $USAGE; exit 1; }
 
-rm -rf tmp_dir/
-mkdir tmp_dir
+rm -rf tmp/
+mkdir tmp
 
-export INTERCEPT_CONFIG=tmp_dir/config.toml
-cat <<EOF > tmp_dir/config.toml
-[agent]
-log = "-"
-[debug-buffer]
+export INTERCEPT_CONFIG=tmp/config.toml
+cat <<EOF > tmp/config.toml
+[logs]
+agent-log = "-"
+co-log = "-"
+co-dump-dir = "tmp"
+[[buffer]]
 size = 1048576
-dump-file = "$debug_buffer_path"
-[code-object-dump]
-log = "-"
-directory = "tmp_dir/"
-[[code-object-substitute]]
-when-call-count = 1
-load-file = "tmp_dir/debug.co"
-exec-before-load = """bash -o pipefail -c '\
+dump-path = "$debug_buffer_path"
+addr-env-name = "ASM_DBG_BUF_ADDR"
+size-env-name = "ASM_DBG_BUF_SIZE"
+[init-command]
+exec = """bash -o pipefail -c '\
   perl common/debugger/breakpoint.pl -ba \$ASM_DBG_BUF_ADDR -bs \$ASM_DBG_BUF_SIZE \
     -l $line -w "$watches" -s 96 -r s0 -t ${counter:=0} -p $perl_args $source_file \
-  | /opt/rocm/opencl/bin/x86_64/clang -x assembler -target amdgcn--amdhsa -mcpu=gfx900 -mno-code-object-v3 \
-    -Igfx9/include -o tmp_dir/debug.co -'"""
+  | /opt/rocm/hcc/bin/hcc -x assembler -target amdgcn--amdhsa -mcpu=gfx900 -mno-code-object-v3 \
+    -Igfx9/include -o tmp/debug.co -'"""
+[[code-object-replace]]
+condition = { co-load-id = 1 }
+co-path = "tmp/debug.co"
 EOF
 
 # Path to the compiled https://github.com/vsrad/debug-plug-hsa-intercept
 export HSA_TOOLS_LIB=../build/src/libplugintercept.so
 
-./build/gfx9/fp32_v_add --asm "$source_file" --include gfx9/include --output_path tmp/fp32_v_add.co
+./build/gfx9/fp32_v_add --asm "$source_file" --include gfx9/include --output_path tmp/fp32_v_add.co --clang /opt/rocm/hcc/bin/hcc
 echo

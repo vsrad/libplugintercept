@@ -54,11 +54,15 @@ TEST_CASE("using trap handler based debug plug with code-object-replace", "[inte
 
     std::string line;
     REQUIRE(std::getline(co_dump_log, line));
-    REQUIRE_THAT(line, StartsWith("[CO INFO] CO 0x" + co_crc + " (load #1): hsa_code_object_reader_create_from_memory("));
+    REQUIRE_THAT(line, StartsWith("[CO INFO] CO 0x" + co_crc + " (co-load-id 1): hsa_code_object_reader_create_from_memory("));
     REQUIRE(std::getline(co_dump_log, line));
-    REQUIRE(line == "[CO INFO] CO 0x" + co_crc + " (load #1): written to tests/tmp/" + co_crc + ".co");
+    REQUIRE(line == "[CO INFO] CO 0x" + co_crc + " (co-load-id 1): written to tests/tmp/" + co_crc + ".co");
     REQUIRE(std::getline(co_dump_log, line));
-    REQUIRE(line == "[CO INFO] CO 0x" + co_crc + " (load #1): code object symbols: dbg_kernel");
+    REQUIRE(line == "[CO INFO] CO 0x" + co_crc + " (co-load-id 1): code object symbols: dbg_kernel");
+    REQUIRE(std::getline(co_dump_log, line));
+    REQUIRE_THAT(line, StartsWith("[CO INFO] kernel-get-id 1: hsa_executable_symbol_get_info"));
+    REQUIRE(std::getline(co_dump_log, line));
+    REQUIRE_THAT(line, StartsWith("[CO INFO] kernel-get-id 2: hsa_executable_symbol_get_info"));
 
     auto dwords = load_debug_buffer();
     REQUIRE(dwords[0] == 0x7777777);

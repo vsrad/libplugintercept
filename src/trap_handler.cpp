@@ -6,6 +6,8 @@ using namespace agent;
 
 void TrapHandler::set_up(hsa_agent_t agent)
 {
+    if (_config.code_object_path.empty())
+        return;
     auto handler_co = CodeObject::try_read_from_file(_config.code_object_path.c_str());
     if (!handler_co)
     {

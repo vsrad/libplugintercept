@@ -35,7 +35,7 @@ std::string RecordedCodeObject::info() const
 {
     std::stringstream info;
     info << "0x" << std::setfill('0') << std::setw(sizeof(crc32_t) * 2) << std::hex << crc();
-    info << " (load #" << std::setw(0) << std::dec << load_call_id() << ")";
+    info << " (co-load-id " << std::setw(0) << std::dec << load_call_id() << ")";
     return info.str();
 }
 

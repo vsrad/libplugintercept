@@ -120,13 +120,14 @@ std::optional<CodeObjectSymbolInfoCall> CodeObjectRecorder::record_get_info(hsa_
     {
         if (auto symbol_it{co.symbols().find(symbol.handle)}; symbol_it != co.symbols().end())
         {
-            _logger->info(co, "kernel-get-id #" + std::to_string(call_id) + ": hsa_executable_symbol_get_info(\"" +
+            _logger->info(co, "kernel-get-id " + std::to_string(call_id) + ": hsa_executable_symbol_get_info(\"" +
                                   symbol_it->second + "\", " + std::string(symbol_info_attribute_name(attribute)) + ", ...)");
             return {{.co = &co, .call_id = call_id, .symbol_name = symbol_it->second}};
         }
     }
 
-    _logger->error("Cannot find code object by hsa_executable_symbol_t: " + std::to_string(symbol.handle));
+    _logger->info("kernel-get-id " + std::to_string(call_id) + ": hsa_executable_symbol_get_info(hsa_executable_symbol_t{" +
+                  std::to_string(symbol.handle) + "}, " + std::string(symbol_info_attribute_name(attribute)) + ", ...)");
     return {};
 }
 
