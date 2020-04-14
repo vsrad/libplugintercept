@@ -9,7 +9,6 @@ using namespace agent;
 
 void CodeObjectRecorder::record_code_object(const void* ptr, size_t size, hsaco_t hsaco, hsa_status_t load_status)
 {
-    std::scoped_lock lock(_mutex);
     auto load_call_id = ++_load_call_counter;
 
     std::ostringstream load_signature;
@@ -101,7 +100,6 @@ void CodeObjectRecorder::record_symbols(RecordedCodeObject& co, exec_symbols_t&&
 
 std::optional<std::reference_wrapper<RecordedCodeObject>> CodeObjectRecorder::find_code_object(const hsaco_t* hsaco)
 {
-    std::shared_lock lock(_mutex);
     auto hsaco_eq = [hsaco](const auto& co) { return co.hsaco_eq(hsaco); };
     if (auto it{std::find_if(_code_objects.begin(), _code_objects.end(), hsaco_eq)}; it != _code_objects.end())
         return {std::ref(*it)};
@@ -114,14 +112,16 @@ std::optional<std::reference_wrapper<RecordedCodeObject>> CodeObjectRecorder::fi
     return {};
 }
 
-std::optional<CodeObjectSymbolInfoCall> CodeObjectRecorder::record_get_info(hsa_executable_symbol_t symbol, hsa_executable_symbol_info_t attribute, get_info_call_id_t call_id)
+std::optional<CodeObjectSymbolInfoCall> CodeObjectRecorder::record_get_info(hsa_executable_symbol_t symbol, hsa_executable_symbol_info_t attribute)
 {
-    std::shared_lock lock(_mutex);
+    auto call_id = ++_get_info_call_counter;
+
     for (const auto& co : _code_objects)
     {
         if (auto symbol_it{co.symbols().find(symbol.handle)}; symbol_it != co.symbols().end())
         {
-            _logger->info(co, "kernel-get-id #" + std::to_string(call_id) + ": " + "hsa_executable_symbol_get_info(\"" + symbol_it->second + "\", " + std::string(symbol_info_attribute_name(attribute)) + ", ...)");
+            _logger->info(co, "kernel-get-id #" + std::to_string(call_id) + ": hsa_executable_symbol_get_info(\"" +
+                                  symbol_it->second + "\", " + std::string(symbol_info_attribute_name(attribute)) + ", ...)");
             return {{.co = &co, .call_id = call_id, .symbol_name = symbol_it->second}};
         }
     }

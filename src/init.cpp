@@ -59,9 +59,8 @@ hsa_status_t intercept_hsa_executable_symbol_get_info(
     hsa_executable_symbol_info_t attribute,
     void* value)
 {
-    return _debug_agent->intercept_hsa_executable_symbol_get_info(
-        _intercepted_api_table->hsa_executable_symbol_get_info_fn,
-        executable_symbol, attribute, value);
+    hsa_executable_symbol_t overridden_symbol = _debug_agent->symbol_get_info(executable_symbol, attribute);
+    return _intercepted_api_table->hsa_executable_symbol_get_info_fn(overridden_symbol, attribute, value);
 }
 
 extern "C" bool OnLoad(void* api_table_ptr, uint64_t rt_version, uint64_t failed_tool_cnt, const char* const* failed_tool_names)

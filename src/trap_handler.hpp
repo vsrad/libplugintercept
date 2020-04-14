@@ -6,13 +6,6 @@
 
 namespace agent
 {
-enum class TrapHandlerState
-{
-    None,
-    Configured,
-    FailedToLoad
-};
-
 class TrapHandler
 {
 private:
@@ -20,7 +13,7 @@ private:
     CodeObjectLoader& _co_loader;
     const config::TrapHandler& _config;
 
-    TrapHandlerState _state = TrapHandlerState::None;
+    bool _handler_loaded{false};
     uint32_t _agent_node_id = 0;
 
 public:

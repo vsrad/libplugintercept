@@ -6,33 +6,9 @@
 
 using namespace agent;
 
-hsa_status_t DebugAgent::intercept_hsa_executable_symbol_get_info(
-    decltype(hsa_executable_symbol_get_info)* intercepted_fn,
-    hsa_executable_symbol_t executable_symbol,
-    hsa_executable_symbol_info_t attribute,
-    void* value)
-{
-    std::scoped_lock(_agent_mutex);
-    auto call_id = ++_get_symbol_info_id;
-    auto symbol_info = _co_recorder->record_get_info(executable_symbol, attribute, call_id);
-    switch (attribute)
-    {
-    case HSA_EXECUTABLE_SYMBOL_INFO_NAME_LENGTH:
-    case HSA_EXECUTABLE_SYMBOL_INFO_NAME:
-    case HSA_EXECUTABLE_SYMBOL_INFO_MODULE_NAME_LENGTH:
-    case HSA_EXECUTABLE_SYMBOL_INFO_MODULE_NAME:
-        // The source symbol name may differ from the replacement name; return the former because host code may rely on it.
-        return intercepted_fn(executable_symbol, attribute, value);
-    default:
-        if (symbol_info)
-            if (auto replacement_sym = _co_substitutor->substitute_symbol(*symbol_info))
-                return intercepted_fn(*replacement_sym, attribute, value);
-        return intercepted_fn(executable_symbol, attribute, value);
-    }
-}
-
 void DebugAgent::record_co_load(hsaco_t hsaco, const void* contents, size_t size, hsa_status_t load_status)
 {
+    std::scoped_lock(_agent_mutex);
     _co_recorder->record_code_object(contents, size, hsaco, load_status);
 }
 
@@ -76,4 +52,26 @@ hsa_status_t DebugAgent::executable_load_co(hsaco_t hsaco, hsa_agent_t agent, hs
         _logger->hsa_error("Failed to create an executable from " + co->get().info(), status, error_callsite);
 
     return status;
+}
+
+hsa_executable_symbol_t DebugAgent::symbol_get_info(
+    hsa_executable_symbol_t symbol,
+    hsa_executable_symbol_info_t attribute)
+{
+    std::scoped_lock(_agent_mutex);
+    auto symbol_info = _co_recorder->record_get_info(symbol, attribute);
+    switch (attribute)
+    {
+    case HSA_EXECUTABLE_SYMBOL_INFO_NAME_LENGTH:
+    case HSA_EXECUTABLE_SYMBOL_INFO_NAME:
+    case HSA_EXECUTABLE_SYMBOL_INFO_MODULE_NAME_LENGTH:
+    case HSA_EXECUTABLE_SYMBOL_INFO_MODULE_NAME:
+        // Always return the original symbol for name queries because the replacement can have a different name.
+        return symbol;
+    default:
+        if (symbol_info)
+            if (auto replacement_sym = _co_substitutor->substitute_symbol(*symbol_info))
+                return *replacement_sym;
+        return symbol;
+    }
 }

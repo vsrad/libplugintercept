@@ -6,13 +6,10 @@ using namespace agent;
 
 void TrapHandler::set_up(hsa_agent_t agent)
 {
-    if (_state != TrapHandlerState::None || _config.code_object_path.empty())
-        return;
     auto handler_co = CodeObject::try_read_from_file(_config.code_object_path.c_str());
     if (!handler_co)
     {
         _logger.error("Unable to read trap handler code object at " + _config.code_object_path);
-        _state = TrapHandlerState::FailedToLoad;
         return;
     }
 
@@ -30,7 +27,6 @@ void TrapHandler::set_up(hsa_agent_t agent)
     if (status != HSA_STATUS_SUCCESS)
     {
         _logger.hsa_error("Unable to get trap handler symbol handle: ", status, err_callsite);
-        _state = TrapHandlerState::FailedToLoad;
         return;
     }
 
@@ -39,20 +35,20 @@ void TrapHandler::set_up(hsa_agent_t agent)
     if (kmt_status == HSAKMT_STATUS_SUCCESS)
     {
         _logger.info("Successfully set " + _config.symbol_name + " from " + _config.code_object_path + " as the trap handler");
-        _state = TrapHandlerState::Configured;
+        _handler_loaded = true;
     }
     else
     {
         _logger.error("Unable to register trap handler: HSAKMT_STATUS = " + std::to_string(kmt_status));
-        _state = TrapHandlerState::FailedToLoad;
     }
 }
 
 TrapHandler::~TrapHandler()
 {
-    if (_state != TrapHandlerState::Configured)
-        return;
-    HSAKMT_STATUS kmt_status = hsaKmtSetTrapHandler(_agent_node_id, nullptr, 0, nullptr, 0);
-    if (kmt_status != HSAKMT_STATUS_SUCCESS)
-        _logger.error("Unable to reset trap handler: HSAKMT_STATUS = " + std::to_string(kmt_status));
+    if (_handler_loaded)
+    {
+        HSAKMT_STATUS kmt_status = hsaKmtSetTrapHandler(_agent_node_id, nullptr, 0, nullptr, 0);
+        if (kmt_status != HSAKMT_STATUS_SUCCESS)
+            _logger.error("Unable to reset trap handler: HSAKMT_STATUS = " + std::to_string(kmt_status));
+    }
 }

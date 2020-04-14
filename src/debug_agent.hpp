@@ -8,8 +8,6 @@
 #include "logger/logger.hpp"
 #include "trap_handler.hpp"
 #include <memory>
-#include <string>
-#include <variant>
 
 namespace agent
 {
@@ -26,7 +24,6 @@ private:
 
     std::mutex _agent_mutex;
     bool _first_executable_load{true};
-    get_info_call_id_t _get_symbol_info_id{0};
 
 public:
     DebugAgent(std::shared_ptr<config::Config> config,
@@ -51,11 +48,8 @@ public:
         hsa_executable_t executable,
         std::function<hsa_status_t(hsaco_t)> loader);
 
-    hsa_status_t intercept_hsa_executable_symbol_get_info(
-        decltype(hsa_executable_symbol_get_info)* intercepted_fn,
-        hsa_executable_symbol_t executable_symbol,
-        hsa_executable_symbol_info_t attribute,
-        void* value);
+    hsa_executable_symbol_t symbol_get_info(
+        hsa_executable_symbol_t symbol,
+        hsa_executable_symbol_info_t attribute);
 };
-
 } // namespace agent

@@ -2,9 +2,7 @@
 
 #include "code_object_loader.hpp"
 #include "config/code_object_substitute.hpp"
-#include "external_command.hpp"
 #include "logger/logger.hpp"
-#include <vector>
 
 namespace agent
 {
