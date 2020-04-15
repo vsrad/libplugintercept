@@ -17,14 +17,11 @@ public:
     CodeObjectLoader(std::shared_ptr<CoreApiTable> non_intercepted_api_table)
         : _non_intercepted_api_table(non_intercepted_api_table) {}
 
-    hsa_status_t load_from_memory(
-        const CodeObject& co,
-        hsa_code_object_reader_t* reader,
-        const char** error_callsite);
+    static const char* load_function_name(const hsaco_t& hsaco);
 
     hsa_status_t load_from_memory(
+        hsaco_t* hsaco,
         const CodeObject& co,
-        hsa_code_object_t* hsaco,
         const char** error_callsite);
 
     hsa_status_t create_executable(
@@ -33,11 +30,21 @@ public:
         hsa_executable_t* executable,
         const char** error_callsite);
 
-    hsa_status_t create_symbol_handle(
+    hsa_status_t find_symbol(
         hsa_agent_t agent,
         hsa_executable_t executable,
         const char* symbol_name,
+        hsa_executable_symbol_t* symbol,
+        const char** error_callsite);
+
+    hsa_status_t get_kernel_handle(
+        hsa_executable_symbol_t symbol,
         uint64_t* handle,
+        const char** error_callsite);
+
+    hsa_status_t enum_executable_symbols(
+        hsa_executable_t executable,
+        exec_symbols_t& symbols,
         const char** error_callsite);
 };
 } // namespace agent

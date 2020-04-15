@@ -38,7 +38,7 @@ export HSA_TOOLS_LIB=libplugintercept.so
 
 ## Configuration
 
-At launch, the library loads a configuration file from the path specified in the `ASM_DBG_CONFIG` environment variable. Supported options and their intended usage are listed in the example file located in [`tests/fixtures/config.toml`](https://github.com/vsrad/debug-plug-hsa-intercept/blob/master/tests/fixtures/config.toml).
+At launch, the library loads a configuration file from the path specified in the `INTERCEPT_CONFIG` environment variable. Supported options and their intended usage are listed in the example file located in [`tests/fixtures/config.toml`](https://github.com/vsrad/debug-plug-hsa-intercept/blob/master/tests/fixtures/config.toml).
 
 ## Examples
 
@@ -46,17 +46,18 @@ At launch, the library loads a configuration file from the path specified in the
 
 1. Create a `.toml` configuration file with the following contents:
 ```toml
-[agent]
-log = "-" # log info messages to stdout
-
-[code-object-dump]
-log = "-" # log code object loads to stdout
-directory = "/tmp/co_loads" # dump code objects to /tmp/co_loads
+[logs]
+# log info messages to stdout:
+agent-log = "-"
+# log code object loads and hsa_executable_symbol_get_info calls to stdout:
+co-log = "-"
+# dump code objects to /tmp/co_loads:
+co-dump-dir = "/tmp/co_loads"
 ```
 
-2. Specify path to the configuration file in `ASM_DBG_CONFIG`:
+2. Specify path to the configuration file in `INTERCEPT_CONFIG`:
 ```sh
-export ASM_DBG_CONFIG=/path/to/config.toml
+export INTERCEPT_CONFIG=/path/to/config.toml
 ```
 
 3. Add `libplugintercept.so` to `HSA_TOOLS_LIB`:

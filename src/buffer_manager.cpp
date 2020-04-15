@@ -1,8 +1,9 @@
-#include "buffer_allocator.hpp"
+#include "buffer_manager.hpp"
+#include <sstream>
 
 using namespace agent;
 
-void BufferAllocator::allocate_buffers(hsa_agent_t agent)
+void BufferManager::allocate_buffers(hsa_agent_t agent)
 {
     if (_requested_allocs.empty())
         return;
@@ -44,10 +45,15 @@ void BufferAllocator::allocate_buffers(hsa_agent_t agent)
         std::ostringstream msg;
         msg << "Allocated buffer of size " << alloc.size << " at " << ptr.gpu;
         _logger.info(msg.str());
+
+        if (!alloc.addr_env_name.empty())
+            _buffer_env.emplace_back(alloc.addr_env_name, std::to_string(reinterpret_cast<size_t>(ptr.gpu)));
+        if (!alloc.size_env_name.empty())
+            _buffer_env.emplace_back(alloc.size_env_name, std::to_string(alloc.size));
     }
 }
 
-void BufferAllocator::dump_buffers()
+BufferManager::~BufferManager()
 {
     auto alloc = _requested_allocs.begin();
     auto ptr = _alloc_pointers.begin();
@@ -80,26 +86,9 @@ void BufferAllocator::dump_buffers()
     }
 }
 
-std::map<std::string, std::string> BufferAllocator::environment_variables() const
+hsa_status_t BufferManager::iterate_memory_regions(hsa_region_t region, void* data)
 {
-    std::map<std::string, std::string> env;
-
-    auto alloc = _requested_allocs.begin();
-    auto ptr = _alloc_pointers.begin();
-    for (; alloc != _requested_allocs.end() && ptr != _alloc_pointers.end(); alloc++, ptr++)
-    {
-        if (!alloc->addr_env_name.empty())
-            env[alloc->addr_env_name] = std::to_string(reinterpret_cast<size_t>(ptr->gpu));
-        if (!alloc->size_env_name.empty())
-            env[alloc->size_env_name] = std::to_string(alloc->size);
-    }
-
-    return env;
-}
-
-hsa_status_t BufferAllocator::iterate_memory_regions(hsa_region_t region, void* data)
-{
-    auto self = reinterpret_cast<BufferAllocator*>(data);
+    auto self = reinterpret_cast<BufferManager*>(data);
 
     hsa_region_segment_t segment_id;
     hsa_region_get_info(region, HSA_REGION_INFO_SEGMENT, &segment_id);

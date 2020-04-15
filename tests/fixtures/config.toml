@@ -1,15 +1,21 @@
-# Configuration and runtime errors are reported in the agent log.
-[agent]
-# (Required) Path to agent log file ("-" to print to stdout):
-log = "-"
+[logs]
+# (Optional) Path to the agent log file ("-" to print to stdout),
+# where configuration and runtime errors are reported.
+agent-log = "-"
+# (Optional) Path to the code object log file ("-" to print to stdout),
+# where kernel and code objects loaded by the application are reported.
+co-log = "tests/tmp/co_dump.log"
+# (Optional) When the application loads a code object, dump it
+# into the following directory:
+co-dump-dir = "tests/tmp"
 
 # Auxiliary GPU buffers are allocated the first time
 # the application creates an executable from a code object.
-# Each buffer allocation begins with `[[buffer-allocation]]`.
+# Each buffer allocation begins with `[[buffer]]`.
 #
 # If you don't need to allocate any auxiliary buffers,
-# don't specify any `[[buffer-allocation]]`s.
-[[buffer-allocation]]
+# don't specify any `[[buffer]]`s.
+[[buffer]]
 # (Required) Buffer size, in bytes
 size = 1048576
 # (Optional) When the application exits, save the contents
@@ -24,84 +30,75 @@ addr-env-name = "ASM_DBG_BUF_ADDR"
 # commands:
 size-env-name = "ASM_DBG_BUF_SIZE"
 
-[[buffer-allocation]]
+[[buffer]]
 size = 4096
 addr-env-name = "ASM_HID_BUF_ADDR"
 
-# When the application loads a code object, the action
-# is logged and the code object is saved to disk.
-[code-object-dump]
-# (Required) Path to the code object log file
-# ("-" to print to stdout):
-log = "tests/tmp/co_dump.log"
-# (Required) Directory to save loaded code objects to:
-directory = "tests/tmp/"
-
-# When the application creates an executable from a code object,
-# it can be substituted. Since the application may use
-# multiple code objects, each substitution (swap) is declared
-# separately, beginning with `[[code-object-swap]]`.
-#
-# If you don't need to replace any code objects loaded by the
-# application, don't specify any `[[code-object-swap]]`s.
-[[code-object-swap]]
-# (Required) Condition when the substitution is performed.
-# In this case, the first code object loaded by the application
-# will be substituted:
-when-call-count = 1
-# Alternatively, the condition can be specified as a CRC-32
-# checksum that a code object should match:
-# when-crc = 0xFFFFFFFF
-
-# (Required) Path to the replacement code object:
-load-file = "tests/tmp/replacement.co"
-# (Optional) A shell command executed before loading the
-# replacement code object. In this case, the command is
-# used to generate the replacement (note that
-# `ASM_DBG_BUF_ADDR` is initialized to the address of
-# the first auxiliary buffer, as configured above):
-exec-before-load = """bash -o pipefail -c '\
-  perl tests/fixtures/breakpoint.pl -ba $ASM_DBG_BUF_ADDR -bs $ASM_DBG_BUF_SIZE \
-      -w v[tid_dump] -l 37 -t 0 tests/kernels/dbg_kernel.s \
-  | /opt/rocm/bin/hcc -x assembler -target amdgcn--amdhsa -mcpu=`/opt/rocm/bin/rocminfo | grep -om1 gfx9..` -mno-code-object-v3 \
-    -Itests/kernels/include -o tests/tmp/replacement.co -'"""
-
-[[code-object-swap]]
-when-call-count = 2
-load-file = "tests/tmp/replacement.co"
-# (Optional) Path to the code object that contains a
-# kernel named `trap_handler`, which will be set
-# as the trap handler:
-load-trap-handler-file = "tests/tmp/replacement.co"
-# Note that `exec-before-load` is used to generate
-# the trap handler in this case:
-exec-before-load = """bash -o pipefail -c '\
+# An optional shell command can be executed after all
+# auxiliary buffers are allocated.
+# It can be used to generate replacement kernels,
+# including the optional trap handler (see below).
+[init-command]
+# (Required) A shell command executed after buffer allocation
+# and before kernel substitution
+# Note that the `ASM_*` env variables are initialized
+# with the buffer addresses and sizes as configured above:
+exec = """bash -o pipefail -c '\
   perl tests/fixtures/breakpoint_trap.pl -ba $ASM_DBG_BUF_ADDR -bs $ASM_DBG_BUF_SIZE -ha $ASM_HID_BUF_ADDR \
       -w v[tid_dump] -e "s_nop 10" -l 37 -t 2 tests/kernels/dbg_kernel.s \
   | /opt/rocm/bin/hcc -x assembler -target amdgcn--amdhsa -mcpu=`/opt/rocm/bin/rocminfo | grep -om1 gfx9..` -mno-code-object-v3 \
     -Itests/kernels/include -o tests/tmp/replacement.co -'"""
+# (Optional) Abort the application if the return code
+# does not match the one specified:
+required-return-code = 0
+
+# When a `[trap-handler]` is specified, it is set up after
+# the auxiliary buffer allocation.
+[trap-handler]
+# (Required) Path to the code object that contains the
+# kernel to be set as the trap handler:
+co-path = "tests/tmp/replacement.co"
+# (Required) Name of the trap handler kernel:
+handler-name = "trap_handler"
+
+# When the application creates an executable from a code object,
+# it can be replaced. Since the application may use
+# multiple code objects, each replacement is declared
+# separately, beginning with `[[code-object-replace]]`.
+#
+# If you don't need to replace any code objects loaded by the
+# application, don't specify any `[[code-object-replace]]`s.
+[[code-object-replace]]
+# (Required) Condition when the substitution is performed.
+# In this case, the first code object loaded by the application
+# will be replaced:
+condition = { co-load-id = 1 }
+# Alternatively, the condition can be specified as a CRC-32
+# checksum that a code object should match, or a combination of both:
+  # condition = { co-crc = 0xFFFFFFFF }
+  # condition = { co-load-id = 1, co-crc = 0xFFFFFFFF }
+# (Required) Path to the replacement code object:
+co-path = "tests/tmp/replacement.co"
 
 # Code objects contain a set of kernels. It is possible
-# to replace one of them without substituting the entire
-# code object:
-[[code-object-swap]]
-when-crc = 0xCAFE666
-load-file = "replacement.co"
-  # If one or several `[[code-object-swap.symbol]]`s are
-  # declared, the matching code object is not fully replaced.
-  # Instead, `hsa_executable_symbol_get_info` calls
-  # return the info from the replacement code object
-  # for symbols specified below:
-  [[code-object-swap.symbol]]
-  # (Required) Name of the symbol in the source code object:
-  name = "conv2d"
-  # (Required) Name of the symbol in the replacement code object:
-  replacement-name = "conv2d_test_new"
+# to replace one of them without replacing the entire
+# code object. This will make `hsa_executable_symbol_get_info`
+# calls return the info from a replacement code object
+# for the specified symbols:
+[[kernel-replace]]
+# (Required) Condition when the substitution is performed,
+# specified as one or several of the following predicates:
+#   co-crc        - CRC-32 checksum of the code object contents
+#   co-load-id    - code object load call id
+#   kernel-name   - kernel name
+#   kernel-get-id - hsa_executable_symbol_get_info call id
+condition = { co-crc = 0xCAFE666, co-load-id = 5, kernel-name = "conv2d" }
+# (Required) Name of the kernel to be used as a replacement:
+replace-name = "conv2d_test_new"
+# (Required) Path to the code object containing the kernel:
+co-path = "replacement.co"
 
-  [[code-object-swap.symbol]]
-  name = "conv2d_transpose"
-  replacement-name = "conv2d_test_new_transpose"
-
-[[code-object-swap]]
-when-crc = 0xDEADBEEF
-load-file = "replacement.co"
+[[kernel-replace]]
+condition = { kernel-get-id = 1 }
+replace-name = "conv2d_transpose_new"
+co-path = "replacement.co"

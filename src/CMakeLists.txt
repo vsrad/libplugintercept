@@ -1,14 +1,14 @@
 add_library(plugintercept SHARED
     ${CMAKE_CURRENT_SOURCE_DIR}/init.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/config.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/debug_agent.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/buffer_allocator.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/buffer_manager.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/code_object.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/code_object_loader.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/code_object_recorder.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/code_object_swapper.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/code_object_substitutor.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/external_command.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/trap_handler.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/config/config.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/logger/logger.cpp)
 
 include(ExternalProject)

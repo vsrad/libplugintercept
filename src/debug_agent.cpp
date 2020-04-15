@@ -6,118 +6,74 @@
 
 using namespace agent;
 
-hsa_status_t DebugAgent::intercept_hsa_code_object_reader_create_from_memory(
-    decltype(hsa_code_object_reader_create_from_memory)* intercepted_fn,
-    const void* code_object,
-    size_t size,
-    hsa_code_object_reader_t* code_object_reader)
+void DebugAgent::record_co_load(hsaco_t hsaco, const void* contents, size_t size, hsa_status_t load_status)
 {
-    auto& co = _co_recorder->record_code_object(code_object, size);
-    hsa_status_t status = intercepted_fn(code_object, size, code_object_reader);
-    if (status == HSA_STATUS_SUCCESS && code_object_reader->handle != 0)
-        co.set_hsa_code_object_reader(*code_object_reader);
+    std::scoped_lock(_agent_mutex);
+    _co_recorder->record_code_object(contents, size, hsaco, load_status);
+}
+
+hsa_status_t DebugAgent::executable_load_co(hsaco_t hsaco, hsa_agent_t agent, hsa_executable_t executable, std::function<hsa_status_t(hsaco_t)> loader)
+{
+    std::scoped_lock(_agent_mutex);
+    if (_first_executable_load)
+    {
+        _first_executable_load = false;
+        _buffer_manager->allocate_buffers(agent);
+        ExternalCommand::run_init_command(_config->init_command(), _buffer_manager->buffer_environment_variables(), *_logger);
+        _trap_handler->set_up(agent);
+        _co_substitutor->prepare_symbol_substitutes(agent);
+    }
+
+    auto co = _co_recorder->find_code_object(&hsaco);
+    if (!co)
+        return loader(hsaco);
+
+    const char* error_callsite;
+    hsa_status_t status = HSA_STATUS_SUCCESS;
+    if (auto sub = _co_substitutor->substitute(agent, co->get()))
+    {
+        status = _co_loader->load_from_memory(&hsaco, *sub, &error_callsite);
+        if (status == HSA_STATUS_SUCCESS)
+            /* Load the original executable as well to iterate its symbols */
+            status = _co_loader->create_executable(co->get(), agent, &executable, &error_callsite);
+        else
+            _logger->hsa_error("Failed to load the replacement for CO " + co->get().info(), status, error_callsite);
+    }
+    if (status == HSA_STATUS_SUCCESS)
+        status = loader(hsaco);
+    if (status != HSA_STATUS_SUCCESS)
+        error_callsite = CodeObjectLoader::load_function_name(hsaco);
+
+    // Once the executable is loaded, we can iterate its symbols
+    exec_symbols_t symbols;
+    if (status == HSA_STATUS_SUCCESS)
+        status = _co_loader->enum_executable_symbols(executable, symbols, &error_callsite);
+    if (status == HSA_STATUS_SUCCESS)
+        _co_recorder->record_symbols(co->get(), std::move(symbols));
+    else
+        _logger->hsa_error("Failed to create an executable from CO " + co->get().info(), status, error_callsite);
+
     return status;
 }
 
-hsa_status_t DebugAgent::intercept_hsa_code_object_deserialize(
-    decltype(hsa_code_object_deserialize)* intercepted_fn,
-    void* serialized_code_object,
-    size_t serialized_code_object_size,
-    const char* options,
-    hsa_code_object_t* code_object)
+hsa_executable_symbol_t DebugAgent::symbol_get_info(
+    hsa_executable_symbol_t symbol,
+    hsa_executable_symbol_info_t attribute)
 {
-    auto& co = _co_recorder->record_code_object(serialized_code_object, serialized_code_object_size);
-    hsa_status_t status = intercepted_fn(serialized_code_object, serialized_code_object_size, options, code_object);
-    if (status == HSA_STATUS_SUCCESS && code_object->handle != 0)
-        co.set_hsa_code_object(*code_object);
-    return status;
-}
-
-hsa_status_t DebugAgent::intercept_hsa_executable_load_agent_code_object(
-    decltype(hsa_executable_load_agent_code_object)* intercepted_fn,
-    hsa_executable_t executable,
-    hsa_agent_t agent,
-    hsa_code_object_reader_t code_object_reader,
-    const char* options,
-    hsa_loaded_code_object_t* loaded_code_object)
-{
-    auto co = _co_recorder->find_code_object(code_object_reader);
-    if (auto replacement_reader = load_swapped_code_object<hsa_code_object_reader_t>(agent, co->get()))
-        return intercepted_fn(executable, agent, *replacement_reader, options, loaded_code_object);
-
-    hsa_status_t status = intercepted_fn(executable, agent, code_object_reader, options, loaded_code_object);
-    if (co && status == HSA_STATUS_SUCCESS)
-        _co_recorder->iterate_symbols(executable, co->get());
-    return status;
-}
-
-hsa_status_t DebugAgent::intercept_hsa_executable_load_code_object(
-    decltype(hsa_executable_load_code_object)* intercepted_fn,
-    hsa_executable_t executable,
-    hsa_agent_t agent,
-    hsa_code_object_t code_object,
-    const char* options)
-{
-    auto co = _co_recorder->find_code_object(code_object);
-    if (auto replacement_hsaco = load_swapped_code_object<hsa_code_object_t>(agent, co->get()))
-        return intercepted_fn(executable, agent, *replacement_hsaco, options);
-
-    hsa_status_t status = intercepted_fn(executable, agent, code_object, options);
-    if (co && status == HSA_STATUS_SUCCESS)
-        _co_recorder->iterate_symbols(executable, co->get());
-    return status;
-}
-
-hsa_status_t DebugAgent::intercept_hsa_executable_symbol_get_info(
-    decltype(hsa_executable_symbol_get_info)* intercepted_fn,
-    hsa_executable_symbol_t executable_symbol,
-    hsa_executable_symbol_info_t attribute,
-    void* value)
-{
+    std::scoped_lock(_agent_mutex);
+    auto symbol_info = _co_recorder->record_get_info(symbol, attribute);
     switch (attribute)
     {
     case HSA_EXECUTABLE_SYMBOL_INFO_NAME_LENGTH:
     case HSA_EXECUTABLE_SYMBOL_INFO_NAME:
     case HSA_EXECUTABLE_SYMBOL_INFO_MODULE_NAME_LENGTH:
     case HSA_EXECUTABLE_SYMBOL_INFO_MODULE_NAME:
-        // The source symbol name may differ from the replacement name; return the former because host code may rely on it.
-        return intercepted_fn(executable_symbol, attribute, value);
+        // Always return the original symbol for name queries because the replacement can have a different name.
+        return symbol;
     default:
-        if (auto replacement_sym{_co_swapper->swap_symbol(executable_symbol)})
-            return intercepted_fn(*replacement_sym, attribute, value);
-        return intercepted_fn(executable_symbol, attribute, value);
+        if (symbol_info)
+            if (auto replacement_sym = _co_substitutor->substitute_symbol(*symbol_info))
+                return *replacement_sym;
+        return symbol;
     }
-}
-
-template <typename T>
-std::optional<T> DebugAgent::load_swapped_code_object(hsa_agent_t agent, RecordedCodeObject& co)
-{
-    _buffer_allocator->allocate_buffers(agent);
-    if (auto swap = _co_swapper->try_swap(agent, co, _buffer_allocator->environment_variables()))
-    {
-        T loaded_replacement;
-        const char* error_callsite;
-        hsa_status_t status = _co_loader->load_from_memory(*swap.replacement_co, &loaded_replacement, &error_callsite);
-        if (status == HSA_STATUS_SUCCESS)
-        {
-            if (swap.trap_handler_co)
-                _trap_handler->load_handler(std::move(*swap.trap_handler_co), agent);
-
-            /* Load the original executable to iterate its symbols */
-            hsa_executable_t original_exec;
-            const char* error_callsite;
-            hsa_status_t status = _co_loader->create_executable(co, agent, &original_exec, &error_callsite);
-            if (status == HSA_STATUS_SUCCESS)
-                _co_recorder->iterate_symbols(original_exec, co);
-            else
-                _logger->hsa_error("Unable to load executable with CRC = " + std::to_string(co.crc()), status, error_callsite);
-
-            return {loaded_replacement};
-        }
-        else
-        {
-            _logger->hsa_error("Failed to load replacement code object for CRC = " + std::to_string(co.crc()), status, error_callsite);
-        }
-    }
-    return {};
 }
