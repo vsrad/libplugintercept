@@ -16,14 +16,14 @@ private:
     // and we don't want them to be invalidated on insertion.
     std::forward_list<RecordedCodeObject> _code_objects;
     std::string _dump_dir;
-    std::shared_ptr<CodeObjectLogger> _logger;
+    CodeObjectLogger& _logger;
 
     void dump_code_object(const RecordedCodeObject& co);
     void handle_crc_collision(const RecordedCodeObject& new_co, const RecordedCodeObject& existing_co);
     static const char* symbol_info_attribute_name(hsa_executable_symbol_info_t attribute);
 
 public:
-    CodeObjectRecorder(std::string dump_dir, std::shared_ptr<CodeObjectLogger> logger)
+    CodeObjectRecorder(std::string dump_dir, CodeObjectLogger& logger)
         : _dump_dir(dump_dir), _logger(logger) {}
 
     // Not thread-safe, needs locking on the caller side

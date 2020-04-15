@@ -21,7 +21,7 @@ using Catch::Matchers::StartsWith, Catch::Matchers::Equals;
 
 TEST_CASE("keeps record of code objects", "[co_recorder]")
 {
-    auto logger = std::make_shared<TestCodeObjectLogger>();
+    TestCodeObjectLogger logger;
     CodeObjectRecorder recorder(DUMP_PATH, logger);
 
     hsaco_t r1 = hsa_code_object_reader_t{1};
@@ -44,18 +44,18 @@ TEST_CASE("keeps record of code objects", "[co_recorder]")
     REQUIRE(coo2);
     REQUIRE(coo2->get().load_call_id() == 4);
 
-    REQUIRE_THAT(logger->infos.at(0), StartsWith("CO 0xebfa44ab (co-load-id 1): hsa_code_object_reader_create_from_memory(")); // followed by memory address that changes between runs
-    REQUIRE_THAT(logger->infos.at(1), Equals("CO 0xebfa44ab (co-load-id 1): written to tests/tmp/ebfa44ab.co"));
-    REQUIRE_THAT(logger->infos.at(2), StartsWith("CO 0xc0d71768 (co-load-id 2): hsa_code_object_reader_create_from_memory("));
-    REQUIRE_THAT(logger->infos.at(3), Equals("CO 0xc0d71768 (co-load-id 2): written to tests/tmp/c0d71768.co"));
-    REQUIRE_THAT(logger->warnings.at(0), StartsWith("Load #3 failed: hsa_code_object_deserialize("));
-    REQUIRE_THAT(logger->infos.at(4), StartsWith("CO 0xd429274b (co-load-id 4): hsa_code_object_deserialize("));
-    REQUIRE_THAT(logger->infos.at(5), Equals("CO 0xd429274b (co-load-id 4): written to tests/tmp/d429274b.co"));
+    REQUIRE_THAT(logger.infos.at(0), StartsWith("CO 0xebfa44ab (co-load-id 1): hsa_code_object_reader_create_from_memory(")); // followed by memory address that changes between runs
+    REQUIRE_THAT(logger.infos.at(1), Equals("CO 0xebfa44ab (co-load-id 1): written to tests/tmp/ebfa44ab.co"));
+    REQUIRE_THAT(logger.infos.at(2), StartsWith("CO 0xc0d71768 (co-load-id 2): hsa_code_object_reader_create_from_memory("));
+    REQUIRE_THAT(logger.infos.at(3), Equals("CO 0xc0d71768 (co-load-id 2): written to tests/tmp/c0d71768.co"));
+    REQUIRE_THAT(logger.warnings.at(0), StartsWith("Load #3 failed: hsa_code_object_deserialize("));
+    REQUIRE_THAT(logger.infos.at(4), StartsWith("CO 0xd429274b (co-load-id 4): hsa_code_object_deserialize("));
+    REQUIRE_THAT(logger.infos.at(5), Equals("CO 0xd429274b (co-load-id 4): written to tests/tmp/d429274b.co"));
 }
 
 TEST_CASE("warns when looking up non-existent hsacos", "[co_recorder]")
 {
-    auto logger = std::make_shared<TestCodeObjectLogger>();
+    TestCodeObjectLogger logger;
     CodeObjectRecorder recorder(DUMP_PATH, logger);
 
     hsaco_t reader = hsa_code_object_reader_t{123};
@@ -66,28 +66,28 @@ TEST_CASE("warns when looking up non-existent hsacos", "[co_recorder]")
     std::vector<std::string> expected_error = {
         "Cannot find code object by hsa_code_object_reader_t: 123",
         "Cannot find code object by hsa_code_object_t: 456"};
-    REQUIRE(logger->errors == expected_error);
-    REQUIRE(logger->infos.empty());
-    REQUIRE(logger->warnings.empty());
+    REQUIRE(logger.errors == expected_error);
+    REQUIRE(logger.infos.empty());
+    REQUIRE(logger.warnings.empty());
 }
 
 TEST_CASE("dump code object to an invalid path", "[co_recorder]")
 {
     const char* CODE_OBJECT_DATA = "CODE OBJECT";
 
-    auto logger = std::make_shared<TestCodeObjectLogger>();
+    TestCodeObjectLogger logger;
     CodeObjectRecorder recorder("invalid-path", logger);
     recorder.record_code_object(CODE_OBJECT_DATA, sizeof(CODE_OBJECT_DATA), hsa_code_object_t{1}, HSA_STATUS_SUCCESS);
 
-    REQUIRE_THAT(logger->infos.at(0), StartsWith("CO 0xfb1b607e (co-load-id 1): hsa_code_object_deserialize"));
-    REQUIRE_THAT(logger->errors.at(0), Equals("CO 0xfb1b607e (co-load-id 1): cannot write code object to invalid-path/fb1b607e.co"));
+    REQUIRE_THAT(logger.infos.at(0), StartsWith("CO 0xfb1b607e (co-load-id 1): hsa_code_object_deserialize"));
+    REQUIRE_THAT(logger.errors.at(0), Equals("CO 0xfb1b607e (co-load-id 1): cannot write code object to invalid-path/fb1b607e.co"));
 }
 
 TEST_CASE("redundant load code objects", "[co_recorder]")
 {
     const char* CODE_OBJECT_DATA = "CODE OBJECT";
 
-    auto logger = std::make_shared<TestCodeObjectLogger>();
+    TestCodeObjectLogger logger;
     CodeObjectRecorder recorder(DUMP_PATH, logger);
 
     hsaco_t o1 = hsa_code_object_t{1};
@@ -100,8 +100,8 @@ TEST_CASE("redundant load code objects", "[co_recorder]")
     auto coo2 = recorder.find_code_object(&o2);
     REQUIRE(coo1->get().crc() == coo2->get().crc());
 
-    REQUIRE_THAT(logger->infos.at(0), StartsWith("CO 0xfb1b607e (co-load-id 1): hsa_code_object_deserialize"));
-    REQUIRE_THAT(logger->infos.at(1), Equals("CO 0xfb1b607e (co-load-id 1): written to tests/tmp/fb1b607e.co"));
-    REQUIRE_THAT(logger->infos.at(2), StartsWith("CO 0xfb1b607e (co-load-id 2): hsa_code_object_deserialize"));
-    REQUIRE_THAT(logger->warnings.at(0), Equals("CO 0xfb1b607e (co-load-id 2): redundant load, same contents as CO 0xfb1b607e (co-load-id 1)"));
+    REQUIRE_THAT(logger.infos.at(0), StartsWith("CO 0xfb1b607e (co-load-id 1): hsa_code_object_deserialize"));
+    REQUIRE_THAT(logger.infos.at(1), Equals("CO 0xfb1b607e (co-load-id 1): written to tests/tmp/fb1b607e.co"));
+    REQUIRE_THAT(logger.infos.at(2), StartsWith("CO 0xfb1b607e (co-load-id 2): hsa_code_object_deserialize"));
+    REQUIRE_THAT(logger.warnings.at(0), Equals("CO 0xfb1b607e (co-load-id 2): redundant load, same contents as CO 0xfb1b607e (co-load-id 1)"));
 }

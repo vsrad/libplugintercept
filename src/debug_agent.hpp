@@ -7,34 +7,34 @@
 #include "config/config.hpp"
 #include "logger/logger.hpp"
 #include "trap_handler.hpp"
-#include <memory>
 
 namespace agent
 {
 class DebugAgent
 {
 private:
-    std::shared_ptr<config::Config> _config;
-    std::shared_ptr<AgentLogger> _logger;
-    std::unique_ptr<CodeObjectLoader> _co_loader;
-    std::unique_ptr<CodeObjectRecorder> _co_recorder;
-    std::unique_ptr<CodeObjectSubstitutor> _co_substitutor;
-    std::unique_ptr<BufferManager> _buffer_manager;
-    std::unique_ptr<TrapHandler> _trap_handler;
+    config::Config _config;
+    AgentLogger _logger;
+    CodeObjectLogger _co_logger;
+    CodeObjectLoader _co_loader;
+    CodeObjectRecorder _co_recorder;
+    CodeObjectSubstitutor _co_substitutor;
+    BufferManager _buffer_manager;
+    TrapHandler _trap_handler;
 
     std::mutex _agent_mutex;
     bool _first_executable_load{true};
 
 public:
-    DebugAgent(std::shared_ptr<config::Config> config,
-               std::shared_ptr<AgentLogger> logger,
-               std::shared_ptr<CodeObjectLogger> co_logger,
-               std::unique_ptr<CodeObjectLoader> co_loader)
-        : _config(config), _logger(logger), _co_loader(std::move(co_loader)),
-          _co_recorder(std::make_unique<CodeObjectRecorder>(config->code_object_dump_dir(), co_logger)),
-          _co_substitutor(std::make_unique<CodeObjectSubstitutor>(config->code_object_subs(), config->symbol_subs(), *_logger, *_co_loader)),
-          _buffer_manager(std::make_unique<BufferManager>(config->buffers(), *_logger)),
-          _trap_handler(std::make_unique<TrapHandler>(*_logger, *_co_loader, config->trap_handler())) {}
+    DebugAgent(CodeObjectLoader&& co_loader)
+        : _config(),
+          _logger(_config.agent_log_file()),
+          _co_logger(_config.code_object_log_file()),
+          _co_loader(std::move(co_loader)),
+          _co_recorder(_config.code_object_dump_dir(), _co_logger),
+          _co_substitutor(_config.code_object_subs(), _config.symbol_subs(), _logger, _co_loader),
+          _buffer_manager(_config.buffers(), _logger),
+          _trap_handler(_logger, _co_loader, _config.trap_handler()) {}
 
     void record_co_load(
         hsaco_t hsaco,

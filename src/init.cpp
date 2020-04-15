@@ -67,24 +67,18 @@ extern "C" bool OnLoad(void* api_table_ptr, uint64_t rt_version, uint64_t failed
 {
     try
     {
-        // Parse the configuration file first so that if it throws an exception
-        // we don't end up with an invalid function pointer table
-        auto config = std::make_shared<agent::config::Config>();
-
         auto api_table = reinterpret_cast<HsaApiTable*>(api_table_ptr);
         _intercepted_api_table = std::make_shared<CoreApiTable>();
         memcpy(_intercepted_api_table.get(), static_cast<const void*>(api_table->core_), sizeof(CoreApiTable));
+
+        // Instantiate the agent first: this way if it throws an exception we don't end up with an invalid CoreApiTable
+        _debug_agent = std::make_unique<agent::DebugAgent>(agent::CodeObjectLoader(_intercepted_api_table));
 
         api_table->core_->hsa_code_object_reader_create_from_memory_fn = intercept_hsa_code_object_reader_create_from_memory;
         api_table->core_->hsa_code_object_deserialize_fn = intercept_hsa_code_object_deserialize;
         api_table->core_->hsa_executable_load_agent_code_object_fn = intercept_hsa_executable_load_agent_code_object;
         api_table->core_->hsa_executable_load_code_object_fn = intercept_hsa_executable_load_code_object;
         api_table->core_->hsa_executable_symbol_get_info_fn = intercept_hsa_executable_symbol_get_info;
-
-        auto logger = std::make_shared<agent::AgentLogger>(config->agent_log_file());
-        auto co_logger = std::make_shared<agent::CodeObjectLogger>(config->code_object_log_file());
-        auto co_loader = std::make_unique<agent::CodeObjectLoader>(_intercepted_api_table);
-        _debug_agent = std::make_unique<agent::DebugAgent>(config, logger, co_logger, std::move(co_loader));
     }
     catch (const std::exception& e)
     {
