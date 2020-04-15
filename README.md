@@ -46,12 +46,13 @@ At launch, the library loads a configuration file from the path specified in the
 
 1. Create a `.toml` configuration file with the following contents:
 ```toml
-[agent]
-log = "-" # log info messages to stdout
-
-[code-object-dump]
-log = "-" # log code object loads to stdout
-directory = "/tmp/co_loads" # dump code objects to /tmp/co_loads
+[logs]
+# log info messages to stdout:
+agent-log = "-"
+# log code object loads and hsa_executable_symbol_get_info calls to stdout:
+co-log = "-"
+# dump code objects to /tmp/co_loads:
+co-dump-dir = "/tmp/co_loads"
 ```
 
 2. Specify path to the configuration file in `INTERCEPT_CONFIG`:
