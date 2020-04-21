@@ -66,7 +66,7 @@ TEST_CASE("using trap handler based debug plug with code-object-replace", "[inte
 
     auto dwords = load_debug_buffer();
     REQUIRE(dwords[0] == 0x7777777);
-    uint32_t tid = 1;       // counter = 2, the first iteration will increment tid_dump by one
+    uint32_t tid = 2;       // counter = 2, the first two iterations will increment tid_dump by one
     uint32_t dword_idx = 1; // skip system
     for (; dword_idx < dwords.size() && tid <= 64; dword_idx += 2 /* skip system */)
     {

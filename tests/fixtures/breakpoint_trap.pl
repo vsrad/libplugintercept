@@ -81,13 +81,13 @@ trap_handler:
   .end_amd_kernel_code_t
 
 .macro m_return_pc offset=0
-  // Restore SQ_WAVE_STATUS.
+  s_add_u32           ttmp0, ttmp0, \\offset
+  s_addc_u32          ttmp1, ttmp1, 0x0
+  
+    // Restore SQ_WAVE_STATUS.
   s_and_b64            exec, exec, exec // Restore STATUS.EXECZ, not writable by s_setreg_b32
   s_and_b64            vcc, vcc, vcc    // Restore STATUS.VCCZ , not writable by s_setreg_b32
   s_setreg_b32         hwreg(HW_REG_STATUS), ttmp12
-
-  s_add_u32           ttmp0, ttmp0, \\offset
-  s_addc_u32          ttmp1, ttmp1, 0x0
 
   // Return to shader at unmodified PC.
   s_rfe_b64           [ttmp0, ttmp1]
@@ -112,9 +112,6 @@ trap_handler:
   .set SQ_WAVE_PC_HI_TRAP_ID_SHIFT           , 16
   .set SQ_WAVE_PC_HI_TRAP_ID_SIZE            , 8
   .set SQ_WAVE_PC_HI_TRAP_ID_BFE             , (SQ_WAVE_PC_HI_TRAP_ID_SHIFT | (SQ_WAVE_PC_HI_TRAP_ID_SIZE << 16))
-  .set TTMP11_SAVE_RCNT_FIRST_REPLAY_SHIFT   , 26
-  .set SQ_WAVE_IB_STS_FIRST_REPLAY_SHIFT     , 15
-  .set SQ_WAVE_IB_STS_RCNT_FIRST_REPLAY_MASK , 0x1F8000
 
   // vgprDbg
   // sgprDbgStmp      = ttmp2
@@ -218,9 +215,10 @@ s_branch     skip_dump\n";
 "v_mov_b32    v[vgprDbg], $watch
 s_trap       3\n";
   }
-  print $fo "s_trap       4 // restore vgprDbg\n";
-  print $fo "$endpgm\n";
-  print $fo "skip_dump:\n$_";
+    print $fo "s_trap       4 // restore vgprDbg\n";
+    print $fo "$endpgm\n";
+    print $fo "skip_dump:\n";
+    print $fo $_;
   }
   else {
     print $fo $_;

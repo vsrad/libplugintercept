@@ -21,7 +21,7 @@ TEST_CASE("reads a valid configuration file", "[config]")
     agent::config::InitCommand expected_init_command = {
         .command = "bash -o pipefail -c '"
                    "perl tests/fixtures/breakpoint_trap.pl -ba $ASM_DBG_BUF_ADDR -bs $ASM_DBG_BUF_SIZE -ha $ASM_HID_BUF_ADDR "
-                   "-w v[tid_dump] -e \"s_nop 10\" -l 37 -t 2 tests/kernels/dbg_kernel.s | "
+                   "-w v[tid_dump] -e \"s_nop 10\" -l 41 -t 2 tests/kernels/dbg_kernel.s | "
                    "/opt/rocm/bin/hcc -x assembler -target amdgcn--amdhsa "
                    "-mcpu=`/opt/rocm/bin/rocminfo | grep -om1 gfx9..` -mno-code-object-v3 "
                    "-Itests/kernels/include -o tests/tmp/replacement.co -'",
