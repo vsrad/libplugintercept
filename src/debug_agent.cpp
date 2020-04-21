@@ -8,13 +8,13 @@ using namespace agent;
 
 void DebugAgent::record_co_load(hsaco_t hsaco, const void* contents, size_t size, hsa_status_t load_status)
 {
-    std::scoped_lock(_agent_mutex);
+    std::scoped_lock lock(_agent_mutex);
     _co_recorder.record_code_object(contents, size, hsaco, load_status);
 }
 
 hsa_status_t DebugAgent::executable_load_co(hsaco_t hsaco, hsa_agent_t agent, hsa_executable_t executable, std::function<hsa_status_t(hsaco_t)> loader)
 {
-    std::scoped_lock(_agent_mutex);
+    std::scoped_lock lock(_agent_mutex);
     if (_first_executable_load)
     {
         _first_executable_load = false;
@@ -60,7 +60,7 @@ hsa_executable_symbol_t DebugAgent::symbol_get_info(
     hsa_executable_symbol_t symbol,
     hsa_executable_symbol_info_t attribute)
 {
-    std::scoped_lock(_agent_mutex);
+    std::scoped_lock lock(_agent_mutex);
     auto symbol_info = _co_recorder.record_get_info(symbol, attribute);
     switch (attribute)
     {
