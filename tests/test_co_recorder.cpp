@@ -71,16 +71,23 @@ TEST_CASE("warns when looking up non-existent hsacos", "[co_recorder]")
     REQUIRE(logger.warnings.empty());
 }
 
-TEST_CASE("dump code object to an invalid path", "[co_recorder]")
+TEST_CASE("dump code object to an non-existent directory", "[co_recorder]")
 {
-    const char* CODE_OBJECT_DATA = "CODE OBJECT";
+    const char CODE_OBJECT_DATA[] = "CODE OBJECT";
 
     TestCodeObjectLogger logger;
-    CodeObjectRecorder recorder("invalid-path", logger);
-    recorder.record_code_object(CODE_OBJECT_DATA, sizeof(CODE_OBJECT_DATA), hsa_code_object_t{1}, HSA_STATUS_SUCCESS);
+    CodeObjectRecorder recorder("tests/tmp/very/long/nested/path/co_dir", logger);
+    recorder.record_code_object(CODE_OBJECT_DATA, sizeof(CODE_OBJECT_DATA) - 1, hsa_code_object_t{1}, HSA_STATUS_SUCCESS);
 
-    REQUIRE_THAT(logger.infos.at(0), StartsWith("CO 0xfb1b607e (co-load-id 1): hsa_code_object_deserialize"));
-    REQUIRE_THAT(logger.errors.at(0), Equals("CO 0xfb1b607e (co-load-id 1): cannot write code object to invalid-path/fb1b607e.co"));
+    REQUIRE(logger.errors.empty());
+    REQUIRE_THAT(logger.infos.at(0), StartsWith("CO 0x8fb5f8f8 (co-load-id 1): hsa_code_object_deserialize"));
+    REQUIRE_THAT(logger.infos.at(1), StartsWith("CO 0x8fb5f8f8 (co-load-id 1): written to tests/tmp/very/long/nested/path/co_dir/8fb5f8f8.co"));
+
+    auto co_dump = std::ifstream("tests/tmp/very/long/nested/path/co_dir/8fb5f8f8.co", std::ios::binary);
+    REQUIRE(co_dump);
+    std::string co_dump_contents((std::istreambuf_iterator<char>(co_dump)), std::istreambuf_iterator<char>());
+    std::string expected_contents(CODE_OBJECT_DATA);
+    REQUIRE(co_dump_contents == expected_contents);
 }
 
 TEST_CASE("redundant load code objects", "[co_recorder]")

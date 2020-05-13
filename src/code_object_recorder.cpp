@@ -1,5 +1,6 @@
 #include "code_object_recorder.hpp"
 #include "code_object_loader.hpp"
+#include "fs_utils.hpp"
 #include <cassert>
 #include <cstring>
 #include <fstream>
@@ -37,6 +38,7 @@ void CodeObjectRecorder::dump_code_object(const RecordedCodeObject& co)
         return;
 
     auto filepath = co.dump_path(_dump_dir);
+    fs_utils::create_parent_directories(filepath.c_str());
     if (std::ofstream fs{filepath, std::ios::out | std::ios::binary})
     {
         fs.write((char*)co.ptr(), co.size());

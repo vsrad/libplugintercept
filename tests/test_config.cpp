@@ -6,11 +6,11 @@ TEST_CASE("reads a valid configuration file", "[config]")
     agent::config::Config config;
     REQUIRE(config.agent_log_file() == "-");
     REQUIRE(config.code_object_log_file() == "tests/tmp/co_dump.log");
-    REQUIRE(config.code_object_dump_dir() == "tests/tmp");
+    REQUIRE(config.code_object_dump_dir() == "tests/tmp/code_objects");
 
     std::vector<agent::config::Buffer> expected_buffers = {
         {.size = 1048576,
-         .dump_path = "tests/tmp/debug_buffer",
+         .dump_path = "tests/tmp/buffers/debug_buffer",
          .addr_env_name = "ASM_DBG_BUF_ADDR",
          .size_env_name = "ASM_DBG_BUF_SIZE"},
         {.size = 4096,
@@ -62,8 +62,8 @@ TEST_CASE("reads a minimal configuration file", "[config]")
     agent::config::Config config;
     setenv("INTERCEPT_CONFIG", old_config, 1);
 
-    REQUIRE(config.agent_log_file() == "tests/tmp/agent.log");
-    REQUIRE(config.code_object_log_file() == "tests/tmp/co.log");
+    REQUIRE(config.agent_log_file() == "tests/tmp/logs/agent.log");
+    REQUIRE(config.code_object_log_file() == "tests/tmp/logs/co.log");
     REQUIRE(config.code_object_dump_dir().empty());
     REQUIRE(config.symbol_subs().empty());
     REQUIRE(config.buffers().empty());

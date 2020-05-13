@@ -20,7 +20,7 @@ std::vector<std::string> list_files(const char* dirpath)
 
 std::vector<uint32_t> load_debug_buffer()
 {
-    auto debug_buffer = std::ifstream("tests/tmp/debug_buffer", std::ios::binary | std::ios::ate);
+    auto debug_buffer = std::ifstream("tests/tmp/buffers/debug_buffer", std::ios::binary | std::ios::ate);
     REQUIRE(debug_buffer);
 
     size_t filesize = debug_buffer.tellg();
@@ -33,7 +33,7 @@ std::vector<uint32_t> load_debug_buffer()
 
 TEST_CASE("using trap handler based debug plug with code-object-replace", "[integration]")
 {
-    system("rm -r tests/tmp; mkdir tests/tmp");
+    system("rm -r tests/tmp");
     {
         KernelRunner runner;
         runner.load_code_object("build/tests/kernels/dbg_kernel.co", "dbg_kernel");
@@ -56,7 +56,7 @@ TEST_CASE("using trap handler based debug plug with code-object-replace", "[inte
     REQUIRE(std::getline(co_dump_log, line));
     REQUIRE_THAT(line, StartsWith("[CO INFO] CO 0x" + co_crc + " (co-load-id 1): hsa_code_object_reader_create_from_memory("));
     REQUIRE(std::getline(co_dump_log, line));
-    REQUIRE(line == "[CO INFO] CO 0x" + co_crc + " (co-load-id 1): written to tests/tmp/" + co_crc + ".co");
+    REQUIRE(line == "[CO INFO] CO 0x" + co_crc + " (co-load-id 1): written to tests/tmp/code_objects/" + co_crc + ".co");
     REQUIRE(std::getline(co_dump_log, line));
     REQUIRE(line == "[CO INFO] CO 0x" + co_crc + " (co-load-id 1): code object symbols: dbg_kernel");
     REQUIRE(std::getline(co_dump_log, line));
@@ -95,9 +95,9 @@ TEST_CASE("using in kernel plug with kernel-replace", "[integration]")
     setenv("INTERCEPT_CONFIG", old_env, 1);
 
     // no logs created
-    auto files = list_files("tests/tmp");
-    std::vector<std::string> expected_files = {"debug_buffer", "replacement_plug.co"};
-    REQUIRE(files == expected_files);
+    auto tests_tmp = list_files("tests/tmp");
+    std::vector<std::string> expected_tests_tmp = {"buffers", "replacement_plug.co"};
+    REQUIRE(tests_tmp == expected_tests_tmp);
 
     auto dwords = load_debug_buffer();
     REQUIRE(dwords[0] == 0x7777777);
@@ -108,7 +108,7 @@ TEST_CASE("using in kernel plug with kernel-replace", "[integration]")
 
 TEST_CASE("log-only mode", "[integration]")
 {
-    system("rm -r tests/tmp; mkdir tests/tmp");
+    system("rm -r tests/tmp");
     auto old_env = getenv("INTERCEPT_CONFIG");
     setenv("INTERCEPT_CONFIG", "tests/fixtures/minimal.toml", 1);
     {
@@ -120,7 +120,10 @@ TEST_CASE("log-only mode", "[integration]")
         runner.await_kernel_completion();
     }
     setenv("INTERCEPT_CONFIG", old_env, 1);
-    auto files = list_files("tests/tmp");
-    std::vector<std::string> expected_files = {"agent.log", "co.log"};
-    REQUIRE(files == expected_files);
+    auto tests_tmp = list_files("tests/tmp");
+    std::vector<std::string> expected_tests_tmp = {"logs"};
+    REQUIRE(tests_tmp == expected_tests_tmp);
+    auto tests_tmp_logs = list_files("tests/tmp/logs");
+    std::vector<std::string> expected_tests_tmp_logs = {"agent.log", "co.log"};
+    REQUIRE(tests_tmp_logs == expected_tests_tmp_logs);
 }

@@ -2,7 +2,7 @@
 
 [[buffer]]
 size = 1048576
-dump-path = "tests/tmp/debug_buffer"
+dump-path = "tests/tmp/buffers/debug_buffer"
 addr-env-name = "ASM_DBG_BUF_ADDR"
 size-env-name = "ASM_DBG_BUF_SIZE"
 

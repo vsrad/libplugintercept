@@ -7,6 +7,7 @@ add_library(plugintercept SHARED
     ${CMAKE_CURRENT_SOURCE_DIR}/code_object_recorder.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/code_object_substitutor.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/external_command.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/fs_utils.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/trap_handler.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/config/config.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/logger/logger.cpp)

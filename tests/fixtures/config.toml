@@ -7,7 +7,7 @@ agent-log = "-"
 co-log = "tests/tmp/co_dump.log"
 # (Optional) When the application loads a code object, dump it
 # into the following directory:
-co-dump-dir = "tests/tmp"
+co-dump-dir = "tests/tmp/code_objects"
 
 # Auxiliary GPU buffers are allocated the first time
 # the application creates an executable from a code object.
@@ -20,7 +20,7 @@ co-dump-dir = "tests/tmp"
 size = 1048576
 # (Optional) When the application exits, save the contents
 # of the buffer to the following file:
-dump-path = "tests/tmp/debug_buffer"
+dump-path = "tests/tmp/buffers/debug_buffer"
 # (Optional) Export the address of the GPU buffer as the
 # following environment variable, available in `exec-before-load`
 # commands (detailed below):

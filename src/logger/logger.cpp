@@ -1,4 +1,5 @@
 #include "logger.hpp"
+#include "../fs_utils.hpp"
 #include <iostream>
 
 using namespace agent;
@@ -6,10 +7,17 @@ using namespace agent;
 Logger::Logger(const std::string& path, const char* info_marker, const char* warning_marker, const char* error_marker)
     : _info_marker(info_marker), _warning_marker(warning_marker), _error_marker(error_marker)
 {
-    if (!path.empty()) // logging disabled
-        _output_mutex = std::make_unique<std::mutex>();
-    if (path != "-")
-        _file_output = std::make_unique<std::ofstream>(path, std::ios::out | std::ios::app);
+    if (path.empty()) // logging disabled
+        return;
+
+    _output_mutex = std::make_unique<std::mutex>();
+    if (path == "-") // logging to stdout
+        return;
+
+    fs_utils::create_parent_directories(path.c_str());
+    _file_output = std::make_unique<std::ofstream>(path, std::ios::out | std::ios::app);
+    if (!*_file_output)
+        std::cerr << "libplugintercept: unable to create a log file at " << path << std::endl;
 }
 
 void Logger::write(const char* marker, const std::string& msg)

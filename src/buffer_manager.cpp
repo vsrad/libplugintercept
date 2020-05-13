@@ -1,4 +1,5 @@
 #include "buffer_manager.hpp"
+#include "fs_utils.hpp"
 #include <sstream>
 
 using namespace agent;
@@ -72,6 +73,7 @@ BufferManager::~BufferManager()
             return;
         }
 
+        fs_utils::create_parent_directories(alloc->dump_path.c_str());
         if (std::ofstream fs{alloc->dump_path, std::ios::out | std::ios::binary})
         {
             fs.write(reinterpret_cast<char*>(ptr->host), alloc->size);
