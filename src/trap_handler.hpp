@@ -14,7 +14,8 @@ private:
     const config::TrapHandler& _config;
 
     bool _handler_loaded{false};
-    uint32_t _agent_node_id = 0;
+    uint32_t _agent_node_id{0};
+    void* _trap_handler_buffer{nullptr};
 
 public:
     TrapHandler(AgentLogger& logger, CodeObjectLoader& co_loader, const config::TrapHandler& config)

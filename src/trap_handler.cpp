@@ -1,3 +1,4 @@
+#include <amd_hsa_kernel_code.h>
 #include <hsakmt.h>
 
 #include "trap_handler.hpp"
@@ -32,17 +33,45 @@ void TrapHandler::set_up(hsa_agent_t agent)
         return;
     }
 
-    void* handler_entry = (void*)(kernel_sym_handle + 256 /* sizeof(amd_kernel_code_t) */);
-    HSAKMT_STATUS kmt_status = hsaKmtSetTrapHandler(_agent_node_id, handler_entry, 0, nullptr, 0);
-    if (kmt_status == HSAKMT_STATUS_SUCCESS)
+    if (_config.buffer_size % 4096 != 0)
     {
-        _logger.info("Successfully set " + _config.symbol_name + " from " + _config.code_object_path + " as the trap handler");
-        _handler_loaded = true;
+        _logger.error("Unable to allocate trap handler buffer: requested size (" + std::to_string(_config.buffer_size)
+            + ") needs to be a multiple of page size (4096)");
     }
+    else if (_config.buffer_size != 0)
+    {
+        HsaMemFlags flags = {0};
+        flags.ui32.PageSize = HSA_PAGE_SIZE_4KB;
+        flags.ui32.HostAccess = 1;
+        flags.ui32.NoNUMABind = 1;
+        HSAKMT_STATUS kmt_status = hsaKmtAllocMemory(_agent_node_id, _config.buffer_size, flags, &_trap_handler_buffer);
+        const char* kmt_error_site = "hsaKmtAllocMemory";
+        if (kmt_status == HSAKMT_STATUS_SUCCESS)
+        {
+            kmt_status = hsaKmtMapMemoryToGPUNodes(
+                _trap_handler_buffer, _config.buffer_size, nullptr, {0}, 1, &_agent_node_id);
+            kmt_error_site = "hsaKmtMapMemoryToGPUNodes";
+        }
+        if (kmt_status != HSAKMT_STATUS_SUCCESS)
+        {
+            _logger.hsa_kmt_error("Unable to allocate trap handler buffer", kmt_status, kmt_error_site);
+            _trap_handler_buffer = nullptr;
+        }
+    }
+
+    void* handler_entry = reinterpret_cast<void*>(kernel_sym_handle + sizeof(amd_kernel_code_t));
+    HSAKMT_STATUS kmt_status;
+    if (_trap_handler_buffer)
+        kmt_status = hsaKmtSetTrapHandler(_agent_node_id, handler_entry, 0, _trap_handler_buffer, _config.buffer_size);
     else
-    {
-        _logger.error("Unable to register trap handler: HSAKMT_STATUS = " + std::to_string(kmt_status));
-    }
+        kmt_status = hsaKmtSetTrapHandler(_agent_node_id, handler_entry, 0, nullptr, 0);
+
+    _handler_loaded = kmt_status == HSAKMT_STATUS_SUCCESS;
+    if (_handler_loaded)
+        _logger.info(
+            "Successfully set trap handler kernel " + _config.symbol_name + " from " + _config.code_object_path);
+    else
+        _logger.hsa_kmt_error("Unable to register trap handler", kmt_status, "hsaKmtSetTrapHandler");
 }
 
 TrapHandler::~TrapHandler()
@@ -51,6 +80,18 @@ TrapHandler::~TrapHandler()
     {
         HSAKMT_STATUS kmt_status = hsaKmtSetTrapHandler(_agent_node_id, nullptr, 0, nullptr, 0);
         if (kmt_status != HSAKMT_STATUS_SUCCESS)
-            _logger.error("Unable to reset trap handler: HSAKMT_STATUS = " + std::to_string(kmt_status));
+            _logger.hsa_kmt_error("Unable to reset trap handler", kmt_status, "hsaKmtSetTrapHandler");
+    }
+    if (_trap_handler_buffer)
+    {
+        HSAKMT_STATUS kmt_status = hsaKmtUnmapMemoryToGPU(_trap_handler_buffer);
+        const char* kmt_error_site = "hsaKmtUnmapMemoryToGPU";
+        if (kmt_status == HSAKMT_STATUS_SUCCESS)
+        {
+            kmt_status = hsaKmtFreeMemory(_trap_handler_buffer, _config.buffer_size);
+            kmt_error_site = "hsaKmtFreeMemory";
+        }
+        if (kmt_status != HSAKMT_STATUS_SUCCESS)
+            _logger.hsa_kmt_error("Unable to free trap handler buffer", kmt_status, kmt_error_site);
     }
 }

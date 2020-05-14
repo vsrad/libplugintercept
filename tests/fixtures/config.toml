@@ -60,6 +60,12 @@ required-return-code = 0
 co-path = "tests/tmp/replacement.co"
 # (Required) Name of the trap handler kernel:
 handler-name = "trap_handler"
+# (Optional) Size of the buffer to allocate and pass to
+# hsaKmtSetTrapHandler, in bytes:
+size = 4096
+# (Optional) When the application exits, save the contents
+# of the buffer to the following file:
+dump-path = "tests/tmp/buffers/trap/buf"
 
 # When the application creates an executable from a code object,
 # it can be replaced. Since the application may use

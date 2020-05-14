@@ -30,7 +30,9 @@ TEST_CASE("reads a valid configuration file", "[config]")
 
     agent::config::TrapHandler expected_trap_handler = {
         .code_object_path = "tests/tmp/replacement.co",
-        .symbol_name = "trap_handler"};
+        .symbol_name = "trap_handler",
+        .buffer_size = 4096,
+        .buffer_dump_path = "tests/tmp/buffers/trap/buf"};
     REQUIRE(config.trap_handler() == expected_trap_handler);
 
     std::vector<agent::config::CodeObjectSubstitute> expected_subs = {

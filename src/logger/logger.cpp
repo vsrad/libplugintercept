@@ -38,6 +38,11 @@ void AgentLogger::hsa_error(std::string msg, hsa_status_t status, const char* er
     error(msg.append(": ").append(error_callsite).append(" failed with ").append(err));
 }
 
+void AgentLogger::hsa_kmt_error(std::string msg, HSAKMT_STATUS status, const char* error_callsite)
+{
+    error(msg.append(": ").append(error_callsite).append(" failed with HSAKMT_STATUS ").append(std::to_string(status)));
+}
+
 std::string CodeObjectLogger::co_msg(const RecordedCodeObject& co, const std::string& msg)
 {
     return "CO " + co.info() + ": " + msg;

@@ -63,7 +63,9 @@ InitCommand get_init_command(const cpptoml::table& config)
 TrapHandler get_trap_handler(const cpptoml::table& config)
 {
     return {.code_object_path = get_required<std::string>(config, "co-path", "trap-handler.co-path (path to the code object containing the trap handler kernel)"),
-            .symbol_name = get_required<std::string>(config, "handler-name", "trap-handler.handler-name (name of the trap handler kernel)")};
+            .symbol_name = get_required<std::string>(config, "handler-name", "trap-handler.handler-name (name of the trap handler kernel)"),
+            .buffer_size = config.get_as<uint64_t>("size").value_or(0),
+            .buffer_dump_path = config.get_as<std::string>("dump-path").value_or("")};
 }
 
 Config::Config()

@@ -2,6 +2,7 @@
 
 #include "../code_object.hpp"
 #include <fstream>
+#include <hsakmt.h>
 #include <memory>
 #include <mutex>
 #include <string>
@@ -32,6 +33,7 @@ public:
         : Logger(path, "[INFO] ", "[WARNING] ", "[ERROR] ") {}
 
     void hsa_error(std::string msg, hsa_status_t status, const char* error_callsite);
+    void hsa_kmt_error(std::string msg, HSAKMT_STATUS status, const char* error_callsite);
 };
 
 class CodeObjectLogger : public Logger
