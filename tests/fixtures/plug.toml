@@ -8,6 +8,7 @@ size-env-name = "ASM_DBG_BUF_SIZE"
 
 [init-command]
 exec = """bash -o pipefail -c '\
+  echo >> tests/tmp/init_command_executed;
   perl tests/fixtures/breakpoint.pl -ba $ASM_DBG_BUF_ADDR -bs $ASM_DBG_BUF_SIZE \
       -w v[tid_dump] -l 37 -t 0 tests/kernels/dbg_kernel.s \
   | /opt/rocm/bin/hcc -x assembler -target amdgcn--amdhsa -mcpu=`/opt/rocm/bin/rocminfo | grep -om1 gfx9..` -mno-code-object-v3 \
