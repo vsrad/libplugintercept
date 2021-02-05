@@ -12,13 +12,6 @@ set(ROCM_ROOT /opt/rocm CACHE PATH "ROCm installation path")
 set(ROCM_HEADER_DIR ${ROCM_ROOT}/include CACHE PATH "ROCm include path")
 set(ROCM_LIBRARY_DIR ${ROCM_ROOT}/lib CACHE PATH "ROCm library path")
 
-find_program(HCC NAMES hcc HINTS ${ROCM_ROOT}/bin REQUIRED)
-if(HCC)
-    message(STATUS "Found HCC: ${HCC}")
-else()
-    message(FATAL_ERROR "HCC not found")
-endif()
-
 find_path(HSA_HEADER_DIR hsa.h PATHS ${HSA_HEADER_DIR} NO_DEFAULT_PATH)
 if(HSA_HEADER_DIR)
   message(STATUS "Found HSA header: ${HSA_HEADER_DIR}/hsa.h")
