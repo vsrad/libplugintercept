@@ -27,6 +27,22 @@ hsa_status_t intercept_hsa_code_object_deserialize(
     return status;
 }
 
+hsa_status_t intercept_hsa_queue_create(
+    hsa_agent_t agent,
+    uint32_t size,
+    hsa_queue_type32_t type,
+    void (*callback)(hsa_status_t status, hsa_queue_t *source, void *data),
+    void *data,
+    uint32_t private_segment_size,
+    uint32_t group_segment_size,
+    hsa_queue_t **queue)
+{
+    hsa_status_t status = _intercepted_api_table->hsa_queue_create_fn(
+        agent, size, type, callback, data, private_segment_size, group_segment_size, queue);
+    _debug_agent->record_queue_creation(agent);
+    return status;
+}
+
 hsa_status_t intercept_hsa_executable_load_agent_code_object(
     hsa_executable_t executable,
     hsa_agent_t agent,
@@ -76,6 +92,7 @@ extern "C" bool OnLoad(void* api_table_ptr, uint64_t rt_version, uint64_t failed
 
         api_table->core_->hsa_code_object_reader_create_from_memory_fn = intercept_hsa_code_object_reader_create_from_memory;
         api_table->core_->hsa_code_object_deserialize_fn = intercept_hsa_code_object_deserialize;
+        api_table->core_->hsa_queue_create_fn = intercept_hsa_queue_create;
         api_table->core_->hsa_executable_load_agent_code_object_fn = intercept_hsa_executable_load_agent_code_object;
         api_table->core_->hsa_executable_load_code_object_fn = intercept_hsa_executable_load_code_object;
         api_table->core_->hsa_executable_symbol_get_info_fn = intercept_hsa_executable_symbol_get_info;

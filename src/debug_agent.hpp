@@ -23,7 +23,9 @@ private:
     TrapHandler _trap_handler;
 
     std::mutex _agent_mutex;
-    bool _first_executable_load{true};
+    bool _init_command_executed{false};
+
+    void execute_init_command_once(hsa_agent_t agent);
 
 public:
     DebugAgent(CodeObjectLoader&& co_loader)
@@ -35,6 +37,8 @@ public:
           _co_substitutor(_config.code_object_subs(), _config.symbol_subs(), _logger, _co_loader),
           _buffer_manager(_config.buffers(), _logger),
           _trap_handler(_logger, _co_loader, _config.trap_handler()) {}
+
+    void record_queue_creation(hsa_agent_t agent);
 
     void record_co_load(
         hsaco_t hsaco,

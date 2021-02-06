@@ -25,13 +25,13 @@ hsa_status_t find_gpu_device(hsa_agent_t agent, void* data)
 class KernelRunner
 {
 private:
-    hsa_agent_t _gpu_agent;
-    hsa_signal_t _completion_signal;
-    hsa_queue_t* _queue;
-    hsa_kernel_dispatch_packet_t* _dispatch_packet;
-    uint64_t _dispatch_packet_index;
-    uint64_t _code_object_handle;
-    uint32_t _group_static_size;
+    hsa_agent_t _gpu_agent{0};
+    hsa_signal_t _completion_signal{0};
+    hsa_queue_t* _queue{NULL};
+    hsa_kernel_dispatch_packet_t* _dispatch_packet{NULL};
+    uint64_t _dispatch_packet_index{0};
+    uint64_t _code_object_handle{0};
+    uint32_t _group_static_size{0};
 
 public:
     KernelRunner()
@@ -44,14 +44,6 @@ public:
         if (status != HSA_STATUS_SUCCESS)
             hsa_error("hsa_iterate_agents failed", status);
 
-        uint32_t queue_size;
-        status = hsa_agent_get_info(_gpu_agent, HSA_AGENT_INFO_QUEUE_MAX_SIZE, &queue_size);
-        if (status != HSA_STATUS_SUCCESS)
-            hsa_error("Failed to get HSA_AGENT_INFO_QUEUE_MAX_SIZE", status);
-        status = hsa_queue_create(_gpu_agent, queue_size, HSA_QUEUE_TYPE_MULTI, NULL, NULL, UINT32_MAX, UINT32_MAX, &_queue);
-        if (status != HSA_STATUS_SUCCESS)
-            hsa_error("hsa_queue_create failed", status);
-
         status = hsa_signal_create(1, 0, NULL, &_completion_signal);
         if (status != HSA_STATUS_SUCCESS)
             hsa_error("hsa_signal_create failed", status);
@@ -60,6 +52,17 @@ public:
     ~KernelRunner()
     {
         hsa_shut_down();
+    }
+
+    void create_queue()
+    {
+        uint32_t queue_size;
+        hsa_status_t status = hsa_agent_get_info(_gpu_agent, HSA_AGENT_INFO_QUEUE_MAX_SIZE, &queue_size);
+        if (status != HSA_STATUS_SUCCESS)
+            hsa_error("Failed to get HSA_AGENT_INFO_QUEUE_MAX_SIZE", status);
+        status = hsa_queue_create(_gpu_agent, queue_size, HSA_QUEUE_TYPE_MULTI, NULL, NULL, UINT32_MAX, UINT32_MAX, &_queue);
+        if (status != HSA_STATUS_SUCCESS)
+            hsa_error("hsa_queue_create failed", status);
     }
 
     void load_code_object(const char* filename, const char* symbol_name)
@@ -110,6 +113,12 @@ public:
 
     void init_dispatch_packet(uint16_t workgroup_x, uint32_t grid_x)
     {
+        if (!_queue)
+        {
+            std::cerr << "Error: HSA queue has not been created yet, call create_queue() first" << std::endl;
+            exit(1);
+        }
+
         const uint32_t queue_mask = _queue->size - 1;
         _dispatch_packet_index = hsa_queue_add_write_index_relaxed(_queue, 1);
         _dispatch_packet = static_cast<hsa_kernel_dispatch_packet_t*>(_queue->base_address) + (_dispatch_packet_index & queue_mask);

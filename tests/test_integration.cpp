@@ -36,6 +36,7 @@ TEST_CASE("using trap handler based debug plug with code-object-replace", "[inte
     system("rm -r tests/tmp");
     {
         KernelRunner runner;
+        runner.create_queue();
         runner.load_code_object("build/tests/kernels/dbg_kernel.co", "dbg_kernel");
         runner.init_dispatch_packet(64, 128);
         runner.dispatch_kernel();
@@ -80,23 +81,32 @@ TEST_CASE("using trap handler based debug plug with code-object-replace", "[inte
         REQUIRE(dwords[dword_idx] == val * 2);
 }
 
-TEST_CASE("using in kernel plug with kernel-replace", "[integration]")
+TEST_CASE("using in kernel plug with kernel-replace, init command runs after hsa_queue_create", "[integration]")
 {
     system("rm -r tests/tmp; mkdir tests/tmp");
     auto old_env = getenv("INTERCEPT_CONFIG");
     setenv("INTERCEPT_CONFIG", "tests/fixtures/plug.toml", 1);
     {
         KernelRunner runner;
+
+        REQUIRE(0 != system("test -f tests/tmp/init_command_executed")); // init command not executed yet
+
+        runner.create_queue();
+
+        REQUIRE(0 == system("test -f tests/tmp/init_command_executed && test 1 -eq $(stat -c '%s' tests/tmp/init_command_executed)")); // executed after queue_create
+
         runner.load_code_object("build/tests/kernels/dbg_kernel.co", "dbg_kernel");
         runner.init_dispatch_packet(64, 64);
         runner.dispatch_kernel();
         runner.await_kernel_completion();
+
+        REQUIRE(0 == system("test -f tests/tmp/init_command_executed && test 1 -eq $(stat -c '%s' tests/tmp/init_command_executed)")); // executed only once
     }
     setenv("INTERCEPT_CONFIG", old_env, 1);
 
     // no logs created
     auto tests_tmp = list_files("tests/tmp");
-    std::vector<std::string> expected_tests_tmp = {"buffers", "replacement_plug.co"};
+    std::vector<std::string> expected_tests_tmp = {"buffers", "init_command_executed", "replacement_plug.co"};
     REQUIRE(tests_tmp == expected_tests_tmp);
 
     auto dwords = load_debug_buffer();
@@ -106,6 +116,30 @@ TEST_CASE("using in kernel plug with kernel-replace", "[integration]")
         REQUIRE(dwords[dword_idx] == tid++);
 }
 
+TEST_CASE("using in kernel plug with kernel-replace, init command run after hsa_executable_load_agent_code_object", "[integration]")
+{
+    system("rm -r tests/tmp; mkdir tests/tmp");
+    auto old_env = getenv("INTERCEPT_CONFIG");
+    setenv("INTERCEPT_CONFIG", "tests/fixtures/plug.toml", 1);
+    {
+        KernelRunner runner;
+
+        REQUIRE(0 != system("test -f tests/tmp/init_command_executed")); // init command not executed yet
+
+        runner.load_code_object("build/tests/kernels/dbg_kernel.co", "dbg_kernel");
+
+        REQUIRE(0 == system("test -f tests/tmp/init_command_executed && test 1 -eq $(stat -c '%s' tests/tmp/init_command_executed)")); // executed after load_code_object
+
+        runner.create_queue();
+        runner.init_dispatch_packet(64, 64);
+        runner.dispatch_kernel();
+        runner.await_kernel_completion();
+
+        REQUIRE(0 == system("test -f tests/tmp/init_command_executed && test 1 -eq $(stat -c '%s' tests/tmp/init_command_executed)")); // executed only onc
+    }
+    setenv("INTERCEPT_CONFIG", old_env, 1);
+}
+
 TEST_CASE("log-only mode", "[integration]")
 {
     system("rm -r tests/tmp");
@@ -113,6 +147,7 @@ TEST_CASE("log-only mode", "[integration]")
     setenv("INTERCEPT_CONFIG", "tests/fixtures/minimal.toml", 1);
     {
         KernelRunner runner;
+        runner.create_queue();
         runner.load_code_object("build/tests/kernels/dbg_kernel.co", "dbg_kernel");
         runner.load_code_object("build/tests/kernels/dbg_kernel.co", "dbg_kernel"); // trigger redundant load warning
         runner.init_dispatch_packet(64, 64);

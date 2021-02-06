@@ -6,23 +6,34 @@
 
 using namespace agent;
 
+void DebugAgent::execute_init_command_once(hsa_agent_t agent)
+{
+    if (!_init_command_executed)
+    {
+        _init_command_executed = true;
+        _buffer_manager.allocate_buffers(agent);
+        ExternalCommand::run_init_command(_config.init_command(), _buffer_manager.buffer_environment_variables(), _logger);
+        _trap_handler.set_up(agent);
+        _co_substitutor.prepare_symbol_substitutes(agent);
+    }
+}
+
 void DebugAgent::record_co_load(hsaco_t hsaco, const void* contents, size_t size, hsa_status_t load_status)
 {
     std::scoped_lock lock(_agent_mutex);
     _co_recorder.record_code_object(contents, size, hsaco, load_status);
 }
 
+void DebugAgent::record_queue_creation(hsa_agent_t agent)
+{
+    std::scoped_lock lock(_agent_mutex);
+    execute_init_command_once(agent);
+}
+
 hsa_status_t DebugAgent::executable_load_co(hsaco_t hsaco, hsa_agent_t agent, hsa_executable_t executable, std::function<hsa_status_t(hsaco_t)> loader)
 {
     std::scoped_lock lock(_agent_mutex);
-    if (_first_executable_load)
-    {
-        _first_executable_load = false;
-        _buffer_manager.allocate_buffers(agent);
-        ExternalCommand::run_init_command(_config.init_command(), _buffer_manager.buffer_environment_variables(), _logger);
-        _trap_handler.set_up(agent);
-        _co_substitutor.prepare_symbol_substitutes(agent);
-    }
+    execute_init_command_once(agent);
 
     auto co = _co_recorder.find_code_object(&hsaco);
     if (!co)
