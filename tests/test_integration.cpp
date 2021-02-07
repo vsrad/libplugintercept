@@ -33,7 +33,9 @@ std::vector<uint32_t> load_debug_buffer()
 
 TEST_CASE("using trap handler based debug plug with code-object-replace", "[integration]")
 {
-    system("rm -r tests/tmp");
+    system("rm -r tests/tmp; mkdir tests/tmp");
+    auto old_env = getenv("INTERCEPT_CONFIG");
+    setenv("INTERCEPT_CONFIG", "tests/fixtures/plug_trap.toml", 1);
     {
         KernelRunner runner;
         runner.create_queue();
@@ -42,6 +44,7 @@ TEST_CASE("using trap handler based debug plug with code-object-replace", "[inte
         runner.dispatch_kernel();
         runner.await_kernel_completion();
     }
+    setenv("INTERCEPT_CONFIG", old_env, 1);
 
     auto co = agent::CodeObject::try_read_from_file("build/tests/kernels/dbg_kernel.co");
     std::stringstream co_crc_ss;
@@ -61,9 +64,9 @@ TEST_CASE("using trap handler based debug plug with code-object-replace", "[inte
     REQUIRE(std::getline(co_dump_log, line));
     REQUIRE(line == "[CO INFO] CO 0x" + co_crc + " (co-load-id 1): code object symbols: dbg_kernel");
     REQUIRE(std::getline(co_dump_log, line));
-    REQUIRE_THAT(line, StartsWith("[CO INFO] kernel-get-id 1: hsa_executable_symbol_get_info"));
+    REQUIRE_THAT(line, StartsWith("[CO INFO] CO 0x" + co_crc + " (co-load-id 1): kernel-get-id 1: hsa_executable_symbol_get_info"));
     REQUIRE(std::getline(co_dump_log, line));
-    REQUIRE_THAT(line, StartsWith("[CO INFO] kernel-get-id 2: hsa_executable_symbol_get_info"));
+    REQUIRE_THAT(line, StartsWith("[CO INFO] CO 0x" + co_crc + " (co-load-id 1): kernel-get-id 2: hsa_executable_symbol_get_info"));
 
     auto dwords = load_debug_buffer();
     REQUIRE(dwords[0] == 0x7777777);

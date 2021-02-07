@@ -1,0 +1,31 @@
+[logs]
+agent-log = "-"
+co-log = "tests/tmp/co_dump.log"
+co-dump-dir = "tests/tmp/code_objects"
+
+[[buffer]]
+size = 1048576
+dump-path = "tests/tmp/buffers/debug_buffer"
+addr-env-name = "ASM_DBG_BUF_ADDR"
+size-env-name = "ASM_DBG_BUF_SIZE"
+
+[[buffer]]
+size = 4096
+addr-env-name = "ASM_HID_BUF_ADDR"
+
+[trap-handler]
+co-path = "tests/tmp/replacement.co"
+handler-name = "trap_handler"
+
+[init-command]
+exec = """bash -o pipefail -c '\
+  perl tests/fixtures/breakpoint_trap.pl -ba "$ASM_DBG_BUF_ADDR" -bs "$ASM_DBG_BUF_SIZE" -ha "$ASM_HID_BUF_ADDR" \
+      -w v[tid_dump] -e "s_nop 10" -l 41 -t 2 tests/kernels/dbg_kernel.s | tee tests/tmp/plugged.s \
+  | /opt/rocm/llvm/bin/clang -x assembler -target amdgcn--amdhsa -mcpu=`/opt/rocm/bin/rocminfo | grep -om1 gfx9..` -mno-code-object-v3 \
+    -Itests/kernels/include -v -o tests/tmp/replacement.co -'"""
+required-return-code = 0
+
+[[kernel-replace]]
+condition = { co-load-id = 1, kernel-name = "dbg_kernel" }
+replace-name = "dbg_kernel"
+co-path = "tests/tmp/replacement.co"
