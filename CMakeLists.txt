@@ -2,7 +2,8 @@ cmake_minimum_required(VERSION 3.5)
 project(debug-plug-hsa-intercept VERSION 0.1.0)
 
 set(CMAKE_CXX_STANDARD 17)
-add_compile_options("-Wall" "-g")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall")
+set(CMAKE_CXX_FLAGS_DEBUG_INIT "-g")
 
 set(HSA_ROOT /opt/rocm/hsa CACHE PATH "HSA runtime path")
 set(HSA_HEADER_DIR ${HSA_ROOT}/include/hsa CACHE PATH "HSA include path")
