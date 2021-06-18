@@ -1,11 +1,11 @@
-#include "dispatch.hpp"
 #include <string.h>
-#include <boost/program_options.hpp>
 #include <iostream>
 #include <fstream>
 
+#include "dispatch.hpp"
+#include "op_params.hpp"
+
 using namespace amd::dispatch;
-using namespace boost::program_options;
 
 class VectorAdd : public Dispatch {
 private:
@@ -80,36 +80,48 @@ public:
 
 int main(int argc, const char** argv)
 {
-  try {
-    options_description desc("General options");
-    desc.add_options()
-    ("help,h", "usage message")
-    ("clang", value<std::string>()->default_value("clang"), "clang compiler path")
-    ("asm", value<std::string>()->default_value("fp32_v_add.s"), "kernel source")
-    ("include", value<std::string>()->default_value("./"), "inclide directories")
-    ("output_path", value<std::string>()->default_value("fp32_v_add.co"), "kernel binary output path")
-    ;
+    std::string clang;
+    std::string asm_source;
+    std::string include_dir;
+    std::string output_path;
 
-    variables_map vm;
-    store(parse_command_line(argc, argv, desc), vm);
+    Options cli_ops(10);
 
-    if (vm.count("help")) {
-      std::cout << desc << std::endl;
-      return 0;
+    for (int i = 1; i <= argc-1; i += 2)
+    {
+        if (!strcmp(argv[i], "-?") || !strcmp(argv[i], "-help"))
+        {
+            cli_ops.ShowHelp();
+            exit(0);
+            return false;
+        }
+
+        bool merged_flag = false;
+        if (!cli_ops.ProcessArg(argv[i], argv[i+1], &merged_flag))
+        {
+            std::cerr << "Unknown flag or flag without value: " << argv[i] << "\n";
+            return false;
+        }
+
+        if (merged_flag)
+        {
+            i--;
+            continue;
     }
 
-    std::string clang = vm["clang"].as<std::string>();
-    std::string asm_source = vm["asm"].as<std::string>();;
-    std::string include_dir = vm["include"].as<std::string>();
-    std::string output_path = vm["output_path"].as<std::string>();
+        if (argv[i+1] && cli_ops.MatchArg(argv[i+1]))
+        {
+            std::cerr << "Argument \"" << argv[i+1]
+                << "\" is aliased with command line flags\n\t maybe real argument is missed for flag \""
+                << argv[i] << "\"\n";
+            return false;
+        }
+    }
 
     return VectorAdd(
       clang,
       asm_source,
       include_dir,
       output_path).RunMain();
-  }
-  catch (std::exception& e) {
-    std::cerr << e.what() << std::endl;
-  }
+
 }
