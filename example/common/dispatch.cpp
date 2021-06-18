@@ -51,7 +51,7 @@
 namespace amd {
 namespace dispatch {
 
-Dispatch::Dispatch(int argc, const char** argv)
+Dispatch::Dispatch()
   : queue_size(0),
     queue(0)
 {

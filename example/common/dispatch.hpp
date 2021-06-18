@@ -104,7 +104,7 @@ protected:
   bool HsaError(const char *msg, hsa_status_t status = HSA_STATUS_SUCCESS);
 
 public:
-  Dispatch(int argc, const char** argv);
+  Dispatch();
   ~Dispatch();
 
   void SetAgent(hsa_agent_t agent) { assert(!this->agent.handle); this->agent = agent; }

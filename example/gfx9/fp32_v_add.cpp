@@ -7,7 +7,7 @@
 using namespace amd::dispatch;
 using namespace boost::program_options;
 
-class HalfVectorAdd : public Dispatch {
+class VectorAdd : public Dispatch {
 private:
   Buffer* in1;
   Buffer* in2;
@@ -19,12 +19,11 @@ private:
   std::string output_path;
 
 public:
-  HalfVectorAdd(int argc, const char **argv,
-    std::string &clang,
+  VectorAdd(std::string &clang,
     std::string &asm_source,
     std::string &include_dir,
     std::string &output_path)
-    : Dispatch(argc, argv),
+    : Dispatch(),
       length(64),
       clang{std::move(clang) },
       asm_source{std::move(asm_source) },
@@ -104,8 +103,7 @@ int main(int argc, const char** argv)
     std::string include_dir = vm["include"].as<std::string>();
     std::string output_path = vm["output_path"].as<std::string>();
 
-    return HalfVectorAdd(argc,
-      argv,
+    return VectorAdd(
       clang,
       asm_source,
       include_dir,
