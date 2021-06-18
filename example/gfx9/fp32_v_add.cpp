@@ -13,31 +13,24 @@ private:
   Buffer* in2;
   Buffer* out;
   unsigned length;
-  std::string clang;
-  std::string asm_source;
-  std::string include_dir;
-  std::string output_path;
+  std::string co_path;
+  std::string build_cmd;
 
 public:
-  VectorAdd(std::string &clang,
-    std::string &asm_source,
-    std::string &include_dir,
-    std::string &output_path)
+  VectorAdd(std::string &co_path, std::string &build_cmd)
     : Dispatch(),
       length(64),
-      clang{std::move(clang) },
-      asm_source{std::move(asm_source) },
-      include_dir{std::move(include_dir) },
-      output_path{std::move(output_path) } { }
+      co_path{std::move(co_path) },
+      build_cmd{std::move(build_cmd) } { }
 
   bool SetupCodeObject() override {
-    std::string clang_call = clang + " -x assembler -target amdgcn--amdhsa -mcpu=gfx900 -mno-code-object-v3 -I" + include_dir
-      + " -o " + output_path + " " + asm_source;
+    output << "Execute: " << build_cmd << std::endl;
+    if (system(build_cmd.c_str())) {
+        output  << "Error: assembly failed \n";
+        return false;
+    }
 
-    output << "Execute: " << clang_call << std::endl;
-    if (system(clang_call.c_str())) { output << "Error: kernel build failed - " << asm_source << std::endl; return false; }
-
-    return LoadCodeObjectFromFile(output_path);
+    return LoadCodeObjectFromFile(co_path);
   }
 
   bool Setup() override {
@@ -80,12 +73,13 @@ public:
 
 int main(int argc, const char** argv)
 {
-    std::string clang;
-    std::string asm_source;
-    std::string include_dir;
-    std::string output_path;
+    std::string co_path;
+    std::string build_cmd;
 
     Options cli_ops(10);
+
+    cli_ops.Add(&co_path, "-c", "", string(""), "Code object path", str2str);
+    cli_ops.Add(&build_cmd, "-asm", "", string(""), "Shader build cmd", str2str);
 
     for (int i = 1; i <= argc-1; i += 2)
     {
@@ -107,7 +101,7 @@ int main(int argc, const char** argv)
         {
             i--;
             continue;
-    }
+        }
 
         if (argv[i+1] && cli_ops.MatchArg(argv[i+1]))
         {
@@ -118,10 +112,5 @@ int main(int argc, const char** argv)
         }
     }
 
-    return VectorAdd(
-      clang,
-      asm_source,
-      include_dir,
-      output_path).RunMain();
-
+    return VectorAdd(co_path, build_cmd).RunMain();
 }
