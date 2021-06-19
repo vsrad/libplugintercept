@@ -5,83 +5,199 @@
 #include "dispatch.hpp"
 #include "op_params.hpp"
 
-using namespace amd::dispatch;
-
-class VectorAdd : public Dispatch {
-private:
-  Buffer* in1;
-  Buffer* in2;
-  Buffer* out;
-  unsigned length;
-  std::string co_path;
-  std::string build_cmd;
-
-public:
-  VectorAdd(std::string &co_path, std::string &build_cmd)
-    : Dispatch(),
-      length(64),
-      co_path{std::move(co_path) },
-      build_cmd{std::move(build_cmd) } { }
-
-  bool SetupCodeObject() override {
-    output << "Execute: " << build_cmd << std::endl;
-    if (system(build_cmd.c_str())) {
-        output  << "Error: assembly failed \n";
-        return false;
-    }
-
-    return LoadCodeObjectFromFile(co_path);
-  }
-
-  bool Setup() override {
-    if (!AllocateKernarg(3 * sizeof(Buffer*))) { return false; }
-    in1 = AllocateBuffer(length * sizeof(float));
-    in2 = AllocateBuffer(length * sizeof(float));
-    for (unsigned i = 0; i < length; ++i) {
-      in1->Data<float>(i) = (float)i;
-      in2->Data<float>(i) = ((float)i) * 1.25f;
-    }
-    if (!CopyTo(in1)) { output << "Error: failed to copy to local" << std::endl; return false; }
-    if (!CopyTo(in2)) { output << "Error: failed to copy to local" << std::endl; return false; }
-    out = AllocateBuffer(length * sizeof(float));
-
-    Kernarg(in1);
-    Kernarg(in2);
-    Kernarg(out);
-    SetGridSize(64);
-    SetWorkgroupSize(64);
-    return true;
-  }
-
-  bool Verify() override {
-    if (!CopyFrom(out)) { output << "Error: failed to copy from local" << std::endl; return false; }
-
-    bool ok = true;
-    for (unsigned i = 0; i < length; ++i) {
-      float f1 = in1->Data<float>(i);
-      float f2 = in2->Data<float>(i);
-      float res = out->Data<float>(i);
-      float expected = f1 + f2;
-      if (expected != res){
-        output << "Error: validation failed at " << i << ": got " << res << " expected " << expected << std::endl;
-        ok = false;
-      }
-    }
-    return ok;
-  }
+struct vadd_data
+{
+    uint64_t in1;
+    uint64_t in2;
+    uint64_t out;
 };
 
-int main(int argc, const char** argv)
+bool read_file(const char* path, vector<char>& bin)
 {
+	std::ifstream file(path, std::ios::binary | std::ios::ate);
+	const auto size = file.tellg();
+	bool read_failed = false;
+	do {
+		if (size < 0) { read_failed = true; break; }
+		    file.seekg(std::ios::beg);
+		if (file.fail()) { read_failed = true; break; }
+		    bin.resize(size);
+		if (file.rdbuf()->sgetn(bin.data(), size) != size) { read_failed = true; break; }
+	} while (false);
+	file.close();
+
+	if (read_failed)
+		cerr << "unable to read file \"" << path << "\"\n";
+
+	return !read_failed;
+}
+
+using namespace std;
+using namespace amd::dispatch;
+
+class VectorAdd : public Dispatch
+{
+private:
+    unsigned length;
+    int gpu_id;
+    std::string co_path;
+    std::string build_cmd;
+    kernel kern;
+    vector<float> in1;
+    vector<float> in2;
+    vector<float> out;
+    void *in1_gpu_ptr;
+    void *in2_gpu_ptr;
+    void *out_gpu_ptr;
+
+public:
+    VectorAdd(std::string &co_path, std::string &build_cmd, int gpu_id)
+        : Dispatch(),
+            length(64),
+            gpu_id(gpu_id),
+            co_path{std::move(co_path)},
+            build_cmd{std::move(build_cmd)},
+            in1_gpu_ptr{nullptr}, 
+            in2_gpu_ptr{nullptr}, 
+            out_gpu_ptr{nullptr} { }
+
+    bool Init()
+    {
+        if (!init(gpu_id))
+            return false;
+
+        cout << "Execute: " << build_cmd << std::endl;
+        if (system(build_cmd.c_str()))
+        {
+            cerr << "Error: assembly failed \n";
+            return false;
+        }
+
+        vector<char> bin;
+        if (!read_file(co_path.c_str(), bin))
+            return false;
+
+        return load_kernel_from_memory(&kern, bin.data(), bin.size());
+    }
+
+    bool Setup()
+    {
+        in1.resize(length);
+        in2.resize(length);
+        out.resize(length);
+
+        for (unsigned i = 0; i < length; ++i)
+        {
+            in1[i] = (float)i;
+            in2[i] = ((float)i) * 1.25f;
+        }
+
+        auto buf_size = length * sizeof(float);
+        in1_gpu_ptr = allocate_gpumem(buf_size);
+        in2_gpu_ptr = allocate_gpumem(buf_size);
+
+        if (!(memcpyHtoD(in1_gpu_ptr, in1.data(), buf_size)
+           && memcpyHtoD(in2_gpu_ptr, in2.data(), buf_size)))
+        {
+            cerr << "Error: failed to copy to local" << std::endl;
+            return false;
+        }
+
+        out_gpu_ptr = allocate_gpumem(buf_size);
+
+        vadd_data app_params;
+        app_params.in1 = (uint64_t)in1_gpu_ptr;
+        app_params.in2 = (uint64_t)in2_gpu_ptr;
+        app_params.out = (uint64_t)out_gpu_ptr;
+
+        dispatch_params params;
+        params.wg_size[0] = 64;
+        params.wg_size[1] = 1;
+        params.wg_size[2] = 1;
+    
+        params.grid_size[0] = params.wg_size[0];
+        params.grid_size[1] = params.wg_size[1];
+        params.grid_size[2] = params.wg_size[2];
+
+        params.dynamic_lds = 0; 
+        params.kernarg_size = sizeof(vadd_data);
+        params.kernarg = &app_params;
+
+        return run_kernel(&kern, &params, UINT64_MAX);
+    }
+
+    bool Verify()
+    {
+        if (!memcpyDtoH(out.data(), out_gpu_ptr, out.size() * sizeof(float)))
+        {
+            cerr << "Error: failed to copy from local" << std::endl;
+            return false;
+        }
+
+        bool ok = true;
+        for (unsigned i = 0; i < length; ++i)
+        {
+            float f1 = in1[i];
+            float f2 = in2[i];
+            float res = out[i];
+            float expected = f1 + f2;
+
+            if (expected != res)
+            {
+                cerr << "Error: validation failed at " << i << ": got " << res << " expected " << expected << std::endl;
+                ok = false;
+            }
+        }
+        return ok;
+    }
+
+    bool Shutdown()
+    {
+        if (in1_gpu_ptr != nullptr)
+        {
+            if (!free_gpumem(in1_gpu_ptr))
+                cerr << "Failed free in1 buff\n";
+        }
+        if (in2_gpu_ptr != nullptr)
+        {
+            if (!free_gpumem(in2_gpu_ptr))
+                cerr << "Failed free in2 buff\n";
+        }
+        if (out_gpu_ptr != nullptr)
+        {
+            if (!free_gpumem(out_gpu_ptr))
+                cerr << "Failed free out buff\n";
+        }
+
+        return shutdown();
+    }
+
+    bool Run()
+    {
+        auto ok = Init()
+               && Setup()
+               && Verify();
+
+        ok = Shutdown() && ok;
+        
+        cout << (ok ? "Success" : "Failed") << endl;
+        return ok;
+    }
+};
+
+int main(int argc, const char **argv)
+{
+    int gpu_id;
     std::string co_path;
     std::string build_cmd;
 
     Options cli_ops(10);
 
+    cli_ops.Add(&gpu_id, "-gpu-id", "", 0, "GPU agent id", atoi);
     cli_ops.Add(&co_path, "-c", "", string(""), "Code object path", str2str);
     cli_ops.Add(&build_cmd, "-asm", "", string(""), "Shader build cmd", str2str);
 
-    for (int i = 1; i <= argc-1; i += 2)
+    for (int i = 1; i <= argc - 1; i += 2)
     {
         if (!strcmp(argv[i], "-?") || !strcmp(argv[i], "-help"))
         {
@@ -91,7 +207,7 @@ int main(int argc, const char** argv)
         }
 
         bool merged_flag = false;
-        if (!cli_ops.ProcessArg(argv[i], argv[i+1], &merged_flag))
+        if (!cli_ops.ProcessArg(argv[i], argv[i + 1], &merged_flag))
         {
             std::cerr << "Unknown flag or flag without value: " << argv[i] << "\n";
             return false;
@@ -103,14 +219,14 @@ int main(int argc, const char** argv)
             continue;
         }
 
-        if (argv[i+1] && cli_ops.MatchArg(argv[i+1]))
+        if (argv[i + 1] && cli_ops.MatchArg(argv[i + 1]))
         {
-            std::cerr << "Argument \"" << argv[i+1]
-                << "\" is aliased with command line flags\n\t maybe real argument is missed for flag \""
-                << argv[i] << "\"\n";
+            std::cerr << "Argument \"" << argv[i + 1]
+                        << "\" is aliased with command line flags\n\t maybe real argument is missed for flag \""
+                        << argv[i] << "\"\n";
             return false;
         }
     }
 
-    return VectorAdd(co_path, build_cmd).RunMain();
+    return VectorAdd(co_path, build_cmd, gpu_id).Run();
 }
