@@ -30,7 +30,7 @@ EXAMPLEPATH=`realpath $SCRIPTPATH/../../`
 
 GFX=`/opt/rocm/bin/rocminfo | grep -om1 gfx9..`
 CLANG="/opt/rocm/llvm/bin/clang"
-CLANG_ARGS="-x assembler -target amdgcn--amdhsa -mcpu=$GFX -mno-code-object-v3 -I$EXAMPLEPATH/gfx9/include"
+CLANG_ARGS="-x assembler -target amdgcn--amdhsa -mcpu=$GFX -I$EXAMPLEPATH/gfx9/include"
 
 cat <<EOF > tmp/config.toml
 [logs]
