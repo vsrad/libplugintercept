@@ -2,8 +2,6 @@ my $usage = << "ENDOFUSAGE";
 Usage: $0 [<options>] <gcnasm_source>
     gcnasm_source          the source s file
     options
-	-bs <size>      debug buffer size (mandatory)
-	-ba <address>   debug buffer address (mandatory)
         -l <line>       line number to break (mandatory)
         -o <file>       output to the <file> rather than STDOUT
         -w <watches>    extra watches supplied colon separated in quotes;
@@ -12,12 +10,6 @@ Usage: $0 [<options>] <gcnasm_source>
         -e <command>    instruction to insert after the injection
                         instead of "s_endpgm"; if "NONE" is supplied
                         then none is added
-        -a              use "auto's"; the script would not look for auto
-                        watch variables (kicks in by itself if -w is empty)
-        -s <N_sgpr>     number of the SGPR to use for SRD, must be 4-aligned
-        -v <N_vgpr>     number of the temporary VGPR (not destroyed)
-        -g <N_grp_id>   number of the SGPR containing group ID
-        -r <N_vgpr>     number of the SGPR to use for loop counter
         -t <value>      target value for the loop counter
         -h              print usage information
 ENDOFUSAGE
@@ -26,41 +18,27 @@ use Text::Balanced qw {extract_bracketed};
 use List::MoreUtils qw(uniq);
 
 my $args    = 0;
-my $fo      = *STDOUT;
+my $fo 		= *STDOUT;
 my @watches;
 my $endpgm  = "s_endpgm";
 my @lines;
 my $line    = 0;
-my $auto    = 0;
 my $condit  = "1";
 my $output  = 0;
-my $gid     = 8;
-my $sgpr    = 0;
-my $vgpr    = 31;
-my $counter;
 my $target;
-my $bufsize;
-my $bufaddr;
 
 while (scalar @ARGV) {
     my $str = shift @ARGV;
-    if ($str eq "-bs")  {   $bufsize =            shift @ARGV;  next;   }
-    if ($str eq "-ba")  {   $bufaddr =            shift @ARGV;  next;   }
     if ($str eq "-l")   {   $line    =            shift @ARGV;  next;   }
     if ($str eq "-o")   {   $_ = shift @ARGV;
                             open $fo, '>', $_ || die "$usage\nCould not open '$_': $!\n";
                             $output  = 1;                       next;   }
     if ($str eq "-w")   {   @watches = split /:/, shift @ARGV;  next;   }
     if ($str eq "-e")   {   $endpgm  =            shift @ARGV;  next;   }
-    if ($str eq "-a")   {   $auto    = 1;                       next;   }
-    if ($str eq "-s")   {   $sgpr    =            shift @ARGV;  next;   }
-    if ($str eq "-v")   {   $vgpr    =            shift @ARGV;  next;   }
-    if ($str eq "-g")   {   $gid     =            shift @ARGV;  next;   }
-    if ($str eq "-r")   {   $counter =            shift @ARGV;  next;   }
     if ($str eq "-t")   {   $target  =            shift @ARGV;  next;   }
     if ($str eq "-h")   {   print "$usage\n";                   last;   }
-
-    open my $df, '<', $str || die "$usage\nCould not open '$str: $!";
+	
+	open my $df, '<', $str || die "$usage\nCould not open '$str: $!";
     push @lines, <$df>;
     close $df;
 }
@@ -71,7 +49,6 @@ my @done = @watches;
 
 my $n_var   = scalar @done;
 my $to_dump = join ', ', @done;
-   $sgpr = 0;
 
 my $loopcounter = << "LOOPCOUNTER";
         s_cbranch_scc1 debug_dumping_loop_counter_lab1_\\\@
@@ -131,7 +108,7 @@ my $plug_macro = << "PLUGMACRO";
 	s_lshr_b32 s[dbg_counter], s[dbg_counter], 6 //wave_size_log2
 	s_add_u32 s[dbg_soff], s[dbg_soff], s[dbg_counter]
 	s_mul_i32 s[dbg_soff], s[dbg_soff], 64 * (1 + $n_var) * 4
-
+	
 	s_mov_b32 s[dbg_counter], 0
 	M_DBG_INIT_INSTANTIATED = 1
 	debug_init_end:
@@ -146,7 +123,7 @@ my $plug_macro = << "PLUGMACRO";
 		.endif
 //  debug dumping dongle begin
 $loopcounter
-
+		
 		v_save   = dbg_vtmp
 		s_srd    = dbg_srd
 		s_grp    = dbg_soff
@@ -186,7 +163,7 @@ $loopcounter
 				buffer_store_dword v[v_save], off, s[s_srd:s_srd+3], s[s_grp] offset:0+buf_offset\\\@
 			.endr
 		.endif
-
+		
 		s_mov_b32 exec_lo, s[dbg_stmp]
 		s_mov_b32 exec_hi, s[dbg_counter]
 
